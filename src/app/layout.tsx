@@ -64,9 +64,9 @@ export default function RootLayout({
             </SidebarContent>
             <SidebarFooter className="p-2">
               <div className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden text-center">
-                © {new Date().getFullYear()}
+                © {new Date().getFullYear()} PowerLog
               </div>
-               <div className="text-xs text-muted-foreground group-data-[collapsible=icon]:not(:hidden) text-center group-data-[state=expanded]:hidden">
+               <div className="hidden group-data-[collapsible=icon]:block text-center">
                 <Repeat className="h-4 w-4 mx-auto"/>
               </div>
             </SidebarFooter>
@@ -96,5 +96,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    
