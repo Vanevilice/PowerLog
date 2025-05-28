@@ -25,10 +25,10 @@ export async function processSeaPlusRailCalculation({
   values, context, toast, setIsLoading, setShippingInfo, setLastSuccessfulCalculation,
   setCachedShippingInfo, setCachedLastSuccessfulCalculation
 }: CalculationArgsBase ) {
-  const { excelRouteData, excelSOCRouteData, excelRailData, excelDropOffData } = context;
+  const { excelRouteData, excelSOCRouteData, excelRailData, excelDropOffData, calculationMode } = context;
 
   // Enhanced checks for essential fields for "Get Price & Commentary"
-  if (context.calculationMode === "sea_plus_rail") {
+  if (calculationMode === "sea_plus_rail") {
     if (!values.originPort) {
       toast({ variant: "destructive", title: "Missing Information", description: "Please select an Origin Port." });
       setIsLoading(false);
@@ -196,7 +196,7 @@ export async function processSeaPlusRailCalculation({
         shipmentType, originCity: originPort!, destinationCity: destinationPort!, seaLineCompany: actualSeaLine, containerType: containerType!, seaCost: finalSeaPriceWithMargin, seaComment: foundSeaComment,
         railCost20DC_24t: containerType === "20DC" ? finalRailBaseCost24tWithMargin : null, railCost20DC_28t: containerType === "20DC" ? finalRailBaseCost28tWithMargin : null, railGuardCost20DC: containerType === "20DC" ? foundRailGuardCost20DC : null,
         railCost40HC: containerType === "40HC" ? finalRailBaseCost40HCWithMargin : null, railGuardCost40HC: containerType === "40HC" ? foundRailGuardCost40HC : null,
-        railArrivalStation: foundRailArrivalStation, railDepartureStation: foundRailDepartureStation, dropOffCost: shipmentType === "COC" ? foundDropOffCost : null, dropOffComment: shipmentType === "COC" ? foundDropOffComment : null, socComment, russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : undefined,
+        railArrivalStation: foundRailArrivalStation, railDepartureStation: foundRailDepartureStation, dropOffCost: shipmentType === "COC" ? foundDropOffCost : null, dropOffComment: shipmentType === "COC" ? foundDropOffComment : null, socComment: foundSocComment, russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : undefined,
       };
       const result = await calculateShippingCost(aiInput);
       setShippingInfo(result);
@@ -207,7 +207,7 @@ export async function processSeaPlusRailCalculation({
         railCostBase24t: containerType === "20DC" ? foundRailBaseCost24t : null, railCostBase28t: containerType === "20DC" ? foundRailBaseCost28t : null, railGuardCost20DC: containerType === "20DC" ? foundRailGuardCost20DC : null,
         railCostBase40HC: containerType === "40HC" ? foundRailBaseCost40HC : null, railGuardCost40HC: containerType === "40HC" ? foundRailGuardCost40HC : null,
         railMarginApplied: railMargin, railCostFinal24t: containerType === "20DC" ? finalRailBaseCost24tWithMargin : null, railCostFinal28t: containerType === "20DC" ? finalRailBaseCost28tWithMargin : null, railCostFinal40HC: containerType === "40HC" ? finalRailBaseCost40HCWithMargin : null,
-        dropOffCost: shipmentType === "COC" ? foundDropOffCost : null, dropOffComment: shipmentType === "COC" ? foundDropOffComment : null, socComment,
+        dropOffCost: shipmentType === "COC" ? foundDropOffCost : null, dropOffComment: shipmentType === "COC" ? foundDropOffComment : null, socComment: foundSocComment,
       };
       setLastSuccessfulCalculation(calcDetails);
       setCachedLastSuccessfulCalculation(calcDetails);
@@ -455,3 +455,4 @@ export function calculateBestPrice({
   }
   setIsCalculatingBestPrice(false);
 }
+
