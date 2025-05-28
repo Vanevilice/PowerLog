@@ -13,8 +13,8 @@ export interface ExcelRoute { // COC Data from 3rd Sheet
   originPorts: string[];
   destinationPorts: string[];
   seaLines: string[];
-  price20DC: number | string | null; // Can be string for special formats
-  price40HC: number | string | null; // Can be string for special formats
+  price20DC: number | string | null;
+  price40HC: number | string | null;
   seaComment?: string;
 }
 
@@ -22,8 +22,8 @@ export interface ExcelSOCRoute { // SOC Data from 2nd Sheet
   departurePorts: string[];
   destinationPorts: string[];
   seaLines: string[];
-  price20DC: number | string | null; // Can be string for special formats
-  price40HC: number | string | null; // Can be string for special formats
+  price20DC: number | string | null;
+  price40HC: number | string | null;
   socComment?: string;
 }
 
@@ -31,18 +31,18 @@ export interface RailDataEntry {
   departureStations: string[];
   arrivalStations: string[];
   cityOfArrival: string;
-  price20DC_24t: number | null; // Assumed to be number
-  guardCost20DC: number | null;  // Assumed to be number
-  price20DC_28t: number | null; // Assumed to be number
-  price40HC: number | null;    // Assumed to be number
-  guardCost40HC: number | null;  // Assumed to be number
+  price20DC_24t: number | null;
+  guardCost20DC: number | null;
+  price20DC_28t: number | null;
+  price40HC: number | null;
+  guardCost40HC: number | null;
 }
 
 export interface DropOffEntry {
   seaLine: string;
   cities: string[];
-  price20DC: number | string | null; // Changed to allow string for formats like "$ X / $ Y"
-  price40HC: number | string | null; // Changed to allow string
+  price20DC: number | string | null;
+  price40HC: number | string | null;
   comment?: string;
 }
 
@@ -53,10 +53,24 @@ export interface DirectRailEntry {
   border: string;
   destinationCity: string;
   incoterms: string;
-  price: number | null; // Assumed to be number
+  price: number | null;
   etd: string;
   commentary: string;
 }
+
+// Dashboard Data Structure
+export interface DashboardServiceDataRow {
+  route: string;
+  rate: string;
+  containerInfo: string;
+  additionalComment: string;
+}
+
+export interface DashboardServiceSection {
+  serviceName: string;
+  dataRows: DashboardServiceDataRow[];
+}
+
 
 // Form Values
 export interface RouteFormValues {
@@ -81,13 +95,6 @@ export interface RouteFormValues {
 // AI Flow Output Extension and Calculation Details
 // Combined SmartPricingOutput (for general AI results) and PricingCommentaryOutput (for commentary only)
 export interface CombinedAiOutput extends SmartPricingOutputBase, PricingCommentaryOutputBase {
-  // Fields from SmartPricingOutputBase (from AI flow):
-  // commentary?: string; // This will be merged from both
-  // totalFreightCostUSD?: number | null;
-  // totalRailCostRUB?: number | null;
-  // (add other base fields if they exist and are needed by UI)
-
-  // Extensions for UI and specific calculation paths:
   shipmentType?: ShipmentType;
   originCity?: string;
   destinationCity?: string; // Final destination or sea destination
@@ -112,7 +119,6 @@ export interface CombinedAiOutput extends SmartPricingOutputBase, PricingComment
 
   directRailCityOfDeparture?: string;
   directRailDepartureStation?: string;
-  // directRailDestinationCity is already part of SmartPricingOutputBase, aliased here if needed
   directRailBorder?: string;
   directRailCost?: number | null;
   directRailETD?: string;
@@ -226,6 +232,9 @@ export interface PricingDataContextType {
 
   bestPriceResults: BestPriceRoute[] | null;
   setBestPriceResults: React.Dispatch<React.SetStateAction<BestPriceRoute[] | null>>;
+
+  dashboardServiceSections: DashboardServiceSection[]; // State for dashboard data
+  setDashboardServiceSections: React.Dispatch<React.SetStateAction<DashboardServiceSection[]>>; // Setter for dashboard data
 }
 
 // Old types from original PowerLogForm / calculator, keep if still used by calculator page, or remove if fully deprecated
@@ -298,5 +307,3 @@ export interface RateData {
     thcRail: number;
   };
 }
-
-    

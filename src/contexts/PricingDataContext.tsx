@@ -4,8 +4,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import type {
-  SmartPricingOutput, // Now importing the consolidated, extended version
-  PricingCommentaryOutput,
+  CombinedAiOutput, // Using the consolidated type from types/index.ts
   ExcelRoute,
   ExcelSOCRoute,
   RailDataEntry,
@@ -17,6 +16,7 @@ import type {
   RouteFormValues,
   CalculationDetailsForInstructions,
   BestPriceRoute,
+  DashboardServiceSection, // Import new dashboard type
   PricingDataContextType, // Import the context type definition
 } from '@/types'; // All types now come from src/types
 
@@ -45,9 +45,11 @@ export const PricingDataProvider = ({ children }: { children: ReactNode }) => {
   const [directRailBordersList, setDirectRailBordersList] = useState<string[]>([]);
 
   const [cachedFormValues, setCachedFormValues] = useState<Partial<RouteFormValues> | null>(null);
-  const [cachedShippingInfo, setCachedShippingInfo] = useState<SmartPricingOutput | PricingCommentaryOutput | null>(null);
+  const [cachedShippingInfo, setCachedShippingInfo] = useState<CombinedAiOutput | null>(null);
   const [cachedLastSuccessfulCalculation, setCachedLastSuccessfulCalculation] = useState<CalculationDetailsForInstructions | null>(null);
   const [bestPriceResults, setBestPriceResults] = useState<BestPriceRoute[] | null>(null);
+  const [dashboardServiceSections, setDashboardServiceSections] = useState<DashboardServiceSection[]>([]); // New state for dashboard
+
 
   return (
     <PricingDataContext.Provider value={{
@@ -71,6 +73,7 @@ export const PricingDataProvider = ({ children }: { children: ReactNode }) => {
       cachedShippingInfo, setCachedShippingInfo,
       cachedLastSuccessfulCalculation, setCachedLastSuccessfulCalculation,
       bestPriceResults, setBestPriceResults,
+      dashboardServiceSections, setDashboardServiceSections, // Provide dashboard state and setter
     }}>
       {children}
     </PricingDataContext.Provider>
@@ -84,5 +87,3 @@ export const usePricingData = (): PricingDataContextType => {
   }
   return context;
 };
-
-    
