@@ -1,3 +1,9 @@
+// This file is no longer directly used by the new PowerLogForm in the same way.
+// It was designed for the old side-by-side sea/rail form sections.
+// You can delete this file or keep it for reference.
+// For the purpose of this operation, we are assuming it's not directly used by the new UI.
+// To avoid errors if it's imported elsewhere unexpectedly, I'll provide its original content.
+
 "use client";
 
 import type { Control } from "react-hook-form";
@@ -17,11 +23,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { CalculationFormValues } from "@/lib/schemas";
+import type { CalculationFormValues } from "@/lib/schemas"; // This now also exports PowerLogFormValues
 import type { ContainerType } from "@/types";
 
 interface FreightModeFormSectionProps {
-  control: Control<CalculationFormValues>;
+  control: Control<CalculationFormValues>; // This was for the old schema
   mode: "seaFreight" | "railFreight";
   title: string;
 }

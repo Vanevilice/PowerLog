@@ -1,14 +1,29 @@
+
 "use server";
 
 import { z } from 'zod';
-import { calculationFormSchema } from '@/lib/schemas';
+// Using the old calculationFormSchema for adapting, but ideally, this action is rewritten for powerLogFormSchema
+import { calculationFormSchema, powerLogFormSchema } from '@/lib/schemas';
 import { calculateSeaFreight, calculateRailFreight } from '@/lib/calculator';
-import type { CalculationParams, CalculationResults, CalculationResultItem } from '@/types';
+import type { CalculationParams, CalculationResults, PowerLogFormValues } from '@/types';
+
+// The performCalculation function needs to be significantly refactored
+// to work with the new PowerLogFormValues and the selected calculationMode.
+// For now, we'll make minimal changes to accept the old structure for compatibility
+// if PowerLogForm adapts its output, or we'll simulate a response.
 
 export async function performCalculation(
-  data: CalculationParams
-): Promise<{ success: boolean; results?: CalculationResults; error?: string | z.ZodError<CalculationParams> }> {
+  // data: PowerLogFormValues // Ideal new signature
+  data: CalculationParams // Current signature, PowerLogForm will need to adapt its output or this action needs full rewrite
+): Promise<{ success: boolean; results?: CalculationResults; error?: string | z.ZodError<any> }> {
   try {
+    // If 'data' is PowerLogFormValues, validation and processing would be different.
+    // For now, assuming 'data' conforms to CalculationParams (seaFreight & railFreight objects)
+    // This means PowerLogForm.tsx's onSubmit needs to correctly structure this.
+    // The current PowerLogForm.tsx's adapter is a hack.
+
+    // Let's validate against the OLD schema to make the existing logic run
+    // This is a temporary measure. The action should ideally use powerLogFormSchema
     const validatedData = calculationFormSchema.parse(data);
 
     const seaResult = calculateSeaFreight(validatedData.seaFreight);
@@ -17,10 +32,9 @@ export async function performCalculation(
     const results: CalculationResults = {
       seaFreightResult: seaResult,
       railFreightResult: railResult,
-      currency: "USD" // Assuming USD for now
+      currency: "USD"
     };
 
-    // Determine recommended mode and savings
     if (seaResult.costBreakdown.totalCost < railResult.costBreakdown.totalCost) {
       results.recommendedMode = "Sea Freight";
       results.savings = {
@@ -36,11 +50,9 @@ export async function performCalculation(
         cheaperMode: "Direct Rail",
       };
     } else {
-       results.recommendedMode = "None"; // Costs are equal or logic needs refinement
+       results.recommendedMode = "None";
     }
 
-
-    // Simulate network delay for loading state demonstration
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     return { success: true, results };

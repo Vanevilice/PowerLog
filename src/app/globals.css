@@ -13,7 +13,7 @@
     --popover: 210 25% 98%;
     --popover-foreground: 215 15% 25%;
 
-    --primary: 208 45% 65.1%; /* #79A8D3 desaturated blue */
+    --primary: 250 65% 60%; /* New: Purplish blue (e.g., #6B59CC) */
     --primary-foreground: 210 20% 98%; /* Light text for on-primary */
 
     --secondary: 210 25% 90%; /* Lighter gray */
@@ -22,15 +22,15 @@
     --muted: 210 20% 85%;
     --muted-foreground: 210 15% 55%;
 
-    --accent: 96 57.9% 73.1%; /* #B0E293 yellow-green */
-    --accent-foreground: 96 30% 25%; /* Dark text for on-accent */
+    --accent: 250 65% 60%; /* New: Same as primary */
+    --accent-foreground: 210 20% 98%; /* Dark text for on-accent */
 
     --destructive: 0 62.8% 50.6%; /* Standard red */
     --destructive-foreground: 0 0% 98%;
 
     --border: 210 20% 88.2%;
     --input: 210 20% 92.2%;
-    --ring: 208 45% 65.1%; /* Primary color for focus rings */
+    --ring: 250 65% 60%; /* New: Primary color for focus rings */
 
     --radius: 0.5rem;
 
@@ -42,12 +42,12 @@
 
     --sidebar-background: 210 25% 98%;
     --sidebar-foreground: 215 15% 25%;
-    --sidebar-primary: 208 45% 65.1%;
+    --sidebar-primary: 250 65% 60%;
     --sidebar-primary-foreground: 210 20% 98%;
     --sidebar-accent: 210 25% 90%;
     --sidebar-accent-foreground: 215 15% 35%;
     --sidebar-border: 210 20% 88.2%;
-    --sidebar-ring: 208 45% 65.1%;
+    --sidebar-ring: 250 65% 60%;
   }
 
   .dark {
@@ -60,8 +60,8 @@
     --popover: 215 28% 17%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 208 45% 65.1%; /* #79A8D3 desaturated blue */
-    --primary-foreground: 215 15% 15%; /* Darker text for on-primary in dark mode if primary is light */
+    --primary: 250 65% 60%; 
+    --primary-foreground: 210 20% 98%;
 
     --secondary: 215 28% 25%;
     --secondary-foreground: 210 40% 98%;
@@ -69,15 +69,15 @@
     --muted: 215 28% 25%;
     --muted-foreground: 210 40% 60%;
 
-    --accent: 96 57.9% 73.1%; /* #B0E293 yellow-green */
-    --accent-foreground: 96 40% 15%; /* Dark text for on-accent */
+    --accent: 250 65% 60%; 
+    --accent-foreground: 210 20% 98%;
 
     --destructive: 0 62.8% 50.6%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 215 28% 25%;
     --input: 215 28% 28%;
-    --ring: 208 45% 65.1%;
+    --ring: 250 65% 60%;
 
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
@@ -87,12 +87,12 @@
     
     --sidebar-background: 215 28% 15%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 208 45% 65.1%;
-    --sidebar-primary-foreground: 215 15% 15%;
+    --sidebar-primary: 250 65% 60%;
+    --sidebar-primary-foreground: 210 20% 98%;
     --sidebar-accent: 215 28% 22%;
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 215 28% 25%;
-    --sidebar-ring: 208 45% 65.1%;
+    --sidebar-ring: 250 65% 60%;
   }
 }
 

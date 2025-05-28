@@ -1,3 +1,9 @@
+// This file is effectively replaced by powerlog-form.tsx
+// You can delete this file or keep it for reference.
+// For the purpose of this operation, we are assuming it's replaced.
+// If it were to be kept, its content would remain as before.
+// To avoid errors, I'll provide its original content.
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -68,7 +74,7 @@ export default function CalculatorForm({
         } else if (response.error) { // ZodError
           // Simplified error message, could be more detailed
           errorMessage = "Invalid input. Please check the form fields.";
-           Object.values(response.error.fieldErrors).forEach(fieldErrors => {
+           Object.values((response.error as any).fieldErrors).forEach((fieldErrors : any) => {
             if (fieldErrors && fieldErrors.length > 0) {
               toast({
                 title: "Validation Error",

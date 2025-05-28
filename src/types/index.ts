@@ -1,11 +1,30 @@
 
 export type ContainerType = "20GP" | "40GP" | "40HC";
+export type CalculationMode = "sea_rail" | "direct_rail";
+export type ShipmentType = "coc" | "soc";
 
+// For the new PowerLogForm
+export interface PowerLogFormInput {
+  calculationMode: CalculationMode;
+  usdRubRate?: string;
+  seaMargin?: number;
+  railMargin?: number;
+  shipmentType: ShipmentType;
+  originPort?: string;
+  destinationPortSea?: string;
+  seaLineCompany?: string;
+  containerType: ContainerType;
+  cargoWeight: number;
+  destinationCity: string;
+  station?: string;
+}
+
+// Existing types - some might be reusable or need merging
 export interface FreightModeInput {
   containerType: ContainerType;
   cargoWeight: number; // in kg
   origin: string;
-  destination: string;
+  destination:string;
   insurance: boolean;
   customsClearance: boolean;
 }
@@ -23,6 +42,7 @@ export interface CostBreakdown {
   customsCost?: number;
   otherCharges?: number;
   totalCost: number;
+  currency?: string; // Added currency here
 }
 
 export interface CalculationResultItem {
@@ -41,16 +61,19 @@ export interface CalculationResults {
     currency: string;
     cheaperMode: "Sea Freight" | "Direct Rail";
   };
+  currency?: string; // Overall currency for results
 }
 
-// This is a partial representation of what might come from Excel/rate sheets
 export interface RateData {
   seaRates: Record<ContainerType, { base: number; perKg?: number }>;
   railRates: Record<ContainerType, { base: number; perKg?: number }>;
   miscCharges: {
-    insuranceFactor: number; // e.g., 0.001 of cargo value (cargo value not in form, simplify for now)
+    insuranceFactor: number;
     customsFixed: number;
     thcSea: number;
     thcRail: number;
   };
 }
+
+// Exporting new form values type from schema
+export type { PowerLogFormValues } from '@/lib/schemas';
