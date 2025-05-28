@@ -10,8 +10,8 @@ export const RouteSchema = z.object({
     required_error: "Shipment type (COC/SOC) is required.",
     invalid_type_error: "Invalid shipment type.",
   }),
-  originPort: z.string().min(1, "Origin port is required.").optional(), // Optional at schema level, required by logic/UI conditionally
-  destinationPort: z.string().optional(),
+  originPort: z.string().optional(), // Optional at schema level, required by logic/UI conditionally
+  destinationPort: z.string().optional(), // Made optional at schema level for sea_plus_rail as well
   seaLineCompany: z.string().optional(),
   containerType: z.enum(CONTAINER_TYPES_CONST).optional(),
   russianDestinationCity: z.string().optional(),
@@ -27,19 +27,21 @@ export const RouteSchema = z.object({
 
   calculationModeToggle: z.enum(CALCULATION_MODES_CONST).optional(), // For UI radio button state
 }).refine(data => {
-  // Conditional validation: if sea_plus_rail mode is implied by presence of originPort
-  if (data.calculationModeToggle === 'sea_plus_rail' || (!data.calculationModeToggle && data.originPort)) { // Check if sea_plus_rail
-    if (!data.originPort) return false; // Origin port required for sea_plus_rail
-    if (!data.destinationPort) return false; // Destination port required for sea_plus_rail
-    if (data.originPort === data.destinationPort) return false; // Must be different
-    if (!data.containerType) return false; // Container type required for sea_plus_rail
+  // Conditional validation: if sea_plus_rail mode is implied
+  if (data.calculationModeToggle === 'sea_plus_rail' || (!data.calculationModeToggle && data.originPort)) {
+    if (!data.originPort) return false;
+    // destinationPort is now handled by specific function logic, not a schema requirement here
+    // if (!data.destinationPort) return false; 
+    if (data.originPort && data.destinationPort && data.originPort === data.destinationPort) return false;
+    if (!data.containerType) return false;
   }
   return true;
 }, (data) => {
     if (data.calculationModeToggle === 'sea_plus_rail' || (!data.calculationModeToggle && data.originPort)) {
         if (!data.originPort) return { message: "Origin port is required for Sea+Rail.", path: ["originPort"]};
-        if (!data.destinationPort) return { message: "Destination port (Sea) is required for Sea+Rail.", path: ["destinationPort"]};
-        if (data.originPort === data.destinationPort) return { message: "Origin and Destination ports must be different.", path: ["destinationPort"]};
+        // No longer providing schema error for missing destinationPort
+        // if (!data.destinationPort) return { message: "Destination port (Sea) is required for Sea+Rail.", path: ["destinationPort"]}; 
+        if (data.originPort && data.destinationPort && data.originPort === data.destinationPort) return { message: "Origin and Destination ports must be different.", path: ["destinationPort"]};
         if (!data.containerType) return { message: "Container type is required for Sea+Rail.", path: ["containerType"]};
     }
     return { message: "Invalid configuration." }; // Generic, should not be hit if paths are correct
@@ -102,5 +104,3 @@ export const calculationFormSchema = z.object({
 });
 
 export type CalculationFormValues = z.infer<typeof calculationFormSchema>;
-
-    

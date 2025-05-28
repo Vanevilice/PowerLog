@@ -55,9 +55,9 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
     ? "Upload Море + Ж/Д Excel"
     : !watchedOriginPort
     ? "Select Origin Port First"
-    : localAvailableDestinationPorts.length > 0 // If there are *any* destinations for the selected origin
-    ? "Владивосток" // Then show "Владивосток" as the placeholder
-    : "No destinations for origin"; // Otherwise, if no destinations, show this
+    : localAvailableDestinationPorts.length > 0 
+    ? "Владивосток" // Always show Владивосток as placeholder if options available
+    : "No destinations for origin";
 
   return (
     <>
@@ -162,7 +162,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
                   {isSeaRailExcelDataLoaded && watchedOriginPort && localAvailableDestinationPorts.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_dest_for_origin_disabled" disabled>No destinations for origin</SelectItem>)}
                 </SelectContent>
               </Select>
-              <FormMessage />
+              {/* <FormMessage /> Removed to prevent error message for this field */}
             </FormItem>
           )}
         />
@@ -268,4 +268,3 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
     </>
   );
 };
-    
