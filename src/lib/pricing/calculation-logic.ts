@@ -6,16 +6,16 @@ import { generatePricingCommentary, type PricingCommentaryInput } from "@/ai/flo
 import type {
   RouteFormValues, SmartPricingOutput, PricingDataContextType, ExcelRoute, ExcelSOCRoute,
   RailDataEntry, DirectRailEntry, BestPriceRoute, CalculationDetailsForInstructions,
-  ShipmentType, ContainerType, // These now come from @/types
+  ShipmentType, ContainerType,
 } from '@/types'; // Centralized types
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, USD_RUB_CONVERSION_RATE, DROP_OFF_TRIGGER_PHRASES } from './constants';
 
 interface CalculationArgsBase {
-  values: RouteFormValues; // Use consolidated RouteFormValues
+  values: RouteFormValues;
   context: PricingDataContextType;
   toast: ReturnType<typeof useToast>['toast'];
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  setShippingInfo: React.Dispatch<React.SetStateAction<SmartPricingOutput | null>>; // Use consolidated SmartPricingOutput
+  setShippingInfo: React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutput | null>>;
   setLastSuccessfulCalculation: React.Dispatch<React.SetStateAction<CalculationDetailsForInstructions | null>>;
   setCachedShippingInfo: PricingDataContextType['setCachedShippingInfo'];
   setCachedLastSuccessfulCalculation: PricingDataContextType['setCachedLastSuccessfulCalculation'];
@@ -27,11 +27,25 @@ export async function processSeaPlusRailCalculation({
 }: CalculationArgsBase ) {
   const { excelRouteData, excelSOCRouteData, excelRailData, excelDropOffData } = context;
 
-  if (context.calculationMode === "sea_plus_rail" && !values.destinationPort) {
-    toast({ variant: "destructive", title: "Missing Information", description: "Please select Destination Port (Sea)." });
-    setIsLoading(false);
-    return;
+  // Enhanced checks for essential fields for "Get Price & Commentary"
+  if (context.calculationMode === "sea_plus_rail") {
+    if (!values.originPort) {
+      toast({ variant: "destructive", title: "Missing Information", description: "Please select an Origin Port." });
+      setIsLoading(false);
+      return;
+    }
+    if (!values.destinationPort) {
+      toast({ variant: "destructive", title: "Missing Information", description: "Please select a Destination Port (Sea)." });
+      setIsLoading(false);
+      return;
+    }
+    if (!values.containerType) {
+      toast({ variant: "destructive", title: "Missing Information", description: "Please select a Container Type." });
+      setIsLoading(false);
+      return;
+    }
   }
+
   setIsLoading(true);
   setShippingInfo(null);
   setLastSuccessfulCalculation(null);
@@ -215,7 +229,7 @@ export async function processSeaPlusRailCalculation({
         finalCommentaryText = commentaryReason + "\n\nAI Suggestions: " + commentaryResult.commentary;
       }
       const commentaryOutputDisplay = { commentary: finalCommentaryText };
-      setShippingInfo(commentaryOutputDisplay as SmartPricingOutput); // Cast for display
+      setShippingInfo(commentaryOutputDisplay as SmartPricingOutput); 
       setCachedShippingInfo(commentaryOutputDisplay as SmartPricingOutput);
     }
   } catch (error) {
@@ -256,7 +270,7 @@ export async function processDirectRailCalculation({
     }
   }
   if (matchedDirectRailEntry) {
-    const result: SmartPricingOutput = { // Construct as SmartPricingOutput for consistency
+    const result: SmartPricingOutput = { 
       directRailCityOfDeparture: matchedDirectRailEntry.cityOfDeparture, directRailDepartureStation: matchedDirectRailEntry.departureStation,
       directRailDestinationCity: matchedDirectRailEntry.destinationCity, directRailBorder: matchedDirectRailEntry.border,
       directRailCost: matchedDirectRailEntry.price, directRailETD: matchedDirectRailEntry.etd,
@@ -269,19 +283,19 @@ export async function processDirectRailCalculation({
     toast({ title: "Direct Rail Price Found", description: "Details displayed below." });
   } else {
     toast({ variant: "destructive", title: "No Direct Rail Route Found", description: "No matching direct rail route." });
-    setShippingInfo({ commentary: "No matching direct rail route found." });
-    setCachedShippingInfo({ commentary: "No matching direct rail route found." });
+    setShippingInfo({ commentary: "No matching direct rail route found." } as SmartPricingOutput);
+    setCachedShippingInfo({ commentary: "No matching direct rail route found." } as SmartPricingOutput);
   }
   setIsLoading(false);
 }
 
 
 interface BestPriceArgs {
-  form: UseFormReturn<RouteFormValues>; // Use consolidated RouteFormValues
+  form: UseFormReturn<RouteFormValues>; 
   context: PricingDataContextType;
   toast: ReturnType<typeof useToast>['toast'];
   setIsCalculatingBestPrice: React.Dispatch<React.SetStateAction<boolean>>;
-  setShippingInfo: React.Dispatch<React.SetStateAction<SmartPricingOutput | null>>; // Use consolidated
+  setShippingInfo: React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutput | null>>;
   setBestPriceResults: PricingDataContextType['setBestPriceResults'];
   setCachedFormValues: PricingDataContextType['setCachedFormValues'];
   setIsNavigatingToBestPrices: React.Dispatch<React.SetStateAction<boolean>>;
@@ -441,5 +455,3 @@ export function calculateBestPrice({
   }
   setIsCalculatingBestPrice(false);
 }
-
-    

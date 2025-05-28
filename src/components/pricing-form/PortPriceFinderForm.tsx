@@ -9,12 +9,12 @@ import { Loader2, Copy, Edit3, Calculator, SearchCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form } from "@/components/ui/form"; // Assuming Form is used, if not remove.
+import { Form } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import {
   usePricingData,
-  type RouteFormValues, // Using the consolidated type from types/index.ts
-  type SmartPricingOutput, // Using the consolidated type from types/index.ts
+  type RouteFormValues,
+  type SmartPricingOutput,
   type PricingCommentaryOutput,
   type CalculationDetailsForInstructions,
   type PricingDataContextType,
@@ -24,7 +24,7 @@ import { handleSeaRailFileParse, handleDirectRailFileParse } from '@/lib/pricing
 import { processSeaPlusRailCalculation, processDirectRailCalculation, calculateBestPrice } from '@/lib/pricing/calculation-logic';
 import { handleCopyOutput, handleCreateInstructionsNavigation, handleDirectRailCopy } from '@/lib/pricing/ui-helpers';
 import { usePricingFormEffects } from '@/hooks/usePricingFormEffects';
-import { DEFAULT_SEA_RAIL_FORM_VALUES } from '@/lib/pricing/constants'; // Assuming NONE_SEALINE_VALUE is used within or exported from here
+import { DEFAULT_SEA_RAIL_FORM_VALUES, DEFAULT_DIRECT_RAIL_FORM_VALUES } from '@/lib/pricing/constants';
 import { CommonFormFields } from './fields/CommonFormFields';
 import { SeaRailFormFields } from './fields/SeaRailFormFields';
 import { DirectRailFormFields } from './fields/DirectRailFormFields';
@@ -71,12 +71,8 @@ export default function PortPriceFinderForm(): JSX.Element {
       ...DEFAULT_SEA_RAIL_FORM_VALUES,
       seaMargin: "",
       railMargin: "",
-      directRailAgentName: "",
-      directRailCityOfDeparture: "",
-      directRailDestinationCityDR: "",
-      directRailIncoterms: "",
-      directRailBorder: "",
-      calculationModeToggle: calculationMode, // Initialize with context's mode
+      ...DEFAULT_DIRECT_RAIL_FORM_VALUES,
+      calculationModeToggle: calculationMode, 
     },
   });
   const { handleSubmit, getValues } = form;
@@ -104,45 +100,49 @@ export default function PortPriceFinderForm(): JSX.Element {
     localAvailableSeaLines, setLocalAvailableSeaLines,
     localAvailableRussianDestinationCities, setLocalAvailableRussianDestinationCities,
     localAvailableArrivalStations, setLocalAvailableArrivalStations,
-    setShippingInfoState: setShippingInfo as React.Dispatch<React.SetStateAction<SmartPricingOutput | null>>,
+    setShippingInfoState: setShippingInfo as React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutput | null>>,
     setLastSuccessfulCalculationState: setLastSuccessfulCalculation,
   });
 
   React.useEffect(() => {
     const today = new Date();
     const formattedDate = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const mockRate = 90.50;
+    const mockRate = 90.50; // Replace with actual API call
     setExchangeRate("USD/RUB as of " + formattedDate + ": " + mockRate.toFixed(2));
   }, []);
-
+  
+  // Navigate to best prices page after state is updated
   React.useEffect(() => {
     if (isNavigatingToBestPrices) {
       router.push('/best-prices');
-      setIsNavigatingToBestPrices(false);
+      setIsNavigatingToBestPrices(false); // Reset the flag
     }
   }, [isNavigatingToBestPrices, router]);
+
 
   const onSubmitHandler = async (values: RouteFormValues) => {
     const currentCalculationMode = pricingContext.calculationMode;
     if (currentCalculationMode === 'sea_plus_rail') {
       await processSeaPlusRailCalculation({
         values, context: pricingContext, toast,
-        setIsLoading, setShippingInfo: setShippingInfo as React.Dispatch<React.SetStateAction<SmartPricingOutput | null>>,
+        setIsLoading, 
+        setShippingInfo: setShippingInfo as React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutput | null>>,
         setLastSuccessfulCalculation,
         setCachedShippingInfo, setCachedLastSuccessfulCalculation
       });
     } else if (currentCalculationMode === 'direct_rail') {
       await processDirectRailCalculation({
         values, context: pricingContext, toast,
-        setIsLoading, setShippingInfo: setShippingInfo as React.Dispatch<React.SetStateAction<SmartPricingOutput | null>>,
+        setIsLoading, 
+        setShippingInfo: setShippingInfo as React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutput | null>>,
         setLastSuccessfulCalculation,
         setCachedShippingInfo, setCachedLastSuccessfulCalculation
       });
     }
   };
 
-  const onSeaRailFileChangeWrapper = (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("[PortPriceFinderForm] onSeaRailFileChangeWrapper triggered", event);
+ const onSeaRailFileChangeWrapper = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("[PortPriceFinderForm] onSeaRailFileChangeWrapper TRACER for Sea+Rail", event);
     const file = event.target.files?.[0];
     console.log("[PortPriceFinderForm] Selected Sea+Rail file:", file);
 
@@ -160,20 +160,20 @@ export default function PortPriceFinderForm(): JSX.Element {
     }
     console.log("[PortPriceFinderForm] Sea+Rail file found, calling handleSeaRailFileParse.");
     handleSeaRailFileParse({
-      file,
-      form: form, // Removed 'as any'
+      file, // Pass the File object directly
+      form: form,
       contextSetters: pricingContext,
       setShippingInfoState: setShippingInfo as React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutput | null>>,
       setHasRestoredFromCacheState: setHasRestoredFromCache,
       toast,
       fileInputRef: seaRailFileInputRef,
       setIsParsingState: setIsParsingSeaRailFile,
-      setBestPriceResults,
+      setBestPriceResults, // Make sure this is passed if needed by the parser
     });
   };
 
   const onDirectRailFileChangeWrapper = (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("[PortPriceFinderForm] onDirectRailFileChangeWrapper triggered", event);
+    console.log("[PortPriceFinderForm] onDirectRailFileChangeWrapper TRACER for Direct Rail", event);
     const file = event.target.files?.[0];
     console.log("[PortPriceFinderForm] Selected Direct Rail file:", file);
 
@@ -191,27 +191,29 @@ export default function PortPriceFinderForm(): JSX.Element {
     }
     console.log("[PortPriceFinderForm] Direct Rail file found, calling handleDirectRailFileParse.");
     handleDirectRailFileParse({
-      file,
-      form: form, // Removed 'as any'
+      file, // Pass the File object directly
+      form: form,
       contextSetters: pricingContext,
       setShippingInfoState: setShippingInfo as React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutput | null>>,
       setHasRestoredFromCacheState: setHasRestoredFromCache,
       toast,
       fileInputRef: directRailFileInputRef,
       setIsParsingState: setIsParsingDirectRailFile,
-      setBestPriceResults,
+      setBestPriceResults, // Make sure this is passed if needed by the parser
     });
   };
   
   const onCalculateBestPriceWrapper = () => {
     calculateBestPrice({
-        form: form, // Removed 'as any'
+        form: form, 
         context: pricingContext, toast,
-        setIsCalculatingBestPrice, setShippingInfo: setShippingInfo as React.Dispatch<React.SetStateAction<SmartPricingOutput | null>>,
+        setIsCalculatingBestPrice, 
+        setShippingInfo: setShippingInfo as React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutput | null>>,
         setBestPriceResults,
         setCachedFormValues, setIsNavigatingToBestPrices
     });
   };
+
 
   const commonFormProps = {
     form, isParsingSeaRailFile, isParsingDirectRailFile,
@@ -245,6 +247,7 @@ export default function PortPriceFinderForm(): JSX.Element {
       <Card className="w-full max-w-xl mx-auto shadow-xl rounded-xl bg-card">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold text-primary flex items-center justify-center">
+            {/* Using an inline SVG that resembles an exchange/logistics icon */}
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-accent h-8 w-8"><path d="M10 20H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4"/><path d="M5 11h11"/><path d="m22 18-3-3 3-3"/><path d="M14 18h5"/></svg>
             PowerLog
           </CardTitle>
@@ -260,7 +263,23 @@ export default function PortPriceFinderForm(): JSX.Element {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Button
                   type="submit"
-                  disabled={isLoading || isCalculatingBestPrice || isParsingSeaRailFile || isParsingDirectRailFile || (calculationMode === "sea_plus_rail" && (!isSeaRailExcelDataLoaded || !currentFormValuesForButton.originPort || !currentFormValuesForButton.destinationPort || !currentFormValuesForButton.containerType)) || (calculationMode === "direct_rail" && (!isDirectRailExcelDataLoaded || !currentFormValuesForButton.directRailCityOfDeparture || !currentFormValuesForButton.directRailDestinationCityDR || !currentFormValuesForButton.directRailAgentName || !currentFormValuesForButton.directRailIncoterms || !currentFormValuesForButton.directRailBorder ))}
+                  disabled={
+                    isLoading || isCalculatingBestPrice || isParsingSeaRailFile || isParsingDirectRailFile || 
+                    (calculationMode === "sea_plus_rail" && (
+                      !isSeaRailExcelDataLoaded || 
+                      !currentFormValuesForButton.originPort || 
+                      !currentFormValuesForButton.destinationPort || 
+                      !currentFormValuesForButton.containerType
+                    )) || 
+                    (calculationMode === "direct_rail" && (
+                      !isDirectRailExcelDataLoaded || 
+                      !currentFormValuesForButton.directRailCityOfDeparture || 
+                      !currentFormValuesForButton.directRailDestinationCityDR || 
+                      !currentFormValuesForButton.directRailAgentName || 
+                      !currentFormValuesForButton.directRailIncoterms || 
+                      !currentFormValuesForButton.directRailBorder
+                    ))
+                  }
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calculator className="mr-2 h-4 w-4" />}
@@ -269,7 +288,14 @@ export default function PortPriceFinderForm(): JSX.Element {
                 <Button
                   type="button"
                   onClick={onCalculateBestPriceWrapper}
-                  disabled={isCalculatingBestPrice || isLoading || isParsingSeaRailFile || isParsingDirectRailFile || calculationMode === "direct_rail" || !isSeaRailExcelDataLoaded || !currentFormValuesForButton.originPort || !currentFormValuesForButton.containerType || (excelRussianDestinationCitiesMasterList.length > 0 && !currentFormValuesForButton.russianDestinationCity)}
+                  disabled={
+                    isCalculatingBestPrice || isLoading || isParsingSeaRailFile || isParsingDirectRailFile || 
+                    calculationMode === "direct_rail" || 
+                    !isSeaRailExcelDataLoaded || 
+                    !currentFormValuesForButton.originPort || 
+                    !currentFormValuesForButton.containerType ||
+                    (excelRussianDestinationCitiesMasterList.length > 0 && !currentFormValuesForButton.russianDestinationCity)
+                  }
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   {isCalculatingBestPrice ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SearchCheck className="mr-2 h-4 w-4" />}
@@ -307,7 +333,7 @@ export default function PortPriceFinderForm(): JSX.Element {
               {calculationMode === 'sea_plus_rail' && (
                 <>
                     <Button
-                        onClick={() => handleCopyOutput({ isSeaRailExcelDataLoaded, shippingInfo: shippingInfo as SmartPricingOutput | null, lastSuccessfulCalculation, formGetValues: getValues, toast, router })}
+                        onClick={() => handleCopyOutput({ isSeaRailExcelDataLoaded, shippingInfo: shippingInfo as SmartPricingOutput, lastSuccessfulCalculation, formGetValues: getValues, toast, router })}
                         variant="outline"
                         className="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground focus-visible:ring-primary"
                     >
@@ -315,7 +341,7 @@ export default function PortPriceFinderForm(): JSX.Element {
                     </Button>
                     {lastSuccessfulCalculation && (
                         <Button
-                        onClick={() => handleCreateInstructionsNavigation({ isSeaRailExcelDataLoaded, shippingInfo: shippingInfo as SmartPricingOutput | null, lastSuccessfulCalculation, formGetValues: getValues, toast, router })}
+                        onClick={() => handleCreateInstructionsNavigation({ isSeaRailExcelDataLoaded, shippingInfo: shippingInfo as SmartPricingOutput, lastSuccessfulCalculation, formGetValues: getValues, toast, router })}
                         variant="default"
                         className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground"
                         >
