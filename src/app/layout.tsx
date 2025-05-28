@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Inter } from '@next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import Link from 'next/link';
 import {
   SidebarProvider,
   Sidebar,
@@ -15,8 +16,8 @@ import {
   SidebarFooter,
   SidebarInset,
 } from '@/components/ui/sidebar';
-import { Home, Settings, Calculator, Repeat, Menu } from 'lucide-react';
-import { PricingDataProvider } from '@/contexts/PricingDataContext'; // Correct import
+import { Home, Settings, Calculator, Repeat, Menu, LayoutDashboard } from 'lucide-react'; // Added LayoutDashboard
+import { PricingDataProvider } from '@/contexts/PricingDataContext';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -49,15 +50,19 @@ export default function RootLayout({
               <SidebarContent className="p-2">
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton tooltip={{children: "Dashboard", side:"right", align:"center"}}>
-                      <Home />
-                      <span>Dashboard</span>
+                    <SidebarMenuButton asChild tooltip={{children: "Dashboard", side:"right", align:"center"}}>
+                      <Link href="/dashboard">
+                        <LayoutDashboard /> {/* Changed icon to LayoutDashboard for better fit */}
+                        <span>Dashboard</span>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton isActive={true} tooltip={{children: "Calculator", side:"right", align:"center"}}>
-                      <Calculator />
-                      <span>Calculator</span>
+                    <SidebarMenuButton asChild isActive={true} tooltip={{children: "Calculator", side:"right", align:"center"}}>
+                      <Link href="/">
+                        <Calculator />
+                        <span>Calculator</span>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
@@ -78,7 +83,7 @@ export default function RootLayout({
               </SidebarFooter>
             </Sidebar>
 
-            <SidebarInset> {/* This is where {children} (including BestPricesPage) will render */}
+            <SidebarInset> {/* This is where {children} will render */}
               <div className="flex flex-col h-full">
                 <header className="flex h-14 items-center gap-4 border-b bg-background px-4 sticky top-0 z-30 lg:px-6">
                   <div className="md:hidden">
@@ -87,11 +92,12 @@ export default function RootLayout({
                     </SidebarTrigger>
                   </div>
                   <div className="flex-1">
-                    <h1 className="font-semibold text-lg">Logistics Calculator</h1>
+                    {/* The page title will likely be set by individual pages or a more dynamic header component */}
+                    {/* For now, removing the static "Logistics Calculator" to avoid confusion */}
                   </div>
                 </header>
                 <main className="flex-1 overflow-auto">
-                  {children} {/* Page content is rendered here, within PricingDataProvider */}
+                  {children}
                 </main>
               </div>
             </SidebarInset>
