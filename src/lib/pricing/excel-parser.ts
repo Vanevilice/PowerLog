@@ -3,187 +3,11 @@ import * as XLSX from 'xlsx';
 import type { UseFormReturn } from 'react-hook-form';
 import type {
   ExcelRoute, ExcelSOCRoute, RailDataEntry as ContextRailDataEntry, DropOffEntry, DirectRailEntry,
-  RouteFormValues, PricingDataContextType, CombinedAiOutput,
-  DashboardServiceSection, DashboardServiceDataRow
+  RouteFormValues, PricingDataContextType, CombinedAiOutput
 } from '@/types';
 import type { useToast } from '@/hooks/use-toast';
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS } from './constants';
-
-
-export function formatDashboardRate(rateString: string | number | undefined): string {
-  if (rateString === null || rateString === undefined) return 'N/A';
-  let sValue = String(rateString).trim();
-  if (sValue === "") return 'N/A';
-
-  let currencySymbol: 'USD' | 'RUB' | null = null;
-  let numberString = sValue;
-
-  if (sValue.includes('$')) {
-    currencySymbol = "USD";
-    numberString = sValue.replace(/\$/g, '').trim();
-  } else if (sValue.toLowerCase().includes('rub') || sValue.includes('₽')) {
-    currencySymbol = "RUB";
-    numberString = sValue.replace(/rub|₽/gi, '').trim();
-  }
-  
-  numberString = numberString.replace(/\s/g, '').replace(',', '.');
-  // Remove trailing .0 or .00
-  numberString = numberString.replace(/\.(0+|0)$/, ''); 
-  // If rate was like "1000.-", remove the trailing ".-"
-  numberString = numberString.replace(/\.-$/, '');
-
-
-  const num = parseFloat(numberString);
-
-  if (!isNaN(num)) {
-    let finalCurrency: 'USD' | 'RUB' = currencySymbol || 'USD'; // Default to USD if no explicit symbol
-
-    if (!currencySymbol) { // Apply heuristic if no symbol was found
-        const integerPart = String(Math.trunc(num));
-        if (integerPart.length > 4) { // More than 4 digits often implies RUB for this dataset
-            finalCurrency = "RUB";
-        } else {
-            finalCurrency = "USD";
-        }
-    }
-    // Format with space as thousands separator and dot as decimal
-    const formattedNum = num.toLocaleString('fr-FR', {
-      minimumFractionDigits: (num % 1 === 0) ? 0 : 2, 
-      maximumFractionDigits: 2 
-    }).replace(',', '.'); // Ensure dot for decimal for consistency if locale uses comma
-    return `${formattedNum} ${finalCurrency}`;
-  }
-  return sValue; // Return original string if not parsable as number after cleanup
-}
-
-
-export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardServiceSection[] {
-  console.log("[ExcelParser] Starting parseDashboardSheet");
-  const rawData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
-  const parsedSections: DashboardServiceSection[] = [];
-  let currentSection: DashboardServiceSection | null = null;
-  let lastFobRow: DashboardServiceDataRow | null = null; // Keep track of the last FOB/FI row
-  
-  rawData.forEach((rowArray, rowIndex) => {
-    if (!Array.isArray(rowArray) || rowArray.every(cell => cell === null || cell === undefined || String(cell).trim() === "")) {
-      // Blank row signifies end of a section
-      if (currentSection && currentSection.dataRows.length > 0) {
-        console.log(`[ExcelParser] Pushing section (due to blank row): ${currentSection.serviceName} with ${currentSection.dataRows.length} rows`);
-        parsedSections.push(currentSection);
-      }
-      currentSection = null;
-      lastFobRow = null;
-      return;
-    }
-
-    const firstCell = String(rowArray[0] || '').trim();
-    const secondCellContent = rowArray[1]; 
-    const thirdCellContent = String(rowArray[2] || '').trim();
-    const fourthCellContent = String(rowArray[3] || '').trim();
-
-    const isFOBorFIRow = (firstCell.toUpperCase().startsWith("FOB") || firstCell.toUpperCase().startsWith("FI")) && 
-                         (secondCellContent !== null && secondCellContent !== undefined && String(secondCellContent).trim() !== "");
-    const isCYRow = fourthCellContent.toUpperCase().startsWith("CY");
-
-    if (isCYRow) {
-      if (lastFobRow) { // Attempt to attach to the last FOB/FI row
-        console.log("[ExcelParser] Processing CY Row for last FOB row:", lastFobRow.route);
-        lastFobRow.railwayOriginInfo = firstCell || 'N/A';
-        lastFobRow.railwayCost = formatDashboardRate(secondCellContent);
-        
-        const containerInfoFullCY = String(thirdCellContent).trim();
-        // For CY rows, container info parsing might be simpler or follow same logic
-        const containerRegexCY = /^(20DC|40HC|20GP|40GP|20OT|40OT|20RF|40RF|ПОСУДА|20'DC|40'HC|20'GP|40'GP|20'OT|40'OT|20'RF|40'RF)/i;
-        const containerMatchCY = containerInfoFullCY.match(containerRegexCY);
-        if (containerMatchCY && containerMatchCY[0] && containerInfoFullCY.startsWith(containerMatchCY[0])) {
-            lastFobRow.railwayContainerInfo = containerMatchCY[0].toUpperCase();
-            // Comment from CY row's column C (after container) + column D (after "CY")
-            const commentFromColCCY = containerInfoFullCY.substring(containerMatchCY[0].length).trim().replace(/^[:\s]+/, '');
-            const commentFromColDCY = fourthCellContent.substring(2).trim().replace(/^[:\s]+/, '');
-            lastFobRow.railwayComment = [commentFromColCCY, commentFromColDCY].filter(Boolean).join(' | ') || '-';
-        } else {
-            lastFobRow.railwayContainerInfo = containerInfoFullCY || 'N/A'; // Or treat whole as comment
-            lastFobRow.railwayComment = fourthCellContent.substring(2).trim().replace(/^[:\s]+/, '') || '-';
-        }
-
-      } else {
-        console.warn("[ExcelParser] Found CY row but no preceding FOB/FI row in current section:", rowArray);
-      }
-    } else if (isFOBorFIRow) {
-      if (!currentSection) { // This FOB/FI row starts a new section implicitly
-        currentSection = { serviceName: `Service Section ${parsedSections.length + 1}`, dataRows: [] };
-        console.log(`[ExcelParser] New implicit section started for FOB/FI row: ${currentSection.serviceName}`);
-      }
-
-      const containerRegex = /^(20DC|40HC|20GP|40GP|20OT|40OT|20RF|40RF|ПОСУДА|20'DC|40'HC|20'GP|40'GP|20'OT|40'OT|20'RF|40'RF)/i;
-      const containerInfoFull = String(thirdCellContent).trim();
-      let containerTypeExtracted = 'N/A';
-      let commentFromContainerCell = '';
-
-      const containerMatch = containerInfoFull.match(containerRegex);
-      // Ensure the match is at the beginning of the string
-      if (containerMatch && containerMatch[0] && containerInfoFull.toUpperCase().startsWith(containerMatch[0].toUpperCase())) {
-          containerTypeExtracted = containerMatch[0].toUpperCase();
-          commentFromContainerCell = containerInfoFull.substring(containerMatch[0].length).trim().replace(/^[:\s]+/, '');
-      } else if (containerInfoFull) { 
-          commentFromContainerCell = containerInfoFull; // Whole cell content becomes part of the comment
-      }
-      
-      let finalAdditionalComment = String(fourthCellContent || '').trim();
-      if (commentFromContainerCell) {
-        finalAdditionalComment = finalAdditionalComment 
-          ? `${commentFromContainerCell} | ${finalAdditionalComment}` 
-          : commentFromContainerCell;
-      }
-
-      const dataRow: DashboardServiceDataRow = {
-        route: firstCell,
-        rate: formatDashboardRate(secondCellContent),
-        containerInfo: containerTypeExtracted,
-        additionalComment: finalAdditionalComment || '-',
-      };
-      currentSection.dataRows.push(dataRow);
-      lastFobRow = dataRow; // Update lastFobRow
-      console.log("[ExcelParser] Added FOB/FI row:", dataRow.route);
-
-    } else if (firstCell || String(rowArray[1] || '').trim() || String(rowArray[2] || '').trim()) { 
-      // Potential header row: has content in first, second, or third cell and is not FOB/FI/CY
-      if (currentSection && currentSection.dataRows.length > 0) { // Finalize previous section
-        console.log(`[ExcelParser] Pushing section (due to new header): ${currentSection.serviceName} with ${currentSection.dataRows.length} rows`);
-        parsedSections.push(currentSection);
-      }
-      
-      const serviceNameColB = String(rowArray[1] || '').trim(); // Column B
-      const serviceNameColC = String(rowArray[2] || '').trim(); // Column C
-      let newServiceName = "";
-      if (serviceNameColB && serviceNameColC) {
-        newServiceName = `${serviceNameColB} ${serviceNameColC}`;
-      } else if (serviceNameColB) {
-        newServiceName = serviceNameColB;
-      } else if (serviceNameColC) {
-        newServiceName = serviceNameColC;
-      } else if (firstCell) { // Fallback to first cell if B and C are empty
-        newServiceName = firstCell;
-      }
-
-      if (!newServiceName) { // If all potential header cells are empty, but row isn't blank
-        newServiceName = `Service Section ${parsedSections.length + 1}`;
-      }
-      currentSection = { serviceName: newServiceName, dataRows: [] };
-      lastFobRow = null; // Reset lastFobRow for the new section
-      console.log(`[ExcelParser] New section started with header: ${newServiceName}`);
-    }
-  });
-
-  // Push the last processed section if it has data
-  if (currentSection && currentSection.dataRows.length > 0) {
-    console.log(`[ExcelParser] Pushing final section: ${currentSection.serviceName} with ${currentSection.dataRows.length} rows`);
-    parsedSections.push(currentSection);
-  }
-  console.log("[ExcelParser] Finished parseDashboardSheet, sections found:", parsedSections.length);
-  return parsedSections;
-}
-
+import { parseDashboardSheet } from '@/lib/dashboard/parser'; // Import the refactored dashboard parser
 
 // Helper parsing functions (for calculator data)
 export function parsePortsCell(cellValue: string | undefined, isDestination: boolean): string[] {
@@ -252,12 +76,12 @@ export function parseGenericListCell(cellValue: string | undefined): string[] {
     return Array.from(items).sort();
 }
 
-
 export function parsePriceCell(cellValue: any): string | number | null { 
   if (cellValue === null || cellValue === undefined) return null;
   const sValueOriginal = String(cellValue).trim();
   if (sValueOriginal === "") return null;
 
+  // Attempt to parse as number first
   const sValueNumericCandidate = sValueOriginal.replace(/\s/g, '').replace(',', '.');
   const num = parseFloat(sValueNumericCandidate);
 
@@ -265,13 +89,13 @@ export function parsePriceCell(cellValue: any): string | number | null {
     return num;
   } else {
     // Return the original string if it's not a number but might be a special format like "$ X / $ Y"
+    // This is particularly relevant for DropOff prices which might have such formats.
     return sValueOriginal; 
   }
 }
 
-
 export interface ExcelParserArgsBase {
-  file: File; // Now directly expect a File object
+  file: File;
   form: UseFormReturn<RouteFormValues>;
   contextSetters: PricingDataContextType;
   setShippingInfoState: (info: CombinedAiOutput | null) => void;
@@ -281,7 +105,6 @@ export interface ExcelParserArgsBase {
   setIsParsingState: (isParsing: boolean) => void;
   setBestPriceResults: PricingDataContextType['setBestPriceResults'];
 }
-
 
 export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
   const { file, form, contextSetters, setShippingInfoState, setHasRestoredFromCacheState, toast, fileInputRef, setIsParsingState, setBestPriceResults } = args;
@@ -319,7 +142,6 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
     arrivalStationSelection: "",
   });
 
-
   const reader = new FileReader();
   reader.onload = async (e) => {
     const arrayBuffer = e.target?.result;
@@ -329,6 +151,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
         const allUniqueOrigins = new Set<string>();
         const allUniqueSeaDestinationsMaster = new Set<string>();
 
+        // Dashboard Data (Sheet 1)
         const firstSheetName = workbook.SheetNames[0];
         if (firstSheetName) {
           console.log("[ExcelParser] Parsing first sheet for dashboard data:", firstSheetName);
@@ -345,7 +168,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
            toast({ variant: "default", title: "File Info", description: "First sheet (for dashboard data) not found or not parsable." });
         }
 
-
+        // COC Data (Sheet 3, index 2)
         const thirdSheetName = workbook.SheetNames[2];
         const newRouteDataLocal: ExcelRoute[] = [];
         if (thirdSheetName) {
@@ -363,8 +186,8 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
               const currentOrigins = parsePortsCell(originCellVal, false);
               const currentDestinations = parsePortsCell(destCellVal, true);
               const currentSeaLines = parseSeaLinesCell(seaLineCellVal);
-              const price20DC = parsePriceCell(price20DCCellVal) as number | string | null;
-              const price40HC = parsePriceCell(price40HCCellVal) as number | string | null;
+              const price20DC = parsePriceCell(price20DCCellVal) as string | number | null;
+              const price40HC = parsePriceCell(price40HCCellVal) as string | number | null;
               const seaComment = String(seaCommentCellVal || '').trim();
 
               currentOrigins.forEach(p => allUniqueOrigins.add(p));
@@ -388,6 +211,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
             toast({ variant: "destructive", title: "File Error", description: "Third sheet (for COC sea routes) not found." });
         }
 
+        // SOC Data (Sheet 2, index 1)
         const secondSheetName = workbook.SheetNames[1];
         const newSOCRouteDataLocal: ExcelSOCRoute[] = [];
         if (secondSheetName) {
@@ -406,8 +230,8 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
               const currentDeparturePorts = parsePortsCell(depPortsCellVal, false);
               const currentDestinations = parsePortsCell(destPortsCellVal, true);
               const currentSeaLines = parseSeaLinesCell(seaLineCellVal);
-              const price20DC = parsePriceCell(price20DCCellVal) as number | string | null;
-              const price40HC = parsePriceCell(price40HCCellVal) as number | string | null;
+              const price20DC = parsePriceCell(price20DCCellVal) as string | number | null;
+              const price40HC = parsePriceCell(price40HCCellVal) as string | number | null;
               const socComment = String(socCommentCellVal || '').trim();
 
               currentDeparturePorts.forEach(p => allUniqueOrigins.add(p));
@@ -440,6 +264,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
             return a.localeCompare(b);
         }));
 
+        // Drop Off Data (Sheet 4, index 3)
         const fourthSheetName = workbook.SheetNames[3];
         const newDropOffDataLocal: DropOffEntry[] = [];
         if (fourthSheetName) {
@@ -466,6 +291,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
             toast({ variant: "default", title: "File Info", description: "Fourth sheet (for drop-off data) not found." });
         }
 
+        // Rail Data (Sheet 5, index 4)
         const fifthSheetName = workbook.SheetNames[4];
         const newRailDataLocal: ContextRailDataEntry[] = [];
         const uniqueRussianCitiesFromSheet = new Set<string>();
@@ -529,7 +355,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
     setIsParsingState(false);
     contextSetters.setIsSeaRailExcelDataLoaded(false);
   };
-  if (file) { // Ensure file is not null/undefined before reading
+  if (file) { 
     reader.readAsArrayBuffer(file);
   } else {
     toast({ variant: "destructive", title: "File Error", description: "No file provided to Sea+Rail parser." });
@@ -538,7 +364,6 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
   }
   if (fileInputRef.current) fileInputRef.current.value = "";
 }
-
 
 export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
   const { file, form, contextSetters, setShippingInfoState, setHasRestoredFromCacheState, toast, fileInputRef, setIsParsingState } = args;
@@ -636,7 +461,7 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
     setIsParsingState(false);
     contextSetters.setIsDirectRailExcelDataLoaded(false);
   };
-  if (file) { // Ensure file is not null/undefined before reading
+  if (file) { 
     reader.readAsArrayBuffer(file);
   } else {
     toast({ variant: "destructive", title: "File Error", description: "No file provided to Direct Rail parser." });
@@ -645,4 +470,3 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
   }
   if (fileInputRef.current) fileInputRef.current.value = "";
 }
-
