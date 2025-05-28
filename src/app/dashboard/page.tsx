@@ -14,25 +14,25 @@ import { useToast } from '@/hooks/use-toast';
 export default function DashboardPage() {
   const { dashboardServiceSections, isSeaRailExcelDataLoaded } = usePricingData();
   const { toast } = useToast();
-  // railwaySelection: key is "sectionIndex-rowIndex", value is boolean array for each railwayLeg's checkbox
-  const [railwaySelection, setRailwaySelection] = React.useState<Record<string, boolean[]>>({});
+  // railwaySelection: key is "sectionIndex-rowIndex", value is the index of the selected railwayLeg, or null
+  const [railwaySelection, setRailwaySelection] = React.useState<Record<string, number | null>>({});
 
   React.useEffect(() => {
     console.log("[DashboardPage] isSeaRailExcelDataLoaded:", isSeaRailExcelDataLoaded);
     console.log("[DashboardPage] dashboardServiceSections:", dashboardServiceSections);
   }, [isSeaRailExcelDataLoaded, dashboardServiceSections]);
 
-  const handleRailwayLegCheckboxChange = (sectionIndex: number, rowIndex: number, legIndex: number, checked: boolean) => {
+  const handleRailwayLegCheckboxChange = (sectionIndex: number, rowIndex: number, legIndex: number) => {
     const key = `${sectionIndex}-${rowIndex}`;
     setRailwaySelection(prev => {
-      const newSelection = { ...prev };
-      if (!newSelection[key]) {
-        // Initialize if not present, assuming row.railwayLegs exists
-        const legCount = dashboardServiceSections[sectionIndex]?.dataRows[rowIndex]?.railwayLegs?.length || 0;
-        newSelection[key] = new Array(legCount).fill(false);
+      const currentSelectedLegIndex = prev[key];
+      if (currentSelectedLegIndex === legIndex) {
+        // If the clicked leg is already selected, deselect it
+        return { ...prev, [key]: null };
+      } else {
+        // Otherwise, select the new leg (this implicitly deselects any other for this row)
+        return { ...prev, [key]: legIndex };
       }
-      newSelection[key][legIndex] = checked;
-      return newSelection;
     });
   };
 
@@ -41,34 +41,32 @@ export default function DashboardPage() {
     const routeParts = row.route.split(' - ');
     const originPart = routeParts[0]?.replace(/^(FOB|FI)\s*/i, '').trim() || 'N/A';
     
-    let forPartsArray: string[] = [];
-    let railwayCostsArray: string[] = [];
+    let forPartDisplay = 'N/A';
+    let railwayCostDisplay = 'N/A';
+    let includeRailwayPart = false;
 
     const selectionKey = `${sectionIndex}-${rowIndex}`;
-    const selectedLegsIndices = railwaySelection[selectionKey]?.reduce((acc, isSelected, idx) => {
-        if (isSelected) acc.push(idx);
-        return acc;
-    }, [] as number[]) || [];
+    const selectedLegIndex = railwaySelection[selectionKey];
 
-    if (row.railwayLegs && selectedLegsIndices.length > 0) {
-        selectedLegsIndices.forEach(legIdx => {
-            const leg = row.railwayLegs![legIdx];
-            if (leg.originInfo && leg.originInfo !== 'N/A') {
-                forPartsArray.push(leg.originInfo.replace(/^(FOB|FI|CY)\s*/i, '').trim());
-            }
-            if (leg.cost && leg.cost !== 'N/A') {
-                railwayCostsArray.push(leg.cost);
-            }
-        });
+    if (selectedLegIndex !== null && selectedLegIndex !== undefined && row.railwayLegs && row.railwayLegs[selectedLegIndex]) {
+        const selectedLeg = row.railwayLegs[selectedLegIndex];
+        if (selectedLeg.originInfo && selectedLeg.originInfo !== 'N/A') {
+            // Remove leading "CY ", "FOB ", or "FI " from the selected leg's originInfo for the "FOR" part
+            forPartDisplay = selectedLeg.originInfo.replace(/^(FOB|FI|CY)\s*/i, '').trim();
+        }
+        if (selectedLeg.cost && selectedLeg.cost !== 'N/A') {
+            railwayCostDisplay = selectedLeg.cost;
+            includeRailwayPart = true;
+        }
+    } else if (routeParts.length > 1) { // Fallback if no railway leg selected: use destination from main route
+        forPartDisplay = routeParts.slice(1).join(' - ').replace(/^(FOB|FI|CY)\s*/i, '').trim();
     }
-
-    let forPartDisplay = forPartsArray.length > 0 ? forPartsArray.join(' / ') : (routeParts.length > 1 ? routeParts.slice(1).join(' - ').replace(/^(FOB|FI|CY)\s*/i, '').trim() : 'N/A');
     
     textToCopy += `FOB ${originPart} - Владивосток - FOR ${forPartDisplay} :\n`;
     textToCopy += `Фрахт: ${row.rate || 'N/A'}\n`;
 
-    if (railwayCostsArray.length > 0) {
-      textToCopy += `Ж/Д Составляющая: ${railwayCostsArray.join(' / ')}\n`;
+    if (includeRailwayPart) {
+      textToCopy += `Ж/Д Составляющая: ${railwayCostDisplay}\n`;
     }
     
     try {
@@ -186,9 +184,9 @@ export default function DashboardPage() {
                            <TableCell className="pl-6 py-2 text-sm font-medium text-primary flex items-center">
                              <Checkbox
                                 id={`rail-select-${sectionIndex}-${rowIndex}-${legIndex}`}
-                                checked={railwaySelection[`${sectionIndex}-${rowIndex}`]?.[legIndex] || false}
-                                onCheckedChange={(checked) => {
-                                  handleRailwayLegCheckboxChange(sectionIndex, rowIndex, legIndex, !!checked);
+                                checked={railwaySelection[`${sectionIndex}-${rowIndex}`] === legIndex}
+                                onCheckedChange={() => {
+                                  handleRailwayLegCheckboxChange(sectionIndex, rowIndex, legIndex);
                                 }}
                                 className="mr-2"
                               />
@@ -223,3 +221,6 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+
+    
