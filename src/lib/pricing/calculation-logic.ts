@@ -6,7 +6,7 @@ import { generatePricingCommentary, type PricingCommentaryInput } from "@/ai/flo
 import type {
   RouteFormValues, SmartPricingOutput, PricingDataContextType, ExcelRoute, ExcelSOCRoute,
   RailDataEntry, DirectRailEntry, BestPriceRoute, CalculationDetailsForInstructions,
-  ShipmentType, ContainerType,
+  ShipmentType, ContainerType, PricingCommentaryOutput as PricingCommentaryOutputType, // Alias to avoid name clash
 } from '@/types'; // Centralized types
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, USD_RUB_CONVERSION_RATE, DROP_OFF_TRIGGER_PHRASES } from './constants';
 
@@ -15,7 +15,7 @@ interface CalculationArgsBase {
   context: PricingDataContextType;
   toast: ReturnType<typeof useToast>['toast'];
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  setShippingInfo: React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutput | null>>;
+  setShippingInfo: React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutputType | null>>;
   setLastSuccessfulCalculation: React.Dispatch<React.SetStateAction<CalculationDetailsForInstructions | null>>;
   setCachedShippingInfo: PricingDataContextType['setCachedShippingInfo'];
   setCachedLastSuccessfulCalculation: PricingDataContextType['setCachedLastSuccessfulCalculation'];
@@ -298,7 +298,7 @@ interface BestPriceArgs {
   context: PricingDataContextType;
   toast: ReturnType<typeof useToast>['toast'];
   setIsCalculatingBestPrice: React.Dispatch<React.SetStateAction<boolean>>;
-  setShippingInfo: React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutput | null>>;
+  setShippingInfo: React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutputType | null>>;
   setBestPriceResults: PricingDataContextType['setBestPriceResults'];
   setCachedFormValues: PricingDataContextType['setCachedFormValues'];
   setIsNavigatingToBestPrices: React.Dispatch<React.SetStateAction<boolean>>;
@@ -409,31 +409,32 @@ export function calculateBestPrice({
         else if (VLADIVOSTOK_VARIANTS.some(v => seaDestPort.startsWith(v.split(" ")[0]))) cityForDropOffLookupForBestPrice = seaDestPort;
 
         if (shipmentType === "COC" && cityForDropOffLookupForBestPrice && actualSeaLineForIteration) {
-          const seaCommentLower = String(currentSeaCommentFromExcel || '').toLowerCase().trim();
-          const isCKLineForIteration = actualSeaLineForIteration.toLowerCase().includes('ck line');
-          const needsDropOffLookup = isCKLineForIteration || DROP_OFF_TRIGGER_PHRASES.some(phrase => seaCommentLower.includes(phrase));
-          const isPandaLineBestPrice = actualSeaLineForIteration.toLowerCase().includes('panda express line');
+            const seaCommentLowerForDropOff = String(currentSeaCommentFromExcel || '').toLowerCase().trim();
+            const isCKLineForIteration = actualSeaLineForIteration.toLowerCase().includes('ck line');
+            const needsDropOffLookupFromComment = DROP_OFF_TRIGGER_PHRASES.some(phrase => seaCommentLowerForDropOff.includes(phrase));
+            const shouldAttemptDropOffLookup = isCKLineForIteration || needsDropOffLookupFromComment;
+            const isPandaLineBestPrice = actualSeaLineForIteration.toLowerCase().includes('panda express line');
 
-          if (needsDropOffLookup) {
-            const normalizedLookupCityForBestPrice = (cityForDropOffLookupForBestPrice.toLowerCase().replace(/^г\.\s*/, '') || "").trim();
-            for (const dropOffEntry of excelDropOffData) {
-              const seaLineFromMainRouteLowerTrimmed = actualSeaLineForIteration.toLowerCase().trim();
-              const seaLineFromDropOffSheetLowerTrimmed = dropOffEntry.seaLine.toLowerCase().trim();
-              const seaLineMatch = seaLineFromMainRouteLowerTrimmed.includes(seaLineFromDropOffSheetLowerTrimmed) || seaLineFromDropOffSheetLowerTrimmed.includes(seaLineFromMainRouteLowerTrimmed);
-              if (!seaLineMatch) continue;
-              const cityMatch = dropOffEntry.cities.some(excelCity => excelCity.toLowerCase().replace(/^г\.\s*/, '').trim() === normalizedLookupCityForBestPrice);
-              if (cityMatch) {
-                currentDropOffComment = dropOffEntry.comment || null;
-                if (isPandaLineBestPrice) currentDropOffCostUSD = null;
-                else {
-                  const dropOffPriceForContainer = containerType === "20DC" ? dropOffEntry.price20DC : dropOffEntry.price40HC;
-                  if (dropOffPriceForContainer !== null) { currentDropOffCostUSD = dropOffPriceForContainer; totalComparisonCostRUB += currentDropOffCostUSD * USD_RUB_CONVERSION_RATE; }
-                  else currentDropOffCostUSD = null;
+            if (shouldAttemptDropOffLookup) {
+                const normalizedLookupCityForBestPrice = (cityForDropOffLookupForBestPrice.toLowerCase().replace(/^г\.\s*/, '') || "").trim();
+                for (const dropOffEntry of excelDropOffData) {
+                    const seaLineFromMainRouteLowerTrimmed = actualSeaLineForIteration.toLowerCase().trim();
+                    const seaLineFromDropOffSheetLowerTrimmed = dropOffEntry.seaLine.toLowerCase().trim();
+                    const seaLineMatch = seaLineFromMainRouteLowerTrimmed.includes(seaLineFromDropOffSheetLowerTrimmed) || seaLineFromDropOffSheetLowerTrimmed.includes(seaLineFromMainRouteLowerTrimmed);
+                    if (!seaLineMatch) continue;
+                    const cityMatch = dropOffEntry.cities.some(excelCity => excelCity.toLowerCase().replace(/^г\.\s*/, '').trim() === normalizedLookupCityForBestPrice);
+                    if (cityMatch) {
+                        currentDropOffComment = dropOffEntry.comment || null;
+                        if (isPandaLineBestPrice) currentDropOffCostUSD = null;
+                        else {
+                            const dropOffPriceForContainer = containerType === "20DC" ? dropOffEntry.price20DC : dropOffEntry.price40HC;
+                            if (dropOffPriceForContainer !== null) { currentDropOffCostUSD = dropOffPriceForContainer; totalComparisonCostRUB += currentDropOffCostUSD * USD_RUB_CONVERSION_RATE; }
+                            else currentDropOffCostUSD = null;
+                        }
+                        break;
+                    }
                 }
-                break;
-              }
             }
-          }
         }
         const routeEntry: BestPriceRoute = {
           id: "route-" + routeIdCounter++,
@@ -460,5 +461,3 @@ export function calculateBestPrice({
   }
   setIsCalculatingBestPrice(false);
 }
-
-    
