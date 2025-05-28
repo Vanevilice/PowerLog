@@ -41,7 +41,6 @@ function processRailwayLegRow(rowArray: any[]): RailwayLegData | null {
   const { containerType: legContainerType, comment: commentFromLegContainerCell } = parseContainerInfoCell(containerCell);
   
   let legComment = commentCellD;
-  // If CY was in col D (original check), strip it.
   if (isCyRowByColD(commentCellD)) { 
       legComment = commentCellD.substring(2).trim().replace(/^[:\s]+/, '');
   }
@@ -52,8 +51,8 @@ function processRailwayLegRow(rowArray: any[]): RailwayLegData | null {
       : commentFromLegContainerCell;
   }
   
-  // A railway leg must at least have some origin info or a cost to be valid
   if (!originInfoRaw && cost === 'N/A') {
+    console.warn("[DashboardParser] processRailwayLegRow returning null due to empty origin and N/A cost for row:", rowArray);
     return null;
   }
 
@@ -69,7 +68,7 @@ function finalizeCurrentSection(currentSection: DashboardServiceSection | null, 
   if (currentSection && currentSection.dataRows.length > 0) {
     console.log(`[DashboardParser] FINALIZING section: '${currentSection.serviceName}' with ${currentSection.dataRows.length} FOB/FI rows.`);
     currentSection.dataRows.forEach((row, idx) => {
-      console.log(`  Row ${idx}: '${row.route}', Rate: '${row.rate}', Container: '${row.containerInfo}', Comment: '${row.additionalComment}', Railway Legs: ${row.railwayLegs ? row.railwayLegs.length : 0}`);
+      console.log(`  Row ${idx}: '${row.route}', Rate: '${row.rate}', Container: '${row.containerInfo}', Comment: '${row.additionalComment}', Railway Legs Cnt: ${row.railwayLegs ? row.railwayLegs.length : 0}`);
       if (row.railwayLegs && row.railwayLegs.length > 0) {
         row.railwayLegs.forEach((leg, legIdx) => {
           console.log(`    Leg ${legIdx}: Origin='${leg.originInfo}', Cost='${leg.cost}', Container='${leg.containerInfo}', Comment='${leg.comment}'`);
@@ -91,7 +90,9 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
   let lastProcessedFobRowInDataRows: DashboardServiceDataRow | null = null;
 
   rawData.forEach((rowArray, index) => {
+    console.log(`[DashboardParser] Processing rawData row ${index}:`, rowArray);
     if (!Array.isArray(rowArray) || rowArray.every(cell => cell === null || cell === undefined || String(cell).trim() === "")) {
+      console.log(`[DashboardParser] Row ${index} is blank. Finalizing current section: ${currentSection?.serviceName}`);
       finalizeCurrentSection(currentSection, parsedSections);
       currentSection = null;
       lastProcessedFobRowInDataRows = null; 
@@ -103,35 +104,49 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
     const fourthCellContent = String(rowArray[3] || '').trim();
 
     const isFobFiType = isFobOrFiRow(firstCell, secondCellContent);
-    const isCyByColDType = isCyRowByColD(fourthCellContent);
+    const isCyByColDType = isCyRowByColD(fourthCellContent); // Check Col D for "CY"
+    // A row is a CY by Col A if it's not FOB/FI and Col A contains "CY"
     const isCyByColAType = !isFobFiType && isCyInColA(firstCell);
+
 
     if (isFobFiType) {
       if (!currentSection) {
+        // If there's no current section, this FOB/FI row might be starting an implicit section
+        // Or, it belongs to a header that was just above it. For now, create an implicit one if needed.
         currentSection = { serviceName: `Service Section (Implicit ${parsedSections.length + 1})`, dataRows: [] };
-        console.log(`[DashboardParser] Implicit section started for FOB/FI: '${currentSection.serviceName}'`);
+        console.log(`[DashboardParser] Implicit section started for FOB/FI: '${currentSection.serviceName}' at row ${index}`);
       }
       const newFobRow = processFobOrFiRow(rowArray);
       if (newFobRow) {
         currentSection.dataRows.push(newFobRow);
-        // Explicitly get the reference to the object just pushed into the array
+        // lastProcessedFobRowInDataRows MUST point to the object just pushed
         lastProcessedFobRowInDataRows = currentSection.dataRows[currentSection.dataRows.length - 1];
-        console.log(`[DashboardParser] Added FOB/FI row: '${newFobRow.route}' to section: '${currentSection.serviceName}'. lastProcessedFobRowInDataRows updated.`);
+        console.log(`[DashboardParser] >>> FOB/FI Row processed: '${newFobRow.route}'. Set lastProcessedFobRowInDataRows. Current section: ${currentSection.serviceName}. lastFobRow.railwayLegs.length: ${lastProcessedFobRowInDataRows.railwayLegs?.length}`);
+      } else {
+        console.warn(`[DashboardParser] processFobOrFiRow returned null for supposedly FOB/FI row ${index}:`, rowArray);
       }
     } else if (isCyByColDType || isCyByColAType) {
-      if (lastProcessedFobRowInDataRows && currentSection && currentSection.dataRows.includes(lastProcessedFobRowInDataRows)) {
+      console.log(`[DashboardParser] >>> CY Row Encountered at row ${index}. lastProcessedFobRow: ${lastProcessedFobRowInDataRows?.route}, currentSection: ${currentSection?.serviceName}`);
+      if (lastProcessedFobRowInDataRows) {
         const railwayLegData = processRailwayLegRow(rowArray);
         if (railwayLegData) {
-          lastProcessedFobRowInDataRows.railwayLegs = lastProcessedFobRowInDataRows.railwayLegs || [];
+          // Ensure railwayLegs array exists (it should be initialized by processFobOrFiRow)
+          if (!lastProcessedFobRowInDataRows.railwayLegs) {
+            lastProcessedFobRowInDataRows.railwayLegs = []; // Safety initialization
+            console.warn(`[DashboardParser] Initialized railwayLegs for ${lastProcessedFobRowInDataRows.route} because it was undefined.`);
+          }
           lastProcessedFobRowInDataRows.railwayLegs.push(railwayLegData);
-          console.log(`[DashboardParser] Added Railway Leg to parent: '${lastProcessedFobRowInDataRows.route}', Leg Origin: '${railwayLegData.originInfo}', Total legs now: ${lastProcessedFobRowInDataRows.railwayLegs.length}`);
+          console.log(`[DashboardParser]     Added Railway Leg to parent: '${lastProcessedFobRowInDataRows.route}', Leg Origin: '${railwayLegData.originInfo}'. New railwayLegs count: ${lastProcessedFobRowInDataRows.railwayLegs.length}`);
+        } else {
+           console.log(`[DashboardParser]     processRailwayLegRow returned null for CY row ${index}:`, rowArray);
         }
       } else {
-        console.warn(`[DashboardParser] Found CY row but no valid 'lastProcessedFobRowInDataRows' to attach to. Current section: ${currentSection?.serviceName}, Row:`, rowArray);
+        console.warn(`[DashboardParser]     Found CY row ${index} but no 'lastProcessedFobRowInDataRows' to attach to. Row:`, rowArray);
       }
     } else { 
       const isHeader = isPotentialServiceHeaderRow(rowArray, firstCell, isFobFiType, isCyByColDType, isCyByColAType);
       if (isHeader) {
+        console.log(`[DashboardParser] Potential Header Row at index ${index}: '${firstCell}'. Finalizing previous section: ${currentSection?.serviceName}`);
         finalizeCurrentSection(currentSection, parsedSections); 
         
         const serviceNameColB = String(rowArray[1] || '').trim();
@@ -143,11 +158,11 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
         else if (serviceNameColC) newServiceName = serviceNameColC;
         else if (firstCell) newServiceName = firstCell; 
         
-        currentSection = { serviceName: newServiceName || `Service Section (Fallback ${parsedSections.length + 1})`, dataRows: [] };
-        lastProcessedFobRowInDataRows = null; 
-        console.log(`[DashboardParser] New section started with explicit header: '${currentSection.serviceName}'`);
+        currentSection = { serviceName: newServiceName || `Service Section (Fallback ${parsedSections.length + 1} at row ${index})`, dataRows: [] };
+        lastProcessedFobRowInDataRows = null; // Reset for new section
+        console.log(`[DashboardParser] New section started with explicit header: '${currentSection.serviceName}' from row ${index}. lastProcessedFobRowInDataRows reset.`);
       } else {
-         console.log("[DashboardParser] Skipping unidentified row type (not FOB/FI, not CY, not Header):", rowArray);
+         console.log(`[DashboardParser] Skipping unidentified row type ${index} (not FOB/FI, not CY, not Header):`, rowArray);
       }
     }
   });
@@ -156,3 +171,5 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
   console.log("[DashboardParser] Finished parseDashboardSheet, total sections found:", parsedSections.length);
   return parsedSections;
 }
+
+    
