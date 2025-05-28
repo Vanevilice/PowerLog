@@ -31,7 +31,7 @@ export function parsePortsCell(cellValue: string | undefined, isDestination: boo
         const baseName = match[1].trim();
         const subPortsString = match[2];
         subPortsString.split('/').map(p => p.trim()).forEach(subPort => {
-          if (subPort) ports.add(\`\${baseName} (\${subPort})\`);
+          if (subPort) ports.add(baseName + " (" + subPort + ")");
         });
         if (!subPortsString && baseName) {
            ports.add(baseName);
@@ -74,12 +74,13 @@ export function parseDropOffCitiesCell(cellValue: string | undefined): string[] 
 export function parseGenericListCell(cellValue: string | undefined): string[] {
     if (!cellValue) return [];
     const items = new Set<string>();
-    String(cellValue).trim().split(/[,;\/]/g).forEach(item => {
+    String(cellValue).trim().split(/[,;\/]/g).forEach(item => { // Split by comma, semicolon, or slash
         const trimmedItem = item.trim();
         if (trimmedItem) items.add(trimmedItem);
     });
     return Array.from(items).sort();
 }
+
 
 export function parsePriceCell(cellValue: any): number | null {
   const num = parseFloat(String(cellValue).replace(/\s/g, '').replace(',', '.'));
@@ -175,7 +176,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgs & {
               }
             });
             contextSetters.setExcelRouteData(newRouteDataLocal);
-            toast({ title: "COC Sea Routes Loaded", description: \`Found \${newRouteDataLocal.length} entries.\`});
+            toast({ title: "COC Sea Routes Loaded", description: "Found " + newRouteDataLocal.length + " entries."});
         } else {
             toast({ variant: "destructive", title: "File Error", description: "Sheet 3 (COC sea routes) not found." });
         }
@@ -204,7 +205,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgs & {
               }
             });
             contextSetters.setExcelSOCRouteData(newSOCRouteDataLocal);
-            toast({ title: "SOC Sea Routes Loaded", description: \`Found \${newSOCRouteDataLocal.length} entries.\` });
+            toast({ title: "SOC Sea Routes Loaded", description: "Found " + newSOCRouteDataLocal.length + " entries." });
         } else {
             toast({ variant: "destructive", title: "File Error", description: "Sheet 2 (SOC sea routes) not found." });
         }
@@ -231,7 +232,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgs & {
                 }
             });
             contextSetters.setExcelDropOffData(newDropOffDataLocal);
-            toast({ title: "Drop Off Data Loaded", description: \`Found \${newDropOffDataLocal.length} entries.\` });
+            toast({ title: "Drop Off Data Loaded", description: "Found " + newDropOffDataLocal.length + " entries." });
         } else {
             toast({ variant: "default", title: "File Info", description: "Sheet 4 (drop-off) not found." });
         }
@@ -259,7 +260,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgs & {
           });
           contextSetters.setExcelRailData(newRailDataLocal);
           contextSetters.setExcelRussianDestinationCitiesMasterList(Array.from(uniqueRussianCitiesFromSheet).sort());
-          toast({ title: "Rail Data Loaded", description: \`Found \${uniqueRussianCitiesFromSheet.size} Russian cities & \${newRailDataLocal.length} rail prices.\` });
+          toast({ title: "Rail Data Loaded", description: "Found " + uniqueRussianCitiesFromSheet.size + " Russian cities & " + newRailDataLocal.length + " rail prices." });
         } else {
           toast({ variant: "default", title: "File Info", description: "Sheet 5 (rail data) not found." });
         }
@@ -361,7 +362,7 @@ export async function handleDirectRailFileParse(args: ExcelParserArgs & {
           contextSetters.setDirectRailBordersList(Array.from(uniqueBorders).sort());
           contextSetters.setIsDirectRailExcelDataLoaded(true);
           setHasRestoredFromCacheState(false);
-          toast({ title: "Прямое ЖД Excel Processed", description: \`Found \${newDirectRailDataLocal.length} entries.\` });
+          toast({ title: "Прямое ЖД Excel Processed", description: "Found " + newDirectRailDataLocal.length + " entries." });
         } else {
           toast({ variant: "destructive", title: "File Error", description: "First sheet (Direct Rail) not found." });
         }
@@ -386,3 +387,6 @@ export async function handleDirectRailFileParse(args: ExcelParserArgs & {
   reader.readAsArrayBuffer(file);
   if (fileInputRef.current) fileInputRef.current.value = "";
 }
+
+
+    

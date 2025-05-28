@@ -1,6 +1,6 @@
 
 import type { UseFormReturn } from 'react-hook-form';
-import type { NextRouter } from 'next/router'; // Or 'next/navigation' for App Router
+// import type { NextRouter } from 'next/router'; // Or 'next/navigation' for App Router
 import { useToast } from '@/hooks/use-toast';
 import type {
   RouteFormValues,
@@ -20,7 +20,7 @@ export function formatDisplayCost(cost: number | null | undefined, currency: 'US
     minimumFractionDigits: (numCost % 1 === 0) ? 0 : 2,
     maximumFractionDigits: (numCost % 1 === 0) ? 0 : 2,
   });
-  return \`\${formatted} \${currency}\`;
+  return formatted + " " + currency;
 }
 
 // Placeholder Getters
@@ -74,7 +74,7 @@ interface ActionHandlerArgs {
   lastSuccessfulCalculation: CalculationDetailsForInstructions | null;
   formGetValues: UseFormReturn<RouteFormValues>['getValues'];
   toast: ReturnType<typeof useToast>['toast'];
-  router: ReturnType<typeof import('next/navigation').useRouter>; // For App Router
+  router: any; // Using 'any' for router type to avoid NextRouter/AppRouter specific import for now
 }
 
 export async function handleCopyOutput(args: ActionHandlerArgs) {
@@ -102,13 +102,13 @@ export async function handleCopyOutput(args: ActionHandlerArgs) {
   }
   const railArrivalStationToUse = lastSuccessfulCalculation?.railArrivalStation ?? (shippingInfo && 'railArrivalStation' in shippingInfo ? shippingInfo.railArrivalStation : null);
 
-  textToCopy += \`FOB \${containerType || 'N/A'} \${originPort || 'N/A'}\`;
-  textToCopy += \` - \${destinationPort || 'N/A'}\`;
+  textToCopy += "FOB " + (containerType || 'N/A') + " " + (originPort || 'N/A');
+  textToCopy += " - " + (destinationPort || 'N/A');
   if (isFurtherRailJourneyCopy && russianDestinationCity) {
-    textToCopy += \` - \${russianDestinationCity}\`;
-    if (railArrivalStationToUse) textToCopy += \` (прибытие: \${railArrivalStationToUse})\`;
+    textToCopy += " - " + russianDestinationCity;
+    if (railArrivalStationToUse) textToCopy += " (прибытие: " + railArrivalStationToUse + ")";
   }
-  textToCopy += \`\\n\`;
+  textToCopy += "\n";
 
   let seaCostBaseForSum = seaCostUSDToUse ?? 0;
   let dropOffCostForSum = 0;
@@ -116,7 +116,7 @@ export async function handleCopyOutput(args: ActionHandlerArgs) {
     dropOffCostForSum = dropOffCostUSDToUse;
   }
   const totalFreightCostUSD = seaCostBaseForSum + dropOffCostForSum;
-  textToCopy += \`Фрахт: \${formatDisplayCost(totalFreightCostUSD > 0 ? totalFreightCostUSD : null, 'USD')}\\n\`;
+  textToCopy += "Фрахт: " + formatDisplayCost(totalFreightCostUSD > 0 ? totalFreightCostUSD : null, 'USD') + "\n";
 
   let jdLine = "";
   if (isFurtherRailJourneyCopy) {
@@ -126,15 +126,15 @@ export async function handleCopyOutput(args: ActionHandlerArgs) {
       const railCost28t = lastSuccessfulCalculation?.railCostFinal28t ?? (shippingInfo && 'railCost20DC_28t' in shippingInfo ? shippingInfo.railCost20DC_28t : null);
       const guardCost20DC = lastSuccessfulCalculation?.railGuardCost20DC ?? (shippingInfo && 'railGuardCost20DC' in shippingInfo ? shippingInfo.railGuardCost20DC : null);
       let costsParts = [];
-      if (railCost24t !== null) costsParts.push(\`\${formatDisplayCost(railCost24t, 'RUB')} (<24t)\`);
-      if (railCost28t !== null) costsParts.push(\`\${formatDisplayCost(railCost28t, 'RUB')} (<28t)\`);
+      if (railCost24t !== null) costsParts.push(formatDisplayCost(railCost24t, 'RUB') + " (<24t)");
+      if (railCost28t !== null) costsParts.push(formatDisplayCost(railCost28t, 'RUB') + " (<28t)");
       jdLine += costsParts.join(' / ') || "N/A";
       const guardCostFormatted = formatDisplayCost(guardCost20DC, 'RUB');
       if (guardCostFormatted && guardCostFormatted !== 'N/A') {
-        jdLine += \` + Охрана \${guardCostFormatted}\`;
-        if (guardCost20DC && guardCost20DC > 0) jdLine += \` (Если код подохранный)\`;
+        jdLine += " + Охрана " + guardCostFormatted;
+        if (guardCost20DC && guardCost20DC > 0) jdLine += " (Если код подохранный)";
       } else if (costsParts.length > 0 && guardCostFormatted === 'N/A') {
-        jdLine += \` + Охрана N/A\`;
+        jdLine += " + Охрана N/A";
       }
     } else if (containerType === "40HC") {
       const railCost40HC = lastSuccessfulCalculation?.railCostFinal40HC ?? (shippingInfo && 'railCost40HC' in shippingInfo ? shippingInfo.railCost40HC : null);
@@ -142,15 +142,15 @@ export async function handleCopyOutput(args: ActionHandlerArgs) {
       jdLine += formatDisplayCost(railCost40HC, 'RUB') || "N/A";
       const guardCostFormatted = formatDisplayCost(guardCost40HC, 'RUB');
       if (guardCostFormatted && guardCostFormatted !== 'N/A') {
-        jdLine += \` + Охрана \${guardCostFormatted}\`;
-        if (guardCost40HC && guardCost40HC > 0) jdLine += \` (Если код подохранный)\`;
+        jdLine += " + Охрана " + guardCostFormatted;
+        if (guardCost40HC && guardCost40HC > 0) jdLine += " (Если код подохранный)";
       } else if (railCost40HC !== null && guardCostFormatted === 'N/A') {
-         jdLine += \` + Охрана N/A\`;
+         jdLine += " + Охрана N/A";
       }
     }
   }
-  if (jdLine && jdLine !== "Ж/Д Составляющая: ") textToCopy += \`\${jdLine}\\n\`;
-  textToCopy += \`Прием и вывоз контейнера в режиме ГТД в пределах МКАД: 48 000 руб. с НДС 0%\\n\`;
+  if (jdLine && jdLine !== "Ж/Д Составляющая: ") textToCopy += jdLine + "\n";
+  textToCopy += "Прием и вывоз контейнера в режиме ГТД в пределах МКАД: 48 000 руб. с НДС 0%\n";
 
   try {
     await navigator.clipboard.writeText(textToCopy.trim());
@@ -217,7 +217,7 @@ export function handleCreateInstructionsNavigation(args: ActionHandlerArgs) {
   if (dropOffComment && shipmentType === "COC") queryParams.set('dropOffComment', dropOffComment);
   if (socComment && shipmentType === "SOC") queryParams.set('socComment', socComment);
 
-  router.push(\`/instructions?\${queryParams.toString()}\`);
+  router.push("/instructions?" + queryParams.toString());
 }
 
 export function handleDirectRailCopy(shippingInfo: SmartPricingOutput | null, toast: ReturnType<typeof useToast>['toast']) {
@@ -225,18 +225,20 @@ export function handleDirectRailCopy(shippingInfo: SmartPricingOutput | null, to
     toast({ title: "No Direct Rail data", description: "Calculate a Direct Rail price first." });
     return;
   }
-  let text = \`Direct Rail Information:\\n\`;
-  if (shippingInfo.directRailAgentName) text += \`Agent: \${shippingInfo.directRailAgentName}\\n\`;
-  if (shippingInfo.directRailCityOfDeparture) text += \`City of Departure: \${shippingInfo.directRailCityOfDeparture}\\n\`;
-  if (shippingInfo.directRailDepartureStation) text += \`Departure Station: \${shippingInfo.directRailDepartureStation}\\n\`;
-  if (shippingInfo.directRailDestinationCity) text += \`Destination City: \${shippingInfo.directRailDestinationCity}\\n\`;
-  if (shippingInfo.directRailBorder) text += \`Border: \${shippingInfo.directRailBorder}\\n\`;
-  if (shippingInfo.directRailIncoterms) text += \`Incoterms: \${shippingInfo.directRailIncoterms}\\n\`;
-  if (shippingInfo.directRailCost !== null && shippingInfo.directRailCost !== undefined) text += \`Railway Cost: \${formatDisplayCost(shippingInfo.directRailCost, 'RUB')}\\n\`;
-  if (shippingInfo.directRailETD) text += \`ETD: \${shippingInfo.directRailETD}\\n\`;
-  if (shippingInfo.directRailCommentary) text += \`Commentary: \${shippingInfo.directRailCommentary}\\n\`;
+  let text = "Direct Rail Information:\n";
+  if (shippingInfo.directRailAgentName) text += "Agent: " + shippingInfo.directRailAgentName + "\n";
+  if (shippingInfo.directRailCityOfDeparture) text += "City of Departure: " + shippingInfo.directRailCityOfDeparture + "\n";
+  if (shippingInfo.directRailDepartureStation) text += "Departure Station: " + shippingInfo.directRailDepartureStation + "\n";
+  if (shippingInfo.directRailDestinationCity) text += "Destination City: " + shippingInfo.directRailDestinationCity + "\n";
+  if (shippingInfo.directRailBorder) text += "Border: " + shippingInfo.directRailBorder + "\n";
+  if (shippingInfo.directRailIncoterms) text += "Incoterms: " + shippingInfo.directRailIncoterms + "\n";
+  if (shippingInfo.directRailCost !== null && shippingInfo.directRailCost !== undefined) text += "Railway Cost: " + formatDisplayCost(shippingInfo.directRailCost, 'RUB') + "\n";
+  if (shippingInfo.directRailETD) text += "ETD: " + shippingInfo.directRailETD + "\n";
+  if (shippingInfo.directRailCommentary) text += "Commentary: " + shippingInfo.directRailCommentary + "\n";
   
   navigator.clipboard.writeText(text.trim())
     .then(() => toast({ title: "Success!", description: "Direct Rail Info copied." }))
     .catch(() => toast({ variant: "destructive", title: "Copy Failed" }));
 }
+
+    
