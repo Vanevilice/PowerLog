@@ -1,0 +1,242 @@
+
+import type { UseFormReturn } from 'react-hook-form';
+import type { NextRouter } from 'next/router'; // Or 'next/navigation' for App Router
+import { useToast } from '@/hooks/use-toast';
+import type {
+  RouteFormValues,
+  SmartPricingOutput,
+  CalculationDetailsForInstructions,
+  ShipmentType,
+  ContainerType,
+} from '@/types';
+import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS } from './constants';
+
+export function formatDisplayCost(cost: number | null | undefined, currency: 'USD' | 'RUB' = 'USD'): string {
+  if (cost === null || cost === undefined) return 'N/A';
+  const numCost = Number(cost);
+  if (isNaN(numCost)) return 'N/A';
+
+  const formatted = numCost.toLocaleString('fr-FR', { // French locale uses space as thousands separator
+    minimumFractionDigits: (numCost % 1 === 0) ? 0 : 2,
+    maximumFractionDigits: (numCost % 1 === 0) ? 0 : 2,
+  });
+  return \`\${formatted} \${currency}\`;
+}
+
+// Placeholder Getters
+interface PlaceholderGetterArgs {
+  isParsingSeaRailFile: boolean;
+  isSeaRailExcelDataLoaded: boolean;
+  formGetValues: UseFormReturn<RouteFormValues>['getValues'];
+  localAvailableSeaLines?: string[];
+  excelRussianDestinationCitiesMasterList?: string[];
+  localAvailableRussianDestinationCities?: string[];
+  localAvailableArrivalStations?: string[];
+}
+
+export function getSeaLinePlaceholder(args: PlaceholderGetterArgs): string {
+  const { isParsingSeaRailFile, isSeaRailExcelDataLoaded, formGetValues, localAvailableSeaLines = [] } = args;
+  const watchedOriginPort = formGetValues("originPort");
+  const watchedDestinationPort = formGetValues("destinationPort");
+
+  if (isParsingSeaRailFile) return "Processing...";
+  if (!isSeaRailExcelDataLoaded) return "Upload Море + Ж/Д Excel";
+  if (!watchedOriginPort || !watchedDestinationPort) return "Select Origin & Destination first";
+  if (localAvailableSeaLines.length > 0) return "Select sea line (or None)";
+  return "No sea lines for this O/D";
+}
+
+export function getRussianCityPlaceholder(args: PlaceholderGetterArgs): string {
+  const { isParsingSeaRailFile, isSeaRailExcelDataLoaded, excelRussianDestinationCitiesMasterList = [], localAvailableRussianDestinationCities = [] } = args;
+  if (isParsingSeaRailFile) return "Processing...";
+  if (!isSeaRailExcelDataLoaded) return "Upload Море + Ж/Д Excel";
+  if (excelRussianDestinationCitiesMasterList.length > 0) {
+    return localAvailableRussianDestinationCities.length > 0 ? "Select city" : "No rail hubs for Sea Dest.";
+  }
+  return "No rail destinations loaded";
+}
+
+export function getArrivalStationPlaceholder(args: PlaceholderGetterArgs): string {
+  const { isParsingSeaRailFile, isSeaRailExcelDataLoaded, formGetValues, localAvailableArrivalStations = [] } = args;
+  const watchedRussianDestinationCity = formGetValues("russianDestinationCity");
+
+  if (isParsingSeaRailFile) return "Processing...";
+  if (!isSeaRailExcelDataLoaded) return "Upload Море + Ж/Д Excel";
+  if (!watchedRussianDestinationCity) return "Select Destination City first";
+  if (localAvailableArrivalStations.length > 0) return "Select station (optional)";
+  return "No stations for this city";
+}
+
+// Copy and Navigation
+interface ActionHandlerArgs {
+  isSeaRailExcelDataLoaded: boolean;
+  shippingInfo: SmartPricingOutput | null;
+  lastSuccessfulCalculation: CalculationDetailsForInstructions | null;
+  formGetValues: UseFormReturn<RouteFormValues>['getValues'];
+  toast: ReturnType<typeof useToast>['toast'];
+  router: ReturnType<typeof import('next/navigation').useRouter>; // For App Router
+}
+
+export async function handleCopyOutput(args: ActionHandlerArgs) {
+  const { isSeaRailExcelDataLoaded, shippingInfo, lastSuccessfulCalculation, formGetValues, toast } = args;
+
+  if (!isSeaRailExcelDataLoaded && (!shippingInfo || (!('seaCost' in shippingInfo) && !('commentary' in shippingInfo)))) {
+    toast({ title: "Nothing to copy", description: "Calculate a price or load data first." });
+    return;
+  }
+
+  let textToCopy = "";
+  const formVals = formGetValues();
+  const { shipmentType, originPort, destinationPort, containerType, russianDestinationCity } = formVals;
+  const actualSeaLine = formVals.seaLineCompany === NONE_SEALINE_VALUE ? undefined : formVals.seaLineCompany;
+  const isPandaLine = actualSeaLine?.toLowerCase().includes('panda express line');
+
+  const isFurtherRailJourneyCopy = russianDestinationCity && destinationPort &&
+                                 VLADIVOSTOK_VARIANTS.some(vladVariant => destinationPort.startsWith(vladVariant.split(" ")[0])) &&
+                                 !VLADIVOSTOK_VARIANTS.some(vladVariant => vladVariant === russianDestinationCity && destinationPort.startsWith(vladVariant.split(" ")[0]));
+
+  const seaCostUSDToUse = lastSuccessfulCalculation?.seaCostFinal ?? (shippingInfo && 'seaCost' in shippingInfo ? shippingInfo.seaCost : null);
+  let dropOffCostUSDToUse: number | null = null;
+  if (shipmentType === "COC" && actualSeaLine && !isPandaLine) {
+    dropOffCostUSDToUse = lastSuccessfulCalculation?.dropOffCost ?? (shippingInfo && 'dropOffCost' in shippingInfo && shippingInfo.dropOffCost ? shippingInfo.dropOffCost : null);
+  }
+  const railArrivalStationToUse = lastSuccessfulCalculation?.railArrivalStation ?? (shippingInfo && 'railArrivalStation' in shippingInfo ? shippingInfo.railArrivalStation : null);
+
+  textToCopy += \`FOB \${containerType || 'N/A'} \${originPort || 'N/A'}\`;
+  textToCopy += \` - \${destinationPort || 'N/A'}\`;
+  if (isFurtherRailJourneyCopy && russianDestinationCity) {
+    textToCopy += \` - \${russianDestinationCity}\`;
+    if (railArrivalStationToUse) textToCopy += \` (прибытие: \${railArrivalStationToUse})\`;
+  }
+  textToCopy += \`\\n\`;
+
+  let seaCostBaseForSum = seaCostUSDToUse ?? 0;
+  let dropOffCostForSum = 0;
+  if (shipmentType === "COC" && actualSeaLine && !isPandaLine && dropOffCostUSDToUse) {
+    dropOffCostForSum = dropOffCostUSDToUse;
+  }
+  const totalFreightCostUSD = seaCostBaseForSum + dropOffCostForSum;
+  textToCopy += \`Фрахт: \${formatDisplayCost(totalFreightCostUSD > 0 ? totalFreightCostUSD : null, 'USD')}\\n\`;
+
+  let jdLine = "";
+  if (isFurtherRailJourneyCopy) {
+    jdLine = "Ж/Д Составляющая: ";
+    if (containerType === "20DC") {
+      const railCost24t = lastSuccessfulCalculation?.railCostFinal24t ?? (shippingInfo && 'railCost20DC_24t' in shippingInfo ? shippingInfo.railCost20DC_24t : null);
+      const railCost28t = lastSuccessfulCalculation?.railCostFinal28t ?? (shippingInfo && 'railCost20DC_28t' in shippingInfo ? shippingInfo.railCost20DC_28t : null);
+      const guardCost20DC = lastSuccessfulCalculation?.railGuardCost20DC ?? (shippingInfo && 'railGuardCost20DC' in shippingInfo ? shippingInfo.railGuardCost20DC : null);
+      let costsParts = [];
+      if (railCost24t !== null) costsParts.push(\`\${formatDisplayCost(railCost24t, 'RUB')} (<24t)\`);
+      if (railCost28t !== null) costsParts.push(\`\${formatDisplayCost(railCost28t, 'RUB')} (<28t)\`);
+      jdLine += costsParts.join(' / ') || "N/A";
+      const guardCostFormatted = formatDisplayCost(guardCost20DC, 'RUB');
+      if (guardCostFormatted && guardCostFormatted !== 'N/A') {
+        jdLine += \` + Охрана \${guardCostFormatted}\`;
+        if (guardCost20DC && guardCost20DC > 0) jdLine += \` (Если код подохранный)\`;
+      } else if (costsParts.length > 0 && guardCostFormatted === 'N/A') {
+        jdLine += \` + Охрана N/A\`;
+      }
+    } else if (containerType === "40HC") {
+      const railCost40HC = lastSuccessfulCalculation?.railCostFinal40HC ?? (shippingInfo && 'railCost40HC' in shippingInfo ? shippingInfo.railCost40HC : null);
+      const guardCost40HC = lastSuccessfulCalculation?.railGuardCost40HC ?? (shippingInfo && 'railGuardCost40HC' in shippingInfo ? shippingInfo.railGuardCost40HC : null);
+      jdLine += formatDisplayCost(railCost40HC, 'RUB') || "N/A";
+      const guardCostFormatted = formatDisplayCost(guardCost40HC, 'RUB');
+      if (guardCostFormatted && guardCostFormatted !== 'N/A') {
+        jdLine += \` + Охрана \${guardCostFormatted}\`;
+        if (guardCost40HC && guardCost40HC > 0) jdLine += \` (Если код подохранный)\`;
+      } else if (railCost40HC !== null && guardCostFormatted === 'N/A') {
+         jdLine += \` + Охрана N/A\`;
+      }
+    }
+  }
+  if (jdLine && jdLine !== "Ж/Д Составляющая: ") textToCopy += \`\${jdLine}\\n\`;
+  textToCopy += \`Прием и вывоз контейнера в режиме ГТД в пределах МКАД: 48 000 руб. с НДС 0%\\n\`;
+
+  try {
+    await navigator.clipboard.writeText(textToCopy.trim());
+    toast({ title: "Success!", description: "Output copied to clipboard." });
+  } catch (err) {
+    toast({ variant: "destructive", title: "Copy Failed", description: "Could not copy to clipboard." });
+  }
+}
+
+export function handleCreateInstructionsNavigation(args: ActionHandlerArgs) {
+  const { lastSuccessfulCalculation, toast, router } = args;
+  if (!lastSuccessfulCalculation) {
+    toast({ title: "No calculation data", description: "Please calculate a price first." });
+    return;
+  }
+  const {
+    shipmentType, originPort, destinationPort, seaLineCompany, containerType, russianDestinationCity,
+    railArrivalStation, railDepartureStation,
+    seaCostBase, seaComment,
+    railCostBase24t, railCostBase28t, railGuardCost20DC, railCostBase40HC, railGuardCost40HC,
+    seaMarginApplied, railMarginApplied, seaCostFinal,
+    railCostFinal24t, railCostFinal28t, railCostFinal40HC,
+    dropOffCost, dropOffComment, socComment
+  } = lastSuccessfulCalculation;
+
+  const queryParams = new URLSearchParams();
+  if (shipmentType) queryParams.set('shipmentType', shipmentType);
+  if (originPort) queryParams.set('originPort', originPort);
+  if (destinationPort) queryParams.set('destinationPort', destinationPort);
+  if (seaLineCompany) queryParams.set('seaLineCompany', seaLineCompany);
+  if (containerType) queryParams.set('containerType', containerType);
+  if (seaComment) queryParams.set('seaComment', seaComment);
+  if (railDepartureStation) queryParams.set('railDepartureStation', railDepartureStation);
+
+
+  const isFurtherRailJourneyInstructions = russianDestinationCity && destinationPort &&
+                                         VLADIVOSTOK_VARIANTS.some(vladVariant => destinationPort.startsWith(vladVariant.split(" ")[0])) &&
+                                         !VLADIVOSTOK_VARIANTS.some(vladVariant => vladVariant === russianDestinationCity && destinationPort.startsWith(vladVariant.split(" ")[0]));
+
+  if (isFurtherRailJourneyInstructions && russianDestinationCity) queryParams.set('russianDestinationCity', russianDestinationCity);
+  if (railArrivalStation) queryParams.set('railArrivalStation', railArrivalStation);
+  if (seaCostBase !== null && seaCostBase !== undefined) queryParams.set('seaCostBase', seaCostBase.toString());
+
+  if (containerType === "20DC") {
+    if (railCostBase24t !== null) queryParams.set('railCostBase24t', railCostBase24t.toString());
+    if (railCostBase28t !== null) queryParams.set('railCostBase28t', railCostBase28t.toString());
+    if (railGuardCost20DC !== null) queryParams.set('railGuardCost20DC', railGuardCost20DC.toString());
+    if (railCostFinal24t !== null) queryParams.set('railCostFinal24t', railCostFinal24t.toString());
+    if (railCostFinal28t !== null) queryParams.set('railCostFinal28t', railCostFinal28t.toString());
+  } else if (containerType === "40HC") {
+    if (railCostBase40HC !== null) queryParams.set('railCostBase40HC', railCostBase40HC.toString());
+    if (railGuardCost40HC !== null) queryParams.set('railGuardCost40HC', railGuardCost40HC.toString());
+    if (railCostFinal40HC !== null) queryParams.set('railCostFinal40HC', railCostFinal40HC.toString());
+  }
+
+  if (seaMarginApplied !== undefined) queryParams.set('seaMarginApplied', seaMarginApplied.toString());
+  if (railMarginApplied !== undefined) queryParams.set('railMarginApplied', railMarginApplied.toString());
+  if (seaCostFinal !== null) queryParams.set('seaCostFinal', seaCostFinal.toString());
+
+  const isPandaLine = seaLineCompany?.toLowerCase().includes('panda express line');
+  if (dropOffCost !== null && shipmentType === "COC" && !isPandaLine) {
+    queryParams.set('dropOffCost', dropOffCost.toString());
+  }
+  if (dropOffComment && shipmentType === "COC") queryParams.set('dropOffComment', dropOffComment);
+  if (socComment && shipmentType === "SOC") queryParams.set('socComment', socComment);
+
+  router.push(\`/instructions?\${queryParams.toString()}\`);
+}
+
+export function handleDirectRailCopy(shippingInfo: SmartPricingOutput | null, toast: ReturnType<typeof useToast>['toast']) {
+  if (!shippingInfo || !('directRailCost' in shippingInfo)) {
+    toast({ title: "No Direct Rail data", description: "Calculate a Direct Rail price first." });
+    return;
+  }
+  let text = \`Direct Rail Information:\\n\`;
+  if (shippingInfo.directRailAgentName) text += \`Agent: \${shippingInfo.directRailAgentName}\\n\`;
+  if (shippingInfo.directRailCityOfDeparture) text += \`City of Departure: \${shippingInfo.directRailCityOfDeparture}\\n\`;
+  if (shippingInfo.directRailDepartureStation) text += \`Departure Station: \${shippingInfo.directRailDepartureStation}\\n\`;
+  if (shippingInfo.directRailDestinationCity) text += \`Destination City: \${shippingInfo.directRailDestinationCity}\\n\`;
+  if (shippingInfo.directRailBorder) text += \`Border: \${shippingInfo.directRailBorder}\\n\`;
+  if (shippingInfo.directRailIncoterms) text += \`Incoterms: \${shippingInfo.directRailIncoterms}\\n\`;
+  if (shippingInfo.directRailCost !== null && shippingInfo.directRailCost !== undefined) text += \`Railway Cost: \${formatDisplayCost(shippingInfo.directRailCost, 'RUB')}\\n\`;
+  if (shippingInfo.directRailETD) text += \`ETD: \${shippingInfo.directRailETD}\\n\`;
+  if (shippingInfo.directRailCommentary) text += \`Commentary: \${shippingInfo.directRailCommentary}\\n\`;
+  
+  navigator.clipboard.writeText(text.trim())
+    .then(() => toast({ title: "Success!", description: "Direct Rail Info copied." }))
+    .catch(() => toast({ variant: "destructive", title: "Copy Failed" }));
+}
