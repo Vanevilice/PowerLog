@@ -16,8 +16,8 @@ interface CommonFormFieldsProps {
   handleDirectRailFileUploadClick: () => void;
   seaRailFileInputRef: React.RefObject<HTMLInputElement>;
   directRailFileInputRef: React.RefObject<HTMLInputElement>;
-  handleSeaRailFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  handleDirectRailFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onSeaRailFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onDirectRailFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   calculationModeContext: CalculationMode;
   setCalculationModeContext: PricingDataContextType['setCalculationMode'];
   exchangeRate: string | null;
@@ -31,13 +31,19 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
   handleDirectRailFileUploadClick,
   seaRailFileInputRef,
   directRailFileInputRef,
-  handleSeaRailFileChange,
-  handleDirectRailFileChange,
+  onSeaRailFileChange,
+  onDirectRailFileChange,
   calculationModeContext,
   setCalculationModeContext,
   exchangeRate,
 }) => {
   const { control, getValues, setValue } = form;
+
+  // For diagnostics: Log if the onSeaRailFileChange prop changes or is initially set
+  React.useEffect(() => {
+    console.log("CommonFormFields: onSeaRailFileChange prop function:", onSeaRailFileChange);
+    console.log("CommonFormFields: onDirectRailFileChange prop function:", onDirectRailFileChange);
+  }, [onSeaRailFileChange, onDirectRailFileChange]);
 
   return (
     <>
@@ -55,7 +61,14 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
         <input
           type="file"
           ref={seaRailFileInputRef}
-          onChange={handleSeaRailFileChange}
+          onChange={(e) => {
+            console.log("CommonFormFields: SeaRail input onChange triggered.", e);
+            if (onSeaRailFileChange) {
+              onSeaRailFileChange(e);
+            } else {
+              console.error("CommonFormFields: onSeaRailFileChange prop is undefined!");
+            }
+          }}
           accept=".xlsx, .xls"
           className="hidden"
           aria-hidden="true"
@@ -74,7 +87,14 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
         <input
           type="file"
           ref={directRailFileInputRef}
-          onChange={handleDirectRailFileChange}
+          onChange={(e) => {
+            console.log("CommonFormFields: DirectRail input onChange triggered.", e);
+            if (onDirectRailFileChange) {
+              onDirectRailFileChange(e);
+            } else {
+              console.error("CommonFormFields: onDirectRailFileChange prop is undefined!");
+            }
+          }}
           accept=".xlsx, .xls"
           className="hidden"
           aria-hidden="true"
@@ -84,7 +104,7 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
 
       <FormField
         control={control}
-        name="calculationModeToggle" // This field now exists in RouteFormValues and RouteSchema
+        name="calculationModeToggle"
         render={({ field }) => (
           <FormItem className="space-y-3">
             <FormLabel className="text-base font-semibold">Calculation Mode</FormLabel>
@@ -92,10 +112,10 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
               <RadioGroup
                 onValueChange={(value: string) => {
                   const newMode = value as CalculationMode;
-                  field.onChange(newMode); // Update form state for calculationModeToggle
-                  setCalculationModeContext(newMode); // Update context state
+                  // field.onChange(newMode); // This was removed in previous steps as context drives it.
+                  setCalculationModeContext(newMode);
                 }}
-                value={field.value || calculationModeContext} // Prefer field.value, fallback to context for initialization
+                value={calculationModeContext} // Controlled by context
                 className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4"
               >
                 <FormItem className="flex items-center space-x-2 space-y-0">
@@ -155,5 +175,3 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
     </>
   );
 };
-
-    
