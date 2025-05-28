@@ -27,7 +27,6 @@ export async function processSeaPlusRailCalculation({
 }: CalculationArgsBase ) {
   const { excelRouteData, excelSOCRouteData, excelRailData, excelDropOffData, calculationMode } = context;
 
-  // Enhanced checks for essential fields for "Get Price & Commentary"
   if (calculationMode === "sea_plus_rail") {
     if (!values.originPort) {
       toast({ variant: "destructive", title: "Missing Information", description: "Please select an Origin Port." });
@@ -152,10 +151,14 @@ export async function processSeaPlusRailCalculation({
   if (isFurtherRailJourney && !railLegFailed && russianDestinationCity) cityForDropOffLookup = russianDestinationCity;
   else if (destinationPort && VLADIVOSTOK_VARIANTS.some(v => destinationPort.startsWith(v.split(" ")[0]))) cityForDropOffLookup = destinationPort;
 
-  if (shipmentType === "COC" && matchedSeaRouteInfo && cityForDropOffLookup && actualSeaLine && (foundSeaPrice !== null || (!railLegFailed && isFurtherRailJourney) || (!isFurtherRailJourney && VLADIVOSTOK_VARIANTS.some(v => destinationPort!.startsWith(v.split(" ")[0]))))) {
+  if (shipmentType === "COC" && matchedSeaRouteInfo && cityForDropOffLookup && actualSeaLine &&
+      (foundSeaPrice !== null || (!railLegFailed && isFurtherRailJourney) || (!isFurtherRailJourney && VLADIVOSTOK_VARIANTS.some(variant => destinationPort!.startsWith(variant.split(" ")[0])) ) )) {
+
     const seaCommentLower = String(foundSeaComment || '').toLowerCase().trim();
-    const needsDropOff = DROP_OFF_TRIGGER_PHRASES.some(phrase => seaCommentLower.includes(phrase));
+    const isCKLine = actualSeaLine.toLowerCase().includes('ck line');
+    const needsDropOff = isCKLine || DROP_OFF_TRIGGER_PHRASES.some(phrase => seaCommentLower.includes(phrase));
     const isPandaLine = actualSeaLine.toLowerCase().includes('panda express line');
+
     if (needsDropOff) {
       let dropOffEntryMatched = false;
       const normalizedLookupCity = (cityForDropOffLookup.toLowerCase().replace(/^г\.\s*/, '') || "").trim();
@@ -405,11 +408,13 @@ export function calculateBestPrice({
         if (isBestPriceRussianCitySelectedForOnwardRail && bestRailLegDetails && russianDestinationCity) cityForDropOffLookupForBestPrice = russianDestinationCity;
         else if (VLADIVOSTOK_VARIANTS.some(v => seaDestPort.startsWith(v.split(" ")[0]))) cityForDropOffLookupForBestPrice = seaDestPort;
 
-        if (shipmentType === "COC" && currentSeaCommentFromExcel && cityForDropOffLookupForBestPrice && actualSeaLineForIteration) {
-          const seaCommentLower = currentSeaCommentFromExcel.toLowerCase().trim();
-          const needsDropOff = DROP_OFF_TRIGGER_PHRASES.some(phrase => seaCommentLower.includes(phrase));
+        if (shipmentType === "COC" && cityForDropOffLookupForBestPrice && actualSeaLineForIteration) {
+          const seaCommentLower = String(currentSeaCommentFromExcel || '').toLowerCase().trim();
+          const isCKLineForIteration = actualSeaLineForIteration.toLowerCase().includes('ck line');
+          const needsDropOffLookup = isCKLineForIteration || DROP_OFF_TRIGGER_PHRASES.some(phrase => seaCommentLower.includes(phrase));
           const isPandaLineBestPrice = actualSeaLineForIteration.toLowerCase().includes('panda express line');
-          if (needsDropOff) {
+
+          if (needsDropOffLookup) {
             const normalizedLookupCityForBestPrice = (cityForDropOffLookupForBestPrice.toLowerCase().replace(/^г\.\s*/, '') || "").trim();
             for (const dropOffEntry of excelDropOffData) {
               const seaLineFromMainRouteLowerTrimmed = actualSeaLineForIteration.toLowerCase().trim();
@@ -456,3 +461,4 @@ export function calculateBestPrice({
   setIsCalculatingBestPrice(false);
 }
 
+    
