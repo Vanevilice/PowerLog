@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { usePricingData, type BestPriceRoute } from '@/contexts/PricingDataContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Ship, Train, DollarSign, ListOrdered, Copy, Edit3, Info, Anchor, RussianRuble } from 'lucide-react';
+import { ArrowLeft, Ship, Train, Copy, Edit3, Info, ListOrdered } from 'lucide-react'; // Removed DollarSign, added ListOrdered
 import { useToast } from '@/hooks/use-toast';
 import { formatDisplayCost } from '@/lib/pricing/ui-helpers';
 import { VLADIVOSTOK_VARIANTS } from '@/lib/pricing/constants';
@@ -191,69 +191,123 @@ export default function BestPricesPage() {
         {bestPriceResults.map((route, index) => (
           <Card key={route.id} className="shadow-xl rounded-xl overflow-hidden flex flex-col bg-card border border-border hover:shadow-2xl transition-shadow duration-300">
             <CardHeader className="pb-4 bg-muted/30 border-b">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-xl font-semibold text-primary">
-                  Option {index + 1}
-                </CardTitle>
-                <div className="text-lg font-bold text-accent flex items-center">
-                  <RussianRuble className="inline h-5 w-5 mr-1"/>
-                  {formatDisplayCost(route.totalComparisonCostRUB, 'RUB').replace(' RUB','')}
-                </div>
-              </div>
+              <CardTitle className="text-xl font-semibold text-primary">
+                Option {index + 1}
+              </CardTitle>
               <CardDescription className="text-xs mt-1">
-                {route.originPort} <Ship className="inline h-3 w-3 mx-0.5 text-muted-foreground" /> {route.seaDestinationPort}
+                Route: {route.originPort} <Ship className="inline h-3 w-3 mx-0.5 text-muted-foreground" /> {route.seaDestinationPort}
                 {route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0])) && <> <Train className="inline h-3 w-3 mx-0.5 text-muted-foreground" /> {route.russianDestinationCity} {route.railArrivalStation ? `(${route.railArrivalStation})` : ''} </>}
-                 {route.seaLineCompany && <span className="block mt-1">via <span className="font-medium">{route.seaLineCompany}</span></span>}
+                 {route.seaLineCompany && <span className="block mt-1">Sea Line: <span className="font-medium">{route.seaLineCompany}</span></span>}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-3 text-sm flex-grow flex flex-col justify-between">
               <div>
-                <div className="space-y-1">
-                   {route.seaCostUSD !== null && (
-                      <p className="flex justify-between items-center">
-                        <span className="flex items-center text-muted-foreground"><Ship className="mr-1.5 h-4 w-4" /> Sea Cost:</span>
-                        <span className="font-medium">{formatDisplayCost(route.seaCostUSD, 'USD')}</span>
-                      </p>
-                   )}
-                  {route.seaComment && <p className="text-xs text-muted-foreground/80 pl-1">{route.seaComment}</p>}
-                  {route.socComment && <p className="text-xs text-muted-foreground/80 pl-1">SOC: {route.socComment}</p>}
+                {/* Route Details Section */}
+                <div className="grid grid-cols-[max-content_1fr] gap-x-2 gap-y-0.5 mb-3">
+                  <p className="font-medium text-muted-foreground">Origin Port:</p><p className="text-right">{route.originPort || 'N/A'}</p>
+                  <p className="font-medium text-muted-foreground">Sea Destination:</p><p className="text-right">{route.seaDestinationPort || 'N/A'}</p>
+                  {route.seaLineCompany && (
+                    <>
+                      <p className="font-medium text-muted-foreground">Sea Line:</p><p className="text-right">{route.seaLineCompany}</p>
+                    </>
+                  )}
+                  <p className="font-medium text-muted-foreground">Container Type:</p><p className="text-right">{route.containerType || 'N/A'}</p>
+                  {route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0])) && (
+                    <>
+                      <p className="font-medium text-muted-foreground">Destination City:</p><p className="text-right">{route.russianDestinationCity}</p>
+                    </>
+                  )}
+                  {route.railDepartureStation && (
+                    <>
+                      <p className="font-medium text-muted-foreground">Rail Dep. Station:</p><p className="text-right">{route.railDepartureStation}</p>
+                    </>
+                  )}
+                  {route.railArrivalStation && (
+                     <>
+                      <p className="font-medium text-muted-foreground">Rail Arr. Station:</p><p className="text-right">{route.railArrivalStation}</p>
+                    </>
+                  )}
                 </div>
 
-                {(route.railCost20DC_24t_RUB !== null || route.railCost20DC_28t_RUB !== null || route.railCost40HC_RUB !== null) && (
-                  <div className="pt-2 mt-2 border-t border-border/50">
-                    <p className="font-medium text-primary mb-1 flex items-center"><Train className="mr-1.5 h-4 w-4" /> Rail Details:</p>
-                    <div className="space-y-1 pl-2 text-xs">
-                      {route.railDepartureStation && <p><strong>Dep. Station:</strong> {route.railDepartureStation}</p>}
-                      {route.railArrivalStation && <p><strong>Arr. Station:</strong> {route.railArrivalStation}</p>}
-                      {route.containerType === "20DC" && (
-                        <>
-                          {route.railCost20DC_24t_RUB !== null && <p className="flex justify-between"><span>20DC (&lt;24t):</span> <span className="font-medium">{formatDisplayCost(route.railCost20DC_24t_RUB, 'RUB')}</span></p>}
-                          {route.railCost20DC_28t_RUB !== null && <p className="flex justify-between"><span>20DC (&lt;28t):</span> <span className="font-medium">{formatDisplayCost(route.railCost20DC_28t_RUB, 'RUB')}</span></p>}
-                          {route.railGuardCost20DC_RUB !== null && <p className="flex justify-between"><span>Guard (20DC):</span> <span className="font-medium">{formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB')}</span></p>}
-                        </>
-                      )}
-                      {route.containerType === "40HC" && (
-                        <>
-                          {route.railCost40HC_RUB !== null && <p className="flex justify-between"><span>40HC:</span> <span className="font-medium">{formatDisplayCost(route.railCost40HC_RUB, 'RUB')}</span></p>}
-                          {route.railGuardCost40HC_RUB !== null && <p className="flex justify-between"><span>Guard (40HC):</span> <span className="font-medium">{formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB')}</span></p>}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
+                {/* Cost Breakdown Section */}
+                <div className="pt-3 border-t border-border/50">
+                  <h4 className="font-semibold text-md mb-2 text-primary">
+                    Cost Breakdown
+                  </h4>
+                  <div className="space-y-1">
+                    {route.seaCostUSD !== null && (
+                      <p className="flex justify-between">
+                        <span>Sea Freight Cost:</span>
+                        <span className="font-semibold">{formatDisplayCost(route.seaCostUSD, 'USD')}</span>
+                      </p>
+                    )}
+                    {route.seaComment && (
+                      <p className="flex justify-between items-start">
+                        <span>Sea Route Comment:</span>
+                        <span className="text-xs text-destructive text-right ml-2">{route.seaComment}</span>
+                      </p>
+                    )}
+                    {route.socComment && route.shipmentType === "SOC" && (
+                        <p className="flex justify-between items-start">
+                            <span>SOC Comment:</span>
+                            <span className="text-xs text-muted-foreground text-right ml-2">{route.socComment}</span>
+                        </p>
+                    )}
 
-                {route.dropOffCostUSD !== null && route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line') && (
-                  <div className="pt-2 mt-2 border-t border-border/50">
-                     <p className="font-medium text-primary mb-1 flex items-center"><Anchor className="mr-1.5 h-4 w-4" /> Drop-off:</p>
-                    <p className="flex justify-between items-center pl-2">
-                      <span className="text-muted-foreground">Cost:</span>
-                      <span className="font-medium">{formatDisplayCost(route.dropOffCostUSD, 'USD')}</span>
-                    </p>
-                    {route.dropOffComment && <p className="text-xs text-muted-foreground/80 pl-3">{route.dropOffComment}</p>}
+                    {route.containerType === "20DC" && (
+                      <>
+                        {route.railCost20DC_24t_RUB !== null && (
+                          <p className="flex justify-between">
+                            <span>Rail Freight Cost (20DC &lt;24t):</span>
+                            <span className="font-semibold">{formatDisplayCost(route.railCost20DC_24t_RUB, 'RUB')}</span>
+                          </p>
+                        )}
+                        {route.railCost20DC_28t_RUB !== null && (
+                          <p className="flex justify-between">
+                            <span>Rail Freight Cost (20DC &lt;28t):</span>
+                            <span className="font-semibold">{formatDisplayCost(route.railCost20DC_28t_RUB, 'RUB')}</span>
+                          </p>
+                        )}
+                        {route.railGuardCost20DC_RUB !== null && (
+                          <p className="flex justify-between">
+                            <span>Rail Guard Cost (20DC):</span>
+                            <span className="font-semibold">{formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB')}</span>
+                          </p>
+                        )}
+                      </>
+                    )}
+                    {route.containerType === "40HC" && (
+                      <>
+                        {route.railCost40HC_RUB !== null && (
+                          <p className="flex justify-between">
+                            <span>Rail Freight Cost (40HC):</span>
+                            <span className="font-semibold">{formatDisplayCost(route.railCost40HC_RUB, 'RUB')}</span>
+                          </p>
+                        )}
+                        {route.railGuardCost40HC_RUB !== null && (
+                          <p className="flex justify-between">
+                            <span>Rail Guard Cost (40HC):</span>
+                            <span className="font-semibold">{formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB')}</span>
+                          </p>
+                        )}
+                      </>
+                    )}
+                     {route.dropOffCostUSD !== null && route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line') && (
+                        <p className="flex justify-between">
+                            <span>Drop Off Cost:</span>
+                            <span className="font-semibold">{formatDisplayCost(route.dropOffCostUSD, 'USD')}</span>
+                        </p>
+                    )}
+                    {route.dropOffComment && route.shipmentType === "COC" && (
+                      <p className="flex justify-between items-start">
+                        <span>Drop Off Comment:</span>
+                        <span className="text-xs text-destructive text-right ml-2">{route.dropOffComment}</span>
+                      </p>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
-              <div className="mt-auto pt-3 border-t flex flex-col sm:flex-row gap-2">
+              <div className="mt-auto pt-4 border-t flex flex-col sm:flex-row gap-2">
                 <Button
                   onClick={() => handleCopyRate(route, index)}
                   variant="outline"
@@ -268,7 +322,7 @@ export default function BestPricesPage() {
                   className="w-full flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground"
                   size="sm"
                 >
-                  <Edit3 className="mr-2 h-4 w-4" /> Instructions
+                  <Edit3 className="mr-2 h-4 w-4" /> Create Instructions
                 </Button>
               </div>
             </CardContent>
@@ -285,4 +339,3 @@ export default function BestPricesPage() {
     </div>
   );
 }
-
