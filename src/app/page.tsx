@@ -32,7 +32,7 @@ export default function PowerLogPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 min-h-screen flex flex-col items-center bg-background">
+    <div className="flex flex-col items-center w-full p-4 md:p-6">
       <header className="mb-8 text-center">
         <div className="flex items-center justify-center mb-2">
           <Repeat className="h-10 w-10 text-primary mr-3" />
@@ -45,7 +45,7 @@ export default function PowerLogPage() {
         </p>
       </header>
 
-      <main className="w-full max-w-3xl space-y-8">
+      <section className="w-full max-w-3xl space-y-8"> {/* Changed main to section for semantic clarity */}
         <Tabs defaultValue="sea_rail" className="w-full" onValueChange={handleTabChange} value={activeTab}>
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="sea_rail" className="py-3 text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
@@ -119,7 +119,7 @@ export default function PowerLogPage() {
                 </div>
               )}
               {results && !isLoading && <ResultsDisplay results={results} />}
-              {!isLoading && !error && !results && activeTab && ( // Show prompt only if a tab is active
+              {!isLoading && !error && !results && activeTab && ( 
                 <div className="text-center py-10">
                   <p className="text-lg text-muted-foreground">
                     Enter your shipment details above and click "Calculate" to see the cost comparison.
@@ -129,7 +129,7 @@ export default function PowerLogPage() {
             </CardContent>
           </Card>
         )}
-      </main>
+      </section>
 
       <footer className="mt-16 mb-8 text-center text-sm text-muted-foreground">
         <p>&copy; {new Date().getFullYear()} PowerLog. All rights reserved.</p>
@@ -138,3 +138,5 @@ export default function PowerLogPage() {
     </div>
   );
 }
+
+    
