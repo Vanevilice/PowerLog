@@ -7,32 +7,42 @@ import { usePricingData, type DashboardServiceSection, type DashboardServiceData
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
 import { AlertTriangle, FileText, UploadCloud, Info, Train, DollarSign, Copy } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast'; // Import useToast
+import { useToast } from '@/hooks/use-toast';
 
 export default function DashboardPage() {
   const { dashboardServiceSections, isSeaRailExcelDataLoaded } = usePricingData();
-  const { toast } = useToast(); // Initialize toast
+  const { toast } = useToast();
+  const [railwaySelection, setRailwaySelection] = React.useState<Record<string, boolean>>({}); // State for checkboxes
 
   React.useEffect(() => {
     console.log("[DashboardPage] isSeaRailExcelDataLoaded:", isSeaRailExcelDataLoaded);
     console.log("[DashboardPage] dashboardServiceSections:", dashboardServiceSections);
   }, [isSeaRailExcelDataLoaded, dashboardServiceSections]);
 
-  const handleDashboardCopyRate = async (row: DashboardServiceDataRow) => {
+  const handleDashboardCopyRate = async (row: DashboardServiceDataRow, sectionIndex: number, rowIndex: number) => {
     let textToCopy = "";
     const routeParts = row.route.split(' - ');
     const originPart = routeParts[0]?.replace(/^(FOB|FI)\s*/i, '').trim() || 'N/A';
-    const primaryDestinationPart = routeParts.length > 1 ? routeParts.slice(1).join(' - ').trim() : 'N/A';
+    // Use railwayOriginInfo for the "FOR" part if available and selected, otherwise use the primary destination part from main route
+    
+    let forPartRaw = "";
+    const includeRailway = railwaySelection[`${sectionIndex}-${rowIndex}`] && row.railwayCost && row.railwayCost !== 'N/A';
 
-    // Use railwayOriginInfo for the "FOR" part if available, otherwise use the primary destination part
-    const forPart = row.railwayOriginInfo && row.railwayOriginInfo !== 'N/A' 
-                    ? row.railwayOriginInfo.replace(/^(FOB|FI)\s*/i, '').trim() 
-                    : primaryDestinationPart;
+    if (includeRailway && row.railwayOriginInfo && row.railwayOriginInfo !== 'N/A') {
+      forPartRaw = row.railwayOriginInfo;
+    } else {
+      forPartRaw = routeParts.length > 1 ? routeParts.slice(1).join(' - ').trim() : 'N/A';
+    }
+    
+    const forPart = forPartRaw.replace(/^(FOB|FI|CY)\s*/i, '').trim();
+
 
     textToCopy += `FOB ${originPart} - Владивосток - FOR ${forPart} :\n`;
     textToCopy += `Фрахт: ${row.rate || 'N/A'}\n`;
-    if (row.railwayCost && row.railwayCost !== 'N/A') {
+
+    if (includeRailway) {
       textToCopy += `Ж/Д Составляющая: ${row.railwayCost}\n`;
     }
     // Add a standard line if not already present (optional, based on requirements)
@@ -142,7 +152,7 @@ export default function DashboardPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleDashboardCopyRate(row)}
+                            onClick={() => handleDashboardCopyRate(row, sectionIndex, rowIndex)}
                           >
                             <Copy className="mr-2 h-3 w-3" /> Copy Rate
                           </Button>
@@ -150,8 +160,20 @@ export default function DashboardPage() {
                       </TableRow>
                       {row.railwayCost && (
                         <TableRow className="bg-muted/20 hover:bg-muted/30 border-t border-dashed">
-                          <TableCell className="pl-10 py-2 text-sm font-medium text-primary flex items-center">
-                            <Train className="mr-2 h-4 w-4 text-primary/80" /> Railway Leg: {row.railwayOriginInfo || ''}
+                           <TableCell className="pl-6 py-2 text-sm font-medium text-primary flex items-center">
+                             <Checkbox
+                                id={`rail-select-${sectionIndex}-${rowIndex}`}
+                                checked={railwaySelection[`${sectionIndex}-${rowIndex}`] || false}
+                                onCheckedChange={(checked) => {
+                                  setRailwaySelection(prev => ({
+                                    ...prev,
+                                    [`${sectionIndex}-${rowIndex}`]: !!checked,
+                                  }));
+                                }}
+                                className="mr-2"
+                              />
+                            <Train className="mr-2 h-4 w-4 text-primary/80" /> 
+                            Railway Leg: {row.railwayOriginInfo || ''}
                           </TableCell>
                           <TableCell className="py-2 text-sm font-semibold text-primary">{row.railwayCost}</TableCell>
                           <TableCell className="py-2 text-sm">{row.railwayContainerInfo || 'N/A'}</TableCell>
@@ -181,3 +203,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
