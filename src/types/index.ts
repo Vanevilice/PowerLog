@@ -1,4 +1,5 @@
 
+// src/types/index.ts
 import type { SmartPricingOutput as SmartPricingOutputBase } from '@/ai/flows/smart-pricing';
 import type { PricingCommentaryOutput as PricingCommentaryOutputBase } from '@/ai/flows/pricing-commentary';
 import type { CONTAINER_TYPES_CONST, SHIPMENT_TYPES_CONST, CALCULATION_MODES_CONST } from "@/lib/pricing/constants";
@@ -59,15 +60,19 @@ export interface DirectRailEntry {
 }
 
 // Dashboard Data Structure
+export interface RailwayLegData {
+  originInfo: string;    // From Col A of CY row, or constructed for Col D CY rows
+  cost: string;          // From Col B of CY row
+  containerInfo: string; // From Col C of CY row
+  comment: string;       // From Col D (or C remainder) of CY row
+}
+
 export interface DashboardServiceDataRow {
-  route: string; // Content from Column A for FOB/FI rows
-  rate: string;  // Formatted rate from Column B for FOB/FI rows
-  containerInfo: string; // Extracted container type from Column C for FOB/FI rows
-  additionalComment: string; // Combined comments from Column C (remainder) and Column D for FOB/FI
-  railwayCost?: string; // Formatted rate from Column B for CY rows
-  railwayContainerInfo?: string; // Content from Column C for CY rows
-  railwayComment?: string; // Content from Column D for CY rows (after "CY ")
-  railwayOriginInfo?: string; // Content from Column A for CY rows
+  route: string;
+  rate: string;
+  containerInfo: string;
+  additionalComment: string;
+  railwayLegs?: RailwayLegData[]; // Changed to an array
 }
 
 export interface DashboardServiceSection {
@@ -97,11 +102,10 @@ export interface RouteFormValues {
 
 
 // AI Flow Output Extension and Calculation Details
-// Combined SmartPricingOutput (for general AI results) and PricingCommentaryOutput (for commentary only)
 export interface CombinedAiOutput extends SmartPricingOutputBase, PricingCommentaryOutputBase {
   shipmentType?: ShipmentType;
   originCity?: string;
-  destinationCity?: string; // Final destination or sea destination
+  destinationCity?: string;
   seaLineCompany?: string;
   containerType?: ContainerType;
   seaCost?: number | null;
@@ -113,20 +117,19 @@ export interface CombinedAiOutput extends SmartPricingOutputBase, PricingComment
   railGuardCost20DC?: number | null;
   railCost40HC?: number | null;
   railGuardCost40HC?: number | null;
-  russianDestinationCity?: string; // Specifically the Russian final city if rail is involved
+  russianDestinationCity?: string;
   railArrivalStation?: string | null;
   railDepartureStation?: string | null;
-
-  dropOffCost?: number | null; // Numeric value if parseable
+  dropOffCost?: number | null;
+  dropOffDisplayValue?: string | null;
   dropOffComment?: string | null;
-  dropOffDisplayValue?: string | null; // For special string formats like "$ X / $ Y"
 
   directRailCityOfDeparture?: string;
   directRailDepartureStation?: string;
   directRailBorder?: string;
   directRailCost?: number | null;
   directRailETD?: string;
-  directRailCommentary?: string | null; // Original Excel commentary for Direct Rail
+  directRailCommentary?: string | null;
   directRailAgentName?: string;
   directRailIncoterms?: string;
 }
@@ -135,10 +138,10 @@ export interface CombinedAiOutput extends SmartPricingOutputBase, PricingComment
 export interface CalculationDetailsForInstructions {
   shipmentType?: ShipmentType;
   originPort?: string;
-  destinationPort?: string; // Sea destination
+  destinationPort?: string;
   seaLineCompany?: string;
   containerType?: ContainerType;
-  russianDestinationCity?: string; // Final Russian city for rail
+  russianDestinationCity?: string;
   railArrivalStation?: string;
   railDepartureStation?: string;
   seaCostBase?: number | null;
@@ -154,9 +157,9 @@ export interface CalculationDetailsForInstructions {
   railCostFinal24t?: number | null;
   railCostFinal28t?: number | null;
   railCostFinal40HC?: number | null;
-  dropOffCost?: number | null; // Numeric part
+  dropOffCost?: number | null;
+  dropOffDisplayValue?: string | null;
   dropOffComment?: string | null;
-  dropOffDisplayValue?: string | null; // String for display, like "$ X / $ Y"
   socComment?: string | null;
 }
 
@@ -173,17 +176,14 @@ export interface BestPriceRoute {
   seaCostUSD: number | null;
   seaComment?: string | null;
   socComment?: string | null;
-
   railCost20DC_24t_RUB?: number | null;
   railCost20DC_28t_RUB?: number | null;
   railGuardCost20DC_RUB?: number | null;
   railCost40HC_RUB?: number | null;
   railGuardCost40HC_RUB?: number | null;
-
-  dropOffCostUSD?: number | null; // Numeric part for summation
+  dropOffCostUSD?: number | null;
+  dropOffDisplayValue?: string | null;
   dropOffComment?: string | null;
-  dropOffDisplayValue?: string | null; // For displaying strings like "$ X / $ Y"
-
   totalComparisonCostRUB: number;
 }
 
@@ -237,8 +237,8 @@ export interface PricingDataContextType {
   bestPriceResults: BestPriceRoute[] | null;
   setBestPriceResults: React.Dispatch<React.SetStateAction<BestPriceRoute[] | null>>;
 
-  dashboardServiceSections: DashboardServiceSection[]; // State for dashboard data
-  setDashboardServiceSections: React.Dispatch<React.SetStateAction<DashboardServiceSection[]>>; // Setter for dashboard data
+  dashboardServiceSections: DashboardServiceSection[];
+  setDashboardServiceSections: React.Dispatch<React.SetStateAction<DashboardServiceSection[]>>;
 }
 
 // Old types from original PowerLogForm / calculator, keep if still used by calculator page, or remove if fully deprecated
