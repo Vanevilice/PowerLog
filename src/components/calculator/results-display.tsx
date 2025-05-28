@@ -4,7 +4,16 @@ import type { CalculationResults, CalculationResultItem, CostBreakdown } from "@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Info } from "lucide-react";
+import { CheckCircle, Info, TrendingUp } from "lucide-react";
+import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Cell as RechartsCell } from 'recharts'; // Renamed Cell to avoid conflict
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig
+} from '@/components/ui/chart';
 
 interface ResultsDisplayProps {
   results: CalculationResults;
@@ -76,10 +85,36 @@ function ResultItemCard({ item, isRecommended }: { item: CalculationResultItem, 
 
 
 export default function ResultsDisplay({ results }: ResultsDisplayProps) {
-  const { seaFreightResult, railFreightResult, recommendedMode, savings } = results;
+  const { seaFreightResult, railFreightResult, recommendedMode, savings, currency = "USD" } = results;
+
+  const chartData = [
+    { mode: "Sea Freight", totalCost: seaFreightResult.costBreakdown.totalCost, fill: "hsl(var(--chart-1))" },
+    { mode: "Direct Rail", totalCost: railFreightResult.costBreakdown.totalCost, fill: "hsl(var(--chart-2))" },
+  ];
+
+  const chartConfig = {
+    totalCost: {
+      label: `Total Cost (${currency})`,
+    },
+    // Keys for legend items, matching dataKey in legendPayloadForChart
+    seaFreight: {
+      label: "Sea Freight",
+      color: "hsl(var(--chart-1))",
+    },
+    directRail: {
+      label: "Direct Rail",
+      color: "hsl(var(--chart-2))",
+    }
+  } satisfies ChartConfig;
+  
+  const legendPayloadForChart = [
+    { value: 'Sea Freight', type: 'square', id: 'sea', color: chartData[0].fill, dataKey: 'seaFreight' },
+    { value: 'Direct Rail', type: 'square', id: 'rail', color: chartData[1].fill, dataKey: 'directRail' },
+  ];
+
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {savings && (
         <Card className="bg-accent/20 border-accent">
           <CardHeader>
@@ -95,6 +130,54 @@ export default function ResultsDisplay({ results }: ResultsDisplayProps) {
           </CardContent>
         </Card>
       )}
+
+      <Card className="shadow-xl border-border overflow-hidden rounded-xl bg-card">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <TrendingUp className="mr-2 h-6 w-6 text-primary" />
+            Cost Comparison Chart
+          </CardTitle>
+          <CardDescription>Visual comparison of total logistics costs.</CardDescription>
+        </CardHeader>
+        <CardContent className="pl-2 pr-6 pb-6">
+          <ChartContainer config={chartConfig} className="min-h-[300px] w-full">
+            <BarChart 
+              accessibilityLayer 
+              data={chartData} 
+              margin={{ top: 5, right: 0, left: 0, bottom: 5 }}
+              barGap={8}
+              barSize={60}
+            >
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis
+                dataKey="mode"
+                tickLine={false}
+                tickMargin={10}
+                axisLine={false}
+                stroke="hsl(var(--muted-foreground))"
+              />
+              <YAxis
+                tickFormatter={(value) => formatCurrency(value, currency)}
+                tickLine={false}
+                axisLine={false}
+                stroke="hsl(var(--muted-foreground))"
+                width={80}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent indicator="dot" />}
+              />
+              <ChartLegend content={<ChartLegendContent payload={legendPayloadForChart} />} />
+              <Bar dataKey="totalCost" radius={5}>
+                {chartData.map((entry, index) => (
+                  <RechartsCell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
+      
       <div className="flex flex-col md:flex-row gap-6">
         <ResultItemCard item={seaFreightResult} isRecommended={recommendedMode === "Sea Freight"} />
         <ResultItemCard item={railFreightResult} isRecommended={recommendedMode === "Direct Rail"} />
