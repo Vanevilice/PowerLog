@@ -18,8 +18,8 @@ export default function DashboardPage() {
   const [railwaySelection, setRailwaySelection] = React.useState<Record<string, number | null>>({});
 
   React.useEffect(() => {
-    console.log("[DashboardPage] isSeaRailExcelDataLoaded:", isSeaRailExcelDataLoaded);
-    console.log("[DashboardPage] dashboardServiceSections:", dashboardServiceSections);
+    // console.log("[DashboardPage] isSeaRailExcelDataLoaded:", isSeaRailExcelDataLoaded);
+    // console.log("[DashboardPage] dashboardServiceSections:", dashboardServiceSections);
   }, [isSeaRailExcelDataLoaded, dashboardServiceSections]);
 
   const handleRailwayLegCheckboxChange = (sectionIndex: number, rowIndex: number, legIndex: number) => {
@@ -39,7 +39,8 @@ export default function DashboardPage() {
   const handleDashboardCopyRate = async (row: DashboardServiceDataRow, sectionIndex: number, rowIndex: number) => {
     let textToCopy = "";
     const routeParts = row.route.split(' - ');
-    const originPart = routeParts[0]?.replace(/^(FOB|FI)\s*/i, '').trim() || 'N/A';
+    const originPartRaw = routeParts[0] || 'N/A';
+    const originPart = originPartRaw.replace(/^(FOB|FI)\s*/i, '').trim();
     
     let forPartDisplay = 'N/A';
     let railwayCostDisplay = 'N/A';
@@ -48,8 +49,15 @@ export default function DashboardPage() {
     const selectionKey = `${sectionIndex}-${rowIndex}`;
     const selectedLegIndex = railwaySelection[selectionKey];
 
+    console.log(`[DashboardCopyRate] For row ${rowIndex} in section ${sectionIndex} (Route: ${row.route}):`);
+    console.log(`  SelectionKey: ${selectionKey}`);
+    console.log(`  SelectedLegIndex from state: ${selectedLegIndex}`);
+    console.log(`  Row railwayLegs data:`, row.railwayLegs);
+
+
     if (selectedLegIndex !== null && selectedLegIndex !== undefined && row.railwayLegs && row.railwayLegs[selectedLegIndex]) {
         const selectedLeg = row.railwayLegs[selectedLegIndex];
+        console.log(`  Selected Leg Data:`, selectedLeg);
         if (selectedLeg.originInfo && selectedLeg.originInfo !== 'N/A') {
             // Remove leading "CY ", "FOB ", or "FI " from the selected leg's originInfo for the "FOR" part
             forPartDisplay = selectedLeg.originInfo.replace(/^(FOB|FI|CY)\s*/i, '').trim();
@@ -59,7 +67,9 @@ export default function DashboardPage() {
             includeRailwayPart = true;
         }
     } else if (routeParts.length > 1) { // Fallback if no railway leg selected: use destination from main route
-        forPartDisplay = routeParts.slice(1).join(' - ').replace(/^(FOB|FI|CY)\s*/i, '').trim();
+        console.log(`  No specific railway leg selected or data missing, falling back to main route destination.`);
+        const destinationPartRaw = routeParts.slice(1).join(' - ');
+        forPartDisplay = destinationPartRaw.replace(/^(FOB|FI|CY)\s*/i, '').trim();
     }
     
     textToCopy += `FOB ${originPart} - Владивосток - FOR ${forPartDisplay} :\n`;
@@ -69,6 +79,8 @@ export default function DashboardPage() {
       textToCopy += `Ж/Д Составляющая: ${railwayCostDisplay}\n`;
     }
     
+    console.log(`  Final textToCopy:\n${textToCopy}`);
+
     try {
       await navigator.clipboard.writeText(textToCopy.trim());
       toast({ title: "Success!", description: "Rate copied to clipboard." });
@@ -221,6 +233,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-
-    
