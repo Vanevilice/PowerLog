@@ -49,6 +49,18 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
     localAvailableArrivalStations,
   };
 
+  const destinationPortPlaceholder = isParsingSeaRailFile
+    ? "Processing..."
+    : !isSeaRailExcelDataLoaded
+    ? "Upload Море + Ж/Д Excel"
+    : !watchedOriginPort
+    ? "Select Origin Port First"
+    : localAvailableDestinationPorts.length > 0
+    ? localAvailableDestinationPorts.includes("Владивосток")
+      ? "Владивосток"
+      : "Select destination port"
+    : "No destinations for origin";
+
   return (
     <>
       <FormField
@@ -141,7 +153,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
               >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder={isParsingSeaRailFile ? "Processing..." : !isSeaRailExcelDataLoaded ? "Upload Море + Ж/Д Excel" : !watchedOriginPort ? "Select Origin Port First" : (localAvailableDestinationPorts.length > 0 ? "Select destination port" : "No destinations for origin")} />
+                     <SelectValue placeholder={destinationPortPlaceholder} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -258,5 +270,4 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
     </>
   );
 };
-
     
