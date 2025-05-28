@@ -5,15 +5,14 @@ import * as React from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import type {
   RouteFormValues,
-  SmartPricingOutput,
-  PricingCommentaryOutput,
+  CombinedAiOutput,
   CalculationMode,
 } from '@/types';
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS } from '@/lib/pricing/constants';
 import { formatDisplayCost } from '@/lib/pricing/ui-helpers';
 
 interface ShippingInfoDisplayProps {
-  shippingInfo: SmartPricingOutput | PricingCommentaryOutput;
+  shippingInfo: CombinedAiOutput | null; // Allow null
   calculationMode: CalculationMode;
   getFormValues: UseFormReturn<RouteFormValues>['getValues'];
 }
@@ -22,6 +21,10 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
   const currentFormValues = getFormValues();
 
   if (!shippingInfo) return null;
+
+  // Determine which drop-off value to display
+  const dropOffToDisplay = shippingInfo.dropOffDisplayValue || (shippingInfo.dropOffCost !== null && shippingInfo.dropOffCost !== undefined ? formatDisplayCost(shippingInfo.dropOffCost, 'USD') : null);
+
 
   return (
     <div className="mt-6 p-6 border rounded-lg bg-background shadow-md animate-in fade-in-50 duration-500">
@@ -110,10 +113,10 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
                 ) : null}
               </>
             )}
-            {'dropOffCost' in shippingInfo && shippingInfo.dropOffCost !== null && shippingInfo.dropOffCost !== undefined && currentFormValues.shipmentType === "COC" && !currentFormValues.seaLineCompany?.toLowerCase().includes('panda express line') ? (
+            {dropOffToDisplay && currentFormValues.shipmentType === "COC" && !currentFormValues.seaLineCompany?.toLowerCase().includes('panda express line') ? (
               <p className="flex justify-between">
                 <strong>Drop Off Cost:</strong>
-                <span className="font-bold text-lg text-primary">{formatDisplayCost(shippingInfo.dropOffCost, 'USD')}</span>
+                <span className="font-bold text-lg text-primary">{dropOffToDisplay}</span>
               </p>
             ) : null}
             {'dropOffComment' in shippingInfo && shippingInfo.dropOffComment && currentFormValues.shipmentType === "COC" ? (
@@ -167,3 +170,5 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
     </div>
   );
 }
+
+    

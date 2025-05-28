@@ -1,6 +1,6 @@
 
 import type { SmartPricingOutput as SmartPricingOutputBase } from '@/ai/flows/smart-pricing';
-import type { PricingCommentaryOutput } from '@/ai/flows/pricing-commentary';
+import type { PricingCommentaryOutput as PricingCommentaryOutputBase } from '@/ai/flows/pricing-commentary';
 import type { CONTAINER_TYPES_CONST, SHIPMENT_TYPES_CONST, CALCULATION_MODES_CONST } from "@/lib/pricing/constants";
 
 // Core Enum-like Types from Constants
@@ -13,8 +13,8 @@ export interface ExcelRoute { // COC Data from 3rd Sheet
   originPorts: string[];
   destinationPorts: string[];
   seaLines: string[];
-  price20DC: number | null;
-  price40HC: number | null;
+  price20DC: number | string | null; // Can be string for special formats
+  price40HC: number | string | null; // Can be string for special formats
   seaComment?: string;
 }
 
@@ -22,8 +22,8 @@ export interface ExcelSOCRoute { // SOC Data from 2nd Sheet
   departurePorts: string[];
   destinationPorts: string[];
   seaLines: string[];
-  price20DC: number | null;
-  price40HC: number | null;
+  price20DC: number | string | null; // Can be string for special formats
+  price40HC: number | string | null; // Can be string for special formats
   socComment?: string;
 }
 
@@ -31,18 +31,18 @@ export interface RailDataEntry {
   departureStations: string[];
   arrivalStations: string[];
   cityOfArrival: string;
-  price20DC_24t: number | null;
-  guardCost20DC: number | null;
-  price20DC_28t: number | null;
-  price40HC: number | null;
-  guardCost40HC: number | null;
+  price20DC_24t: number | null; // Assumed to be number
+  guardCost20DC: number | null;  // Assumed to be number
+  price20DC_28t: number | null; // Assumed to be number
+  price40HC: number | null;    // Assumed to be number
+  guardCost40HC: number | null;  // Assumed to be number
 }
 
 export interface DropOffEntry {
   seaLine: string;
   cities: string[];
-  price20DC: number | null;
-  price40HC: number | null;
+  price20DC: number | string | null; // Changed to allow string for formats like "$ X / $ Y"
+  price40HC: number | string | null; // Changed to allow string
   comment?: string;
 }
 
@@ -53,16 +53,15 @@ export interface DirectRailEntry {
   border: string;
   destinationCity: string;
   incoterms: string;
-  price: number | null;
+  price: number | null; // Assumed to be number
   etd: string;
   commentary: string;
 }
 
 // Form Values
 export interface RouteFormValues {
-  // Sea + Rail mode
   shipmentType: ShipmentType;
-  originPort: string; // Kept as string, optionality handled by schema/logic
+  originPort?: string;
   destinationPort?: string;
   seaLineCompany?: string;
   containerType?: ContainerType;
@@ -70,34 +69,30 @@ export interface RouteFormValues {
   arrivalStationSelection?: string;
   seaMargin?: string;
   railMargin?: string;
-
-  // Direct Rail mode
   directRailAgentName?: string;
   directRailCityOfDeparture?: string;
   directRailDestinationCityDR?: string;
   directRailIncoterms?: string;
   directRailBorder?: string;
-
-  // This field is for the UI toggle, not part of the submitted data for calculation in this specific way.
-  // The actual 'calculationMode' is determined by context or UI state.
-  calculationModeToggle?: CalculationMode; // Represents the radio button state in CommonFormFields
+  calculationModeToggle?: CalculationMode;
 }
 
 
 // AI Flow Output Extension and Calculation Details
-export interface SmartPricingOutput extends SmartPricingOutputBase {
-  // Fields already in SmartPricingOutputBase (from AI flow):
-  // commentary?: string;
+// Combined SmartPricingOutput (for general AI results) and PricingCommentaryOutput (for commentary only)
+export interface CombinedAiOutput extends SmartPricingOutputBase, PricingCommentaryOutputBase {
+  // Fields from SmartPricingOutputBase (from AI flow):
+  // commentary?: string; // This will be merged from both
   // totalFreightCostUSD?: number | null;
   // totalRailCostRUB?: number | null;
   // (add other base fields if they exist and are needed by UI)
 
   // Extensions for UI and specific calculation paths:
-  shipmentType?: ShipmentType; // From form
-  originCity?: string; // From form (sea+rail)
-  destinationCity?: string; // From form (sea destination or final Russian city)
-  seaLineCompany?: string; // From form
-  containerType?: ContainerType; // From form
+  shipmentType?: ShipmentType;
+  originCity?: string;
+  destinationCity?: string; // Final destination or sea destination
+  seaLineCompany?: string;
+  containerType?: ContainerType;
   seaCost?: number | null;
   seaComment?: string | null;
   socComment?: string | null;
@@ -107,20 +102,21 @@ export interface SmartPricingOutput extends SmartPricingOutputBase {
   railGuardCost20DC?: number | null;
   railCost40HC?: number | null;
   railGuardCost40HC?: number | null;
-  russianDestinationCity?: string;
+  russianDestinationCity?: string; // Specifically the Russian final city if rail is involved
   railArrivalStation?: string | null;
-  railDepartureStation?: string | null; // Added
+  railDepartureStation?: string | null;
 
-  dropOffCost?: number | null;
+  dropOffCost?: number | null; // Numeric value if parseable
   dropOffComment?: string | null;
+  dropOffDisplayValue?: string | null; // For special string formats like "$ X / $ Y"
 
   directRailCityOfDeparture?: string;
   directRailDepartureStation?: string;
-  directRailDestinationCity?: string; // This is the final destination for Direct Rail
+  // directRailDestinationCity is already part of SmartPricingOutputBase, aliased here if needed
   directRailBorder?: string;
   directRailCost?: number | null;
   directRailETD?: string;
-  directRailCommentary?: string | null;
+  directRailCommentary?: string | null; // Original Excel commentary for Direct Rail
   directRailAgentName?: string;
   directRailIncoterms?: string;
 }
@@ -129,10 +125,10 @@ export interface SmartPricingOutput extends SmartPricingOutputBase {
 export interface CalculationDetailsForInstructions {
   shipmentType?: ShipmentType;
   originPort?: string;
-  destinationPort?: string;
+  destinationPort?: string; // Sea destination
   seaLineCompany?: string;
   containerType?: ContainerType;
-  russianDestinationCity?: string;
+  russianDestinationCity?: string; // Final Russian city for rail
   railArrivalStation?: string;
   railDepartureStation?: string;
   seaCostBase?: number | null;
@@ -148,8 +144,9 @@ export interface CalculationDetailsForInstructions {
   railCostFinal24t?: number | null;
   railCostFinal28t?: number | null;
   railCostFinal40HC?: number | null;
-  dropOffCost?: number | null;
+  dropOffCost?: number | null; // Numeric part
   dropOffComment?: string | null;
+  dropOffDisplayValue?: string | null; // String for display, like "$ X / $ Y"
   socComment?: string | null;
 }
 
@@ -160,8 +157,10 @@ export interface BestPriceRoute {
   seaDestinationPort: string;
   seaLineCompany?: string;
   containerType: ContainerType;
-  russianDestinationCity: string; // Final if rail, or same as seaDest if no rail
-  seaCostUSD: number | null; // Changed from number to number | null
+  russianDestinationCity: string;
+  railDepartureStation?: string;
+  railArrivalStation?: string;
+  seaCostUSD: number | null;
   seaComment?: string | null;
   socComment?: string | null;
 
@@ -170,15 +169,64 @@ export interface BestPriceRoute {
   railGuardCost20DC_RUB?: number | null;
   railCost40HC_RUB?: number | null;
   railGuardCost40HC_RUB?: number | null;
-  railDepartureStation?: string;
-  railArrivalStation?: string;
 
-  dropOffCostUSD?: number | null;
+  dropOffCostUSD?: number | null; // Numeric part for summation
   dropOffComment?: string | null;
+  dropOffDisplayValue?: string | null; // For displaying strings like "$ X / $ Y"
 
   totalComparisonCostRUB: number;
 }
 
+
+// For PricingDataContext provider
+export interface PricingDataContextType {
+  calculationMode: CalculationMode;
+  setCalculationMode: React.Dispatch<React.SetStateAction<CalculationMode>>;
+
+  excelRouteData: ExcelRoute[];
+  setExcelRouteData: React.Dispatch<React.SetStateAction<ExcelRoute[]>>;
+  excelSOCRouteData: ExcelSOCRoute[];
+  setExcelSOCRouteData: React.Dispatch<React.SetStateAction<ExcelSOCRoute[]>>;
+  excelRailData: RailDataEntry[];
+  setExcelRailData: React.Dispatch<React.SetStateAction<RailDataEntry[]>>;
+  excelDropOffData: DropOffEntry[];
+  setExcelDropOffData: React.Dispatch<React.SetStateAction<DropOffEntry[]>>;
+  excelDirectRailData: DirectRailEntry[];
+  setExcelDirectRailData: React.Dispatch<React.SetStateAction<DirectRailEntry[]>>;
+
+  isSeaRailExcelDataLoaded: boolean;
+  setIsSeaRailExcelDataLoaded: React.Dispatch<React.SetStateAction<boolean>>;
+  isDirectRailExcelDataLoaded: boolean;
+  setIsDirectRailExcelDataLoaded: React.Dispatch<React.SetStateAction<boolean>>;
+
+  excelOriginPorts: string[];
+  setExcelOriginPorts: React.Dispatch<React.SetStateAction<string[]>>;
+  excelDestinationPorts: string[];
+  setExcelDestinationPorts: React.Dispatch<React.SetStateAction<string[]>>;
+  excelRussianDestinationCitiesMasterList: string[];
+  setExcelRussianDestinationCitiesMasterList: React.Dispatch<React.SetStateAction<string[]>>;
+
+  directRailAgents: string[];
+  setDirectRailAgents: React.Dispatch<React.SetStateAction<string[]>>;
+  directRailDepartureCities: string[];
+  setDirectRailDepartureCities: React.Dispatch<React.SetStateAction<string[]>>;
+  directRailDestinationCitiesDR: string[];
+  setDirectRailDestinationCitiesDR: React.Dispatch<React.SetStateAction<string[]>>;
+  directRailIncotermsList: string[];
+  setDirectRailIncotermsList: React.Dispatch<React.SetStateAction<string[]>>;
+  directRailBordersList: string[];
+  setDirectRailBordersList: React.Dispatch<React.SetStateAction<string[]>>;
+
+  cachedFormValues: Partial<RouteFormValues> | null;
+  setCachedFormValues: React.Dispatch<React.SetStateAction<Partial<RouteFormValues> | null>>;
+  cachedShippingInfo: CombinedAiOutput | null;
+  setCachedShippingInfo: React.Dispatch<React.SetStateAction<CombinedAiOutput | null>>;
+  cachedLastSuccessfulCalculation: CalculationDetailsForInstructions | null;
+  setCachedLastSuccessfulCalculation: React.Dispatch<React.SetStateAction<CalculationDetailsForInstructions | null>>;
+
+  bestPriceResults: BestPriceRoute[] | null;
+  setBestPriceResults: React.Dispatch<React.SetStateAction<BestPriceRoute[] | null>>;
+}
 
 // Old types from original PowerLogForm / calculator, keep if still used by calculator page, or remove if fully deprecated
 export interface PowerLogFormInput {
@@ -249,56 +297,6 @@ export interface RateData {
     thcSea: number;
     thcRail: number;
   };
-}
-
-// For PricingDataContext provider
-export interface PricingDataContextType {
-  calculationMode: CalculationMode;
-  setCalculationMode: React.Dispatch<React.SetStateAction<CalculationMode>>;
-
-  excelRouteData: ExcelRoute[];
-  setExcelRouteData: React.Dispatch<React.SetStateAction<ExcelRoute[]>>;
-  excelSOCRouteData: ExcelSOCRoute[];
-  setExcelSOCRouteData: React.Dispatch<React.SetStateAction<ExcelSOCRoute[]>>;
-  excelRailData: RailDataEntry[];
-  setExcelRailData: React.Dispatch<React.SetStateAction<RailDataEntry[]>>;
-  excelDropOffData: DropOffEntry[];
-  setExcelDropOffData: React.Dispatch<React.SetStateAction<DropOffEntry[]>>;
-  excelDirectRailData: DirectRailEntry[];
-  setExcelDirectRailData: React.Dispatch<React.SetStateAction<DirectRailEntry[]>>;
-
-  isSeaRailExcelDataLoaded: boolean;
-  setIsSeaRailExcelDataLoaded: React.Dispatch<React.SetStateAction<boolean>>;
-  isDirectRailExcelDataLoaded: boolean;
-  setIsDirectRailExcelDataLoaded: React.Dispatch<React.SetStateAction<boolean>>;
-
-  excelOriginPorts: string[];
-  setExcelOriginPorts: React.Dispatch<React.SetStateAction<string[]>>;
-  excelDestinationPorts: string[]; // Sea Destination Ports
-  setExcelDestinationPorts: React.Dispatch<React.SetStateAction<string[]>>;
-  excelRussianDestinationCitiesMasterList: string[]; // Rail Destination Cities
-  setExcelRussianDestinationCitiesMasterList: React.Dispatch<React.SetStateAction<string[]>>;
-
-  directRailAgents: string[];
-  setDirectRailAgents: React.Dispatch<React.SetStateAction<string[]>>;
-  directRailDepartureCities: string[];
-  setDirectRailDepartureCities: React.Dispatch<React.SetStateAction<string[]>>;
-  directRailDestinationCitiesDR: string[];
-  setDirectRailDestinationCitiesDR: React.Dispatch<React.SetStateAction<string[]>>;
-  directRailIncotermsList: string[];
-  setDirectRailIncotermsList: React.Dispatch<React.SetStateAction<string[]>>;
-  directRailBordersList: string[];
-  setDirectRailBordersList: React.Dispatch<React.SetStateAction<string[]>>;
-
-  cachedFormValues: Partial<RouteFormValues> | null;
-  setCachedFormValues: React.Dispatch<React.SetStateAction<Partial<RouteFormValues> | null>>;
-  cachedShippingInfo: SmartPricingOutput | PricingCommentaryOutput | null;
-  setCachedShippingInfo: React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutput | null>>;
-  cachedLastSuccessfulCalculation: CalculationDetailsForInstructions | null;
-  setCachedLastSuccessfulCalculation: React.Dispatch<React.SetStateAction<CalculationDetailsForInstructions | null>>;
-
-  bestPriceResults: BestPriceRoute[] | null;
-  setBestPriceResults: React.Dispatch<React.SetStateAction<BestPriceRoute[] | null>>;
 }
 
     

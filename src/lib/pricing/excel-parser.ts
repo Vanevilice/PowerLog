@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import type { UseFormReturn } from 'react-hook-form';
 import type {
   ExcelRoute, ExcelSOCRoute, RailDataEntry as ContextRailDataEntry, DropOffEntry, DirectRailEntry,
-  RouteFormValues, PricingDataContextType, SmartPricingOutput, PricingCommentaryOutput, // Using consolidated types
+  RouteFormValues, PricingDataContextType, SmartPricingOutput, PricingCommentaryOutput,
 } from '@/types';
 import type { useToast } from '@/hooks/use-toast';
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS } from './constants';
@@ -76,13 +76,25 @@ export function parseGenericListCell(cellValue: string | undefined): string[] {
 }
 
 
-export function parsePriceCell(cellValue: any): number | null {
-  const num = parseFloat(String(cellValue).replace(/\s/g, '').replace(',', '.'));
-  return isNaN(num) ? null : num;
+export function parsePriceCell(cellValue: any): number | string | null {
+  if (cellValue === null || cellValue === undefined || String(cellValue).trim() === "") {
+    return null;
+  }
+  const sValue = String(cellValue).replace(/\s/g, '').replace(',', '.');
+  const num = parseFloat(sValue);
+
+  if (isNaN(num)) {
+    // If it's not a number, but the original cell value was a non-empty string, return the original string
+    if (typeof cellValue === 'string' && cellValue.trim() !== "") {
+      return cellValue.trim(); // Return the original string like "$ 816/$ 1020"
+    }
+    return null; // Truly unparsable or empty after trim
+  }
+  return num; // Parsed as a number
 }
 
 interface ExcelParserArgsBase {
-  file: File; // Changed from event to file
+  file: File;
   form: UseFormReturn<RouteFormValues>;
   contextSetters: PricingDataContextType;
   setShippingInfoState: (info: SmartPricingOutput | PricingCommentaryOutput | null) => void;
@@ -97,20 +109,10 @@ interface ExcelParserArgsBase {
 export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
   const { file, form, contextSetters, setShippingInfoState, setHasRestoredFromCacheState, toast, fileInputRef, setIsParsingState, setBestPriceResults } = args;
 
-  if (!file) { // Secondary guard, primary guard is now in PortPriceFinderForm
-    toast({ variant: "destructive", title: "File Error", description: "No file provided to parser." });
-    setIsParsingState(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-    return;
-  }
-
   setIsParsingState(true);
   setShippingInfoState(null);
   setBestPriceResults(null); // Clear previous best price results
 
-  // Reset context states related to Excel data
   contextSetters.setCachedShippingInfo(null);
   contextSetters.setCachedFormValues(null);
   contextSetters.setCachedLastSuccessfulCalculation(null);
@@ -121,15 +123,11 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
   contextSetters.setExcelRailData([]);
   contextSetters.setExcelDropOffData([]);
   contextSetters.setExcelOriginPorts([]);
-  contextSetters.setExcelDestinationPorts([]); // Use the context setter
-  // localAvailableDestinationPorts will be updated by effects
+  contextSetters.setExcelDestinationPorts([]); 
   contextSetters.setExcelRussianDestinationCitiesMasterList([]);
-  // localAvailableRussianDestinationCities, localAvailableSeaLines, localAvailableArrivalStations are local UI states, reset via effects or form reset
-
+  
   contextSetters.setIsSeaRailExcelDataLoaded(false);
 
-  // Reset relevant form fields for sea+rail mode
-  // Preserve margins and other mode's values if they exist
   const currentValues = form.getValues();
   form.reset({
     ...currentValues,
@@ -140,8 +138,6 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
     containerType: undefined,
     russianDestinationCity: "",
     arrivalStationSelection: "",
-    // seaMargin and railMargin are preserved from currentValues
-    // Direct rail fields are also preserved from currentValues
   });
 
 
@@ -154,7 +150,6 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
         const allUniqueOrigins = new Set<string>();
         const allUniqueSeaDestinationsMaster = new Set<string>();
 
-        // COC Data (Sheet 3, index 2)
         const thirdSheetName = workbook.SheetNames[2];
         const newRouteDataLocal: ExcelRoute[] = [];
         if (thirdSheetName) {
@@ -197,7 +192,6 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
             toast({ variant: "destructive", title: "File Error", description: "Third sheet (for COC sea routes) not found." });
         }
 
-        // SOC Data (Sheet 2, index 1)
         const secondSheetName = workbook.SheetNames[1];
         const newSOCRouteDataLocal: ExcelSOCRoute[] = [];
         if (secondSheetName) {
@@ -250,7 +244,6 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
             return a.localeCompare(b);
         }));
 
-        // Drop Off Data (Sheet 4, index 3)
         const fourthSheetName = workbook.SheetNames[3];
         const newDropOffDataLocal: DropOffEntry[] = [];
         if (fourthSheetName) {
@@ -260,8 +253,8 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
                 if (!Array.isArray(row) || row.every(cell => cell === null || cell === undefined || String(cell).trim() === "")) return;
                 const seaLine = String(row[0] || '').trim();
                 const citiesCellVal = row[1] as string | undefined;
-                const price20DC = parsePriceCell(row[2]);
-                const price40HC = parsePriceCell(row[3]);
+                const price20DC = parsePriceCell(row[2]); // Can return string, number or null
+                const price40HC = parsePriceCell(row[3]); // Can return string, number or null
                 const comment = String(row[5] || '').trim();
 
                 const parsedCities = parseDropOffCitiesCell(citiesCellVal);
@@ -277,7 +270,6 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
             toast({ variant: "default", title: "File Info", description: "Fourth sheet (for drop-off data) not found." });
         }
 
-        // Rail Data (Sheet 5, index 4)
         const fifthSheetName = workbook.SheetNames[4];
         const newRailDataLocal: ContextRailDataEntry[] = [];
         const uniqueRussianCitiesFromSheet = new Set<string>();
@@ -299,11 +291,11 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
                 departureStations: parsedDepartureStations,
                 arrivalStations: parsedArrivalStations,
                 cityOfArrival: cityOfArrival,
-                price20DC_24t: parsePriceCell(row[3]),
-                guardCost20DC: parsePriceCell(row[4]),
-                price20DC_28t: parsePriceCell(row[5]),
-                price40HC: parsePriceCell(row[6]),
-                guardCost40HC: parsePriceCell(row[7]),
+                price20DC_24t: parsePriceCell(row[3]) as number | null, // Rail prices are expected to be numbers
+                guardCost20DC: parsePriceCell(row[4]) as number | null,
+                price20DC_28t: parsePriceCell(row[5]) as number | null,
+                price40HC: parsePriceCell(row[6]) as number | null,
+                guardCost40HC: parsePriceCell(row[7]) as number | null,
               });
               if (cityOfArrival) uniqueRussianCitiesFromSheet.add(cityOfArrival);
             }
@@ -318,7 +310,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
         }
 
         contextSetters.setIsSeaRailExcelDataLoaded(true);
-        setHasRestoredFromCacheState(false); // Ensure effects re-run for newly loaded data
+        setHasRestoredFromCacheState(false); 
         toast({ title: "Море + Ж/Д Excel Processed", description: "All relevant sheets parsed."});
       } catch (parseError) {
         console.error("Error parsing Sea+Rail Excel:", parseError);
@@ -346,23 +338,13 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
 export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
   const { file, form, contextSetters, setShippingInfoState, setHasRestoredFromCacheState, toast, fileInputRef, setIsParsingState } = args;
 
-  if (!file) { // Secondary guard
-    toast({ variant: "destructive", title: "File Error", description: "No file provided to parser." });
-    setIsParsingState(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-    return;
-  }
-
   setIsParsingState(true);
   setShippingInfoState(null);
   contextSetters.setCachedShippingInfo(null);
-  contextSetters.setCachedFormValues(null); // Also clear form cache if needed
+  contextSetters.setCachedFormValues(null); 
   contextSetters.setCachedLastSuccessfulCalculation(null);
   setHasRestoredFromCacheState(false);
 
-  // Clear previous Direct Rail data
   contextSetters.setExcelDirectRailData([]);
   contextSetters.setDirectRailAgents([]);
   contextSetters.setDirectRailDepartureCities([]);
@@ -371,7 +353,6 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
   contextSetters.setDirectRailBordersList([]);
   contextSetters.setIsDirectRailExcelDataLoaded(false);
 
-  // Reset direct rail form fields
   const currentValues = form.getValues();
   form.reset({
     ...currentValues,
@@ -380,7 +361,6 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
     directRailDestinationCityDR: "",
     directRailIncoterms: "",
     directRailBorder: "",
-    // Sea+Rail and margin fields are preserved from currentValues
   });
 
   const reader = new FileReader();
@@ -406,7 +386,8 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
               agentName: String(row[0] || '').trim(), cityOfDeparture: String(row[1] || '').trim(),
               departureStation: String(row[2] || '').trim(), border: String(row[3] || '').trim(),
               destinationCity: String(row[4] || '').trim(), incoterms: String(row[5] || '').trim(),
-              price: parsePriceCell(row[6]), etd: String(row[7] || '').trim(), commentary: String(row[8] || '').trim(),
+              price: parsePriceCell(row[6]) as number | null, // Direct rail price assumed to be number
+              etd: String(row[7] || '').trim(), commentary: String(row[8] || '').trim(),
             };
             if (entry.agentName) uniqueAgents.add(entry.agentName);
             if (entry.cityOfDeparture) uniqueDepCities.add(entry.cityOfDeparture);
@@ -451,3 +432,5 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
   reader.readAsArrayBuffer(file);
   if (fileInputRef.current) fileInputRef.current.value = "";
 }
+
+    

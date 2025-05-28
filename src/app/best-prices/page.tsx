@@ -20,67 +20,67 @@ export default function BestPricesPage() {
   const handleCopyRate = async (route: BestPriceRoute, index: number) => {
     let textToCopy = "";
 
-    textToCopy += `FOB ${route.containerType || 'N/A'}`;
-    textToCopy += ` ${route.originPort || 'N/A'}`;
-    textToCopy += ` - ${route.seaDestinationPort || 'N/A'}`;
+    textToCopy += "FOB " + (route.containerType || 'N/A');
+    textToCopy += " " + (route.originPort || 'N/A');
+    textToCopy += " - " + (route.seaDestinationPort || 'N/A');
     if (route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0]))) {
-      textToCopy += ` - ${route.russianDestinationCity}`;
+      textToCopy += " - " + route.russianDestinationCity;
        if (route.railArrivalStation) {
-        textToCopy += ` (прибытие: ${route.railArrivalStation})`;
+        textToCopy += " (прибытие: " + route.railArrivalStation + ")";
       }
     }
-    textToCopy += `\n`;
+    textToCopy += "\n";
 
     const seaCostBaseForSum = route.seaCostUSD ?? 0;
     let dropOffCostForSum = 0;
     if (route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line')) {
-        dropOffCostForSum = route.dropOffCostUSD ?? 0;
+        dropOffCostForSum = route.dropOffCostUSD ?? 0; // Use numeric dropOffCostUSD for sum
     }
     const totalFreightCost = seaCostBaseForSum + dropOffCostForSum;
 
-    textToCopy += `Фрахт: ${formatDisplayCost(totalFreightCost > 0 ? totalFreightCost : null, 'USD')}\n`;
+    textToCopy += "Фрахт: " + formatDisplayCost(totalFreightCost > 0 ? totalFreightCost : null, 'USD') + "\n";
 
     let jdLine = "";
     if (route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0]))) {
         jdLine = "Ж/Д Составляющая: ";
         if (route.containerType === "20DC") {
             let costsParts = [];
-            if (route.railCost20DC_24t_RUB !== null) costsParts.push(`${formatDisplayCost(route.railCost20DC_24t_RUB, 'RUB')} (<24t)`);
-            if (route.railCost20DC_28t_RUB !== null) costsParts.push(`${formatDisplayCost(route.railCost20DC_28t_RUB, 'RUB')} (<28t)`);
+            if (route.railCost20DC_24t_RUB !== null) costsParts.push(formatDisplayCost(route.railCost20DC_24t_RUB, 'RUB') + " (<24t)");
+            if (route.railCost20DC_28t_RUB !== null) costsParts.push(formatDisplayCost(route.railCost20DC_28t_RUB, 'RUB') + " (<28t)");
             jdLine += costsParts.join(' / ') || "N/A";
 
             const guardCostFormatted = formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB');
             if (guardCostFormatted && guardCostFormatted !== 'N/A') {
-                jdLine += ` + Охрана ${guardCostFormatted}`;
+                jdLine += " + Охрана " + guardCostFormatted;
                 if (route.railGuardCost20DC_RUB && route.railGuardCost20DC_RUB > 0) {
-                     jdLine += ` (Если код подохранный)`;
+                     jdLine += " (Если код подохранный)";
                 }
             } else if (costsParts.length > 0) {
-                jdLine += ` + Охрана N/A`;
+                jdLine += " + Охрана N/A";
             }
         } else if (route.containerType === "40HC") {
             jdLine += formatDisplayCost(route.railCost40HC_RUB, 'RUB') || "N/A";
             const guardCostFormatted = formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB');
             if (guardCostFormatted && guardCostFormatted !== 'N/A') {
-                jdLine += ` + Охрана ${guardCostFormatted}`;
+                jdLine += " + Охрана " + guardCostFormatted;
                 if (route.railGuardCost40HC_RUB && route.railGuardCost40HC_RUB > 0) {
-                    jdLine += ` (Если код подохранный)`;
+                    jdLine += " (Если код подохранный)";
                 }
             } else if (route.railCost40HC_RUB !== null) {
-                jdLine += ` + Охрана N/A`;
+                jdLine += " + Охрана N/A";
             }
         }
     }
 
     if (jdLine && jdLine !== "Ж/Д Составляющая: ") {
-        textToCopy += jdLine + `\n`;
+        textToCopy += jdLine + "\n";
     }
 
-    textToCopy += `Прием и вывоз контейнера в режиме ГТД в пределах МКАД: 48 000 руб. с НДС 0%\n`;
+    textToCopy += "Прием и вывоз контейнера в режиме ГТД в пределах МКАД: 48 000 руб. с НДС 0%\n";
 
     try {
       await navigator.clipboard.writeText(textToCopy.trim());
-      toast({ title: "Success!", description: `Rate for Option ${index + 1} copied.` });
+      toast({ title: "Success!", description: "Rate for Option " + (index + 1) + " copied." });
     } catch (err) {
       toast({ variant: "destructive", title: "Copy Failed", description: "Could not copy to clipboard." });
     }
@@ -122,18 +122,22 @@ export default function BestPricesPage() {
         if (route.railCost40HC_RUB !== null) queryParams.set('railCostFinal40HC', route.railCost40HC_RUB.toString());
     }
 
-    if (route.dropOffCostUSD !== null && route.dropOffCostUSD !== undefined && route.shipmentType === "COC") {
-        if (!route.seaLineCompany?.toLowerCase().includes('panda express line')) {
-             queryParams.set('dropOffCost', route.dropOffCostUSD.toString());
+    // For dropOffCostDisplayValue, we send the numeric part if available, or the string if that's all we have
+    if (route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line')) {
+        if (route.dropOffDisplayValue) { // This is the raw string like "$ X/$ Y" or a formatted number string
+             queryParams.set('dropOffCost', route.dropOffDisplayValue); // Send the display value
+        } else if (route.dropOffCostUSD !== null && route.dropOffCostUSD !== undefined) {
+            queryParams.set('dropOffCost', route.dropOffCostUSD.toString());
         }
     }
+    
     if (route.dropOffComment && route.shipmentType === "COC") {
       queryParams.set('dropOffComment', route.dropOffComment);
     }
     if (route.shipmentType) queryParams.set('shipmentType', route.shipmentType);
     if (route.socComment) queryParams.set('socComment', route.socComment);
 
-    router.push(`/instructions?${queryParams.toString()}`);
+    router.push("/instructions?" + queryParams.toString());
   };
 
   if (!bestPriceResults || bestPriceResults.length === 0) {
@@ -188,7 +192,9 @@ export default function BestPricesPage() {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {bestPriceResults.map((route, index) => (
+        {bestPriceResults.map((route, index) => {
+            const dropOffToDisplay = route.dropOffDisplayValue || (route.dropOffCostUSD !== null && route.dropOffCostUSD !== undefined ? formatDisplayCost(route.dropOffCostUSD, 'USD') : null);
+            return (
           <Card key={route.id} className="shadow-xl rounded-xl overflow-hidden flex flex-col bg-card border border-border hover:shadow-2xl transition-shadow duration-300">
             <CardHeader className="pb-4 bg-muted/30 border-b">
               <CardTitle className="text-xl font-semibold text-primary">
@@ -196,7 +202,7 @@ export default function BestPricesPage() {
               </CardTitle>
               <CardDescription className="text-xs mt-1">
                 Route: {route.originPort} <Ship className="inline h-3 w-3 mx-0.5 text-muted-foreground" /> {route.seaDestinationPort}
-                {route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0])) && <> <Train className="inline h-3 w-3 mx-0.5 text-muted-foreground" /> {route.russianDestinationCity} {route.railArrivalStation ? `(${route.railArrivalStation})` : ''} </>}
+                {route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0])) && <> <Train className="inline h-3 w-3 mx-0.5 text-muted-foreground" /> {route.russianDestinationCity} {route.railArrivalStation ? ("(" + route.railArrivalStation + ")") : ''} </>}
                  {route.seaLineCompany && <span className="block mt-1">Sea Line: <span className="font-medium">{route.seaLineCompany}</span></span>}
               </CardDescription>
             </CardHeader>
@@ -292,10 +298,10 @@ export default function BestPricesPage() {
                         )}
                       </>
                     )}
-                     {route.dropOffCostUSD !== null && route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line') && (
+                     {dropOffToDisplay && route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line') && (
                         <p className="flex justify-between">
                             <span>Drop Off Cost:</span>
-                            <span className="font-semibold text-primary">{formatDisplayCost(route.dropOffCostUSD, 'USD')}</span>
+                            <span className="font-semibold text-primary">{dropOffToDisplay}</span>
                         </p>
                     )}
                     {route.dropOffComment && route.shipmentType === "COC" && (
@@ -327,7 +333,7 @@ export default function BestPricesPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
+        )})}
       </div>
        <div className="text-center mt-6">
         <Button asChild variant="outline" className="w-full sm:w-auto">
