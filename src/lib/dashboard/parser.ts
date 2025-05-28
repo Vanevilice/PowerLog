@@ -1,8 +1,8 @@
 
-import * as XLSX from 'xlsx'; // Added this import
+import * as XLSX from 'xlsx';
 import type { DashboardServiceSection, DashboardServiceDataRow, RailwayLegData } from '@/types';
 import { formatDashboardRate, parseContainerInfoCell } from './utils';
-import { isFobOrFiRow, isCyRowByColD, isPotentialServiceHeaderRow, isCyInColA } from './row-identifier';
+import { isFobOrFiRow, isCyRowByColD, isCyInColA, isPotentialServiceHeaderRow } from './row-identifier';
 
 function processFobOrFiRow(rowArray: any[]): DashboardServiceDataRow | null {
   const firstCell = String(rowArray[0] || '').trim();
@@ -29,7 +29,7 @@ function processFobOrFiRow(rowArray: any[]): DashboardServiceDataRow | null {
     rate: formatDashboardRate(secondCellContent),
     containerInfo: containerTypeExtracted,
     additionalComment: finalAdditionalComment || '-',
-    railwayLegs: [], // Initialize as empty array
+    railwayLegs: [], // <<< ALWAYS INITIALIZE HERE
   };
 }
 
@@ -43,7 +43,6 @@ function processRailwayLegRow(rowArray: any[]): RailwayLegData | null {
   
   let legComment = commentCellD;
   // If Col D starts with "CY", strip it and take the rest as comment.
-  // This logic is now part of the primary CY check, but good to keep for comment extraction
   if (isCyRowByColD(commentCellD)) { 
       legComment = commentCellD.substring(2).trim().replace(/^[:\s]+/, '');
   }
@@ -92,7 +91,7 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
   const rawData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
   const parsedSections: DashboardServiceSection[] = [];
   let currentSection: DashboardServiceSection | null = null;
-  let lastFobRowRef: DashboardServiceDataRow | null = null; // Reference to the last FOB/FI row object
+  let hasProcessedFobInCurrentSection = false; // Tracks if the last meaningful data row was FOB/FI
 
   rawData.forEach((rowArray, index) => {
     // console.log(`[DashboardParser] Processing rawData row ${index}:`, rowArray);
@@ -100,7 +99,7 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
       // console.log(`[DashboardParser] Row ${index} is blank. Finalizing current section: ${currentSection?.serviceName}`);
       finalizeCurrentSection(currentSection, parsedSections);
       currentSection = null;
-      lastFobRowRef = null; 
+      hasProcessedFobInCurrentSection = false;
       return;
     }
 
@@ -110,49 +109,46 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
 
     const isFobFiType = isFobOrFiRow(firstCell, secondCellContent);
     const isCyByColDType = isCyRowByColD(fourthCellContent);
-    const isCyByColAType = !isFobFiType && isCyInColA(firstCell); // A row is a CY by Col A if it's not FOB/FI and Col A contains "CY"
+    const isCyByColAType = !isFobFiType && isCyInColA(firstCell);
     const isCyType = isCyByColDType || isCyByColAType;
 
 
     if (isFobFiType) {
-      if (!currentSection) {
-        // This logic should ideally be handled by potential header row processing
-        // For safety, if an FOB/FI row appears without a preceding header, create an implicit section
-        currentSection = { serviceName: `Service Section (Implicit at row ${index + 1})`, dataRows: [] };
-        // console.log(`[DashboardParser] Implicit section started for FOB/FI: '${currentSection.serviceName}' at row ${index}`);
-      }
       const newFobRow = processFobOrFiRow(rowArray);
       if (newFobRow) {
+        if (!currentSection) {
+          currentSection = { serviceName: `Service Section (Implicit at row ${index + 1})`, dataRows: [] };
+          // console.log(`[DashboardParser] Implicit section started for FOB/FI: '${currentSection.serviceName}' at row ${index}`);
+        }
         currentSection.dataRows.push(newFobRow);
-        lastFobRowRef = newFobRow; // <<<< Key: lastFobRowRef now points to the newly added FOB/FI row object
-        // console.log(`[DashboardParser] >>> FOB/FI Row processed: '${newFobRow.route}'. Set lastFobRowRef. Current section: ${currentSection.serviceName}.`);
+        hasProcessedFobInCurrentSection = true; // This is now the last data row type added.
+        // console.log(`[DashboardParser] >>> FOB/FI Row processed: '${newFobRow.route}'. Current section: ${currentSection.serviceName}. Total rows in section: ${currentSection.dataRows.length}`);
       } else {
         // console.warn(`[DashboardParser] processFobOrFiRow returned null for supposedly FOB/FI row ${index}:`, rowArray);
+        hasProcessedFobInCurrentSection = false;
       }
     } else if (isCyType) {
-      // console.log(`[DashboardParser] >>> CY Row Encountered at row ${index}. lastFobRowRef: ${lastFobRowRef?.route}, currentSection: ${currentSection?.serviceName}`);
-      if (lastFobRowRef) { // Check if there is an FOB/FI row to attach to
-        // Ensure railwayLegs array exists (it should be initialized by processFobOrFiRow)
-        if (!lastFobRowRef.railwayLegs) {
-          lastFobRowRef.railwayLegs = []; // Safety initialization
-          // console.warn(`[DashboardParser] Initialized railwayLegs for ${lastFobRowRef.route} because it was undefined.`);
-        }
+      // console.log(`[DashboardParser] >>> CY Row Encountered at row ${index}. Current section: ${currentSection?.serviceName}`);
+      if (currentSection && currentSection.dataRows.length > 0 && hasProcessedFobInCurrentSection) {
+        // Append to the last FOB/FI row added to the current section
+        const parentFobRow = currentSection.dataRows[currentSection.dataRows.length - 1];
         const railwayLegData = processRailwayLegRow(rowArray);
         if (railwayLegData) {
-          lastFobRowRef.railwayLegs.push(railwayLegData);
-          // console.log(`[DashboardParser]     Added Railway Leg to parent: '${lastFobRowRef.route}', Leg Origin: '${railwayLegData.originInfo}'. New railwayLegs count: ${lastFobRowRef.railwayLegs.length}`);
+          // railwayLegs is guaranteed to be initialized by processFobOrFiRow
+          parentFobRow.railwayLegs!.push(railwayLegData);
+          // console.log(`[DashboardParser]     Added Railway Leg to parent: '${parentFobRow.route}', Leg Origin: '${railwayLegData.originInfo}'. New railwayLegs count: ${parentFobRow.railwayLegs!.length}`);
         } else {
           //  console.log(`[DashboardParser]     processRailwayLegRow returned null for CY row ${index}:`, rowArray);
         }
       } else {
-        // console.warn(`[DashboardParser]     Found CY row ${index} but no 'lastFobRowRef' to attach to. Row:`, rowArray);
+        // console.warn(`[DashboardParser]     Found CY row ${index} but no valid parent FOB/FI row in current section to attach to. Row:`, rowArray);
       }
+      hasProcessedFobInCurrentSection = false; // A CY row is not an FOB/FI row
     } else { // Not FOB/FI, not CY - could be a header or an empty/irrelevant row
-      // Use the refined header check
       const isHeader = isPotentialServiceHeaderRow(rowArray, firstCell, isFobFiType, isCyByColDType, isCyByColAType);
       if (isHeader) {
         // console.log(`[DashboardParser] Potential Header Row at index ${index}: '${firstCell}'. Finalizing previous section: ${currentSection?.serviceName}`);
-        finalizeCurrentSection(currentSection, parsedSections); // Finalize previous section before starting new
+        finalizeCurrentSection(currentSection, parsedSections);
         
         const serviceNameColB = String(rowArray[1] || '').trim();
         const serviceNameColC = String(rowArray[2] || '').trim();
@@ -161,20 +157,21 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
         if (serviceNameColB && serviceNameColC) newServiceName = `${serviceNameColB} ${serviceNameColC}`;
         else if (serviceNameColB) newServiceName = serviceNameColB;
         else if (serviceNameColC) newServiceName = serviceNameColC;
-        else if (firstCell) newServiceName = firstCell; // Fallback to first cell if B and C are empty but A has content
+        else if (firstCell) newServiceName = firstCell;
         
         currentSection = { serviceName: newServiceName || `Service Section (Fallback at row ${index + 1})`, dataRows: [] };
-        lastFobRowRef = null; // Reset for new section
-        // console.log(`[DashboardParser] New section started with explicit header: '${currentSection.serviceName}' from row ${index}. lastFobRowRef reset.`);
+        hasProcessedFobInCurrentSection = false; // Reset for new section
+        // console.log(`[DashboardParser] New section started with explicit header: '${currentSection.serviceName}' from row ${index}.`);
       } else {
-        //  console.log(`[DashboardParser] Skipping unidentified row type ${index} (not FOB/FI, not CY, not Header):`, rowArray);
+        // console.log(`[DashboardParser] Skipping unidentified row type ${index} (not FOB/FI, not CY, not Header):`, rowArray);
       }
+      hasProcessedFobInCurrentSection = false; // Any other row type also means the last data row wasn't FOB/FI
     }
   });
 
   // Finalize the last section after the loop
   finalizeCurrentSection(currentSection, parsedSections);
   // console.log("[DashboardParser] Finished parseDashboardSheet, total sections found:", parsedSections.length);
-  // console.log("[DashboardParser] Final Structure:", JSON.parse(JSON.stringify(parsedSections)));
+  // console.log("[DashboardParser] Final Structure for context:", JSON.parse(JSON.stringify(parsedSections)));
   return parsedSections;
 }
