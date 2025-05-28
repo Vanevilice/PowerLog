@@ -1,7 +1,6 @@
 
 import type { Metadata } from 'next';
-import { GeistSans } from 'geist/font/sans';
-import { GeistMono } from 'geist/font/mono';
+import { Inter } from '@next/font/google'; // Changed from GeistSans/GeistMono to Inter
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import {
@@ -17,7 +16,13 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Home, Settings, Calculator, Repeat, Menu } from 'lucide-react';
-import { Button } from '@/components/ui/button'; // Added for SidebarHeader button
+
+// Initialize Inter font
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter', // Define the CSS variable name
+});
 
 export const metadata: Metadata = {
   title: 'Logistics Calc',
@@ -31,7 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>
+      <body className={`${inter.variable} antialiased`}> {/* Use Inter font variable */}
         <SidebarProvider defaultOpen={true}>
           <Sidebar collapsible="icon" variant="sidebar" side="left">
             <SidebarHeader className="p-3 flex justify-between items-center">
