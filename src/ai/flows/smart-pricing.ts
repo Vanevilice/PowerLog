@@ -14,7 +14,7 @@ import type { ContainerType, ShipmentType } from '@/types'; // Assuming types mi
 
 // Define a basic Zod schema for the input.
 // This should be expanded based on what data the 'calculateShippingCost' function actually needs.
-export const SmartPricingInputSchema = z.object({
+const SmartPricingInputSchema = z.object({
   shipmentType: z.string().optional().describe("Type of shipment (e.g., COC, SOC)."),
   originCity: z.string().describe("The city of origin for the shipment."),
   destinationCity: z.string().describe("The city of destination for the shipment."),
@@ -49,7 +49,7 @@ export type SmartPricingInput = z.infer<typeof SmartPricingInputSchema>;
 
 // Define a basic Zod schema for the output.
 // This should represent the structure of what 'calculateShippingCost' returns.
-export const SmartPricingOutputSchema = SmartPricingInputSchema.extend({
+const SmartPricingOutputSchema = SmartPricingInputSchema.extend({
   commentary: z.string().optional().describe("AI-generated commentary on the pricing and route options."),
   totalFreightCostUSD: z.number().nullable().optional().describe("Total calculated freight cost in USD."),
   totalRailCostRUB: z.number().nullable().optional().describe("Total calculated rail cost in RUB, if applicable."),

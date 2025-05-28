@@ -12,7 +12,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
 // Placeholder schema for input
-export const PricingCommentaryInputSchema = z.object({
+const PricingCommentaryInputSchema = z.object({
   originCity: z.string().describe("The city of origin for the shipment."),
   destinationCity: z.string().describe("The city of destination for the shipment."),
   containerType: z.string().optional().describe("The type of container (e.g., 20DC, 40HC)."),
@@ -22,7 +22,7 @@ export const PricingCommentaryInputSchema = z.object({
 export type PricingCommentaryInput = z.infer<typeof PricingCommentaryInputSchema>;
 
 // Placeholder schema for output
-export const PricingCommentaryOutputSchema = z.object({
+const PricingCommentaryOutputSchema = z.object({
   commentary: z.string().describe("The generated pricing commentary."),
 });
 export type PricingCommentaryOutput = z.infer<typeof PricingCommentaryOutputSchema>;
