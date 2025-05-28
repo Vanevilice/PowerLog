@@ -13,8 +13,8 @@ export interface ExcelRoute { // COC Data from 3rd Sheet
   originPorts: string[];
   destinationPorts: string[];
   seaLines: string[];
-  price20DC: number | string | null;
-  price40HC: number | string | null;
+  price20DC: string | number | null;
+  price40HC: string | number | null;
   seaComment?: string;
 }
 
@@ -22,8 +22,8 @@ export interface ExcelSOCRoute { // SOC Data from 2nd Sheet
   departurePorts: string[];
   destinationPorts: string[];
   seaLines: string[];
-  price20DC: number | string | null;
-  price40HC: number | string | null;
+  price20DC: string | number | null;
+  price40HC: string | number | null;
   socComment?: string;
 }
 
@@ -41,8 +41,8 @@ export interface RailDataEntry {
 export interface DropOffEntry {
   seaLine: string;
   cities: string[];
-  price20DC: number | string | null;
-  price40HC: number | string | null;
+  price20DC: string | number | null;
+  price40HC: string | number | null;
   comment?: string;
 }
 
@@ -60,13 +60,14 @@ export interface DirectRailEntry {
 
 // Dashboard Data Structure
 export interface DashboardServiceDataRow {
-  route: string;
-  rate: string;
-  containerInfo: string;
-  additionalComment: string;
-  railwayCost?: string; // New: For "CY" row data
-  railwayContainerInfo?: string; // New
-  railwayComment?: string; // New
+  route: string; // Content from Column A for FOB/FI rows
+  rate: string;  // Formatted rate from Column B for FOB/FI rows
+  containerInfo: string; // Extracted container type from Column C for FOB/FI rows
+  additionalComment: string; // Combined comments from Column C (remainder) and Column D for FOB/FI
+  railwayCost?: string; // Formatted rate from Column B for CY rows
+  railwayContainerInfo?: string; // Content from Column C for CY rows
+  railwayComment?: string; // Content from Column D for CY rows (after "CY ")
+  railwayOriginInfo?: string; // Content from Column A for CY rows
 }
 
 export interface DashboardServiceSection {

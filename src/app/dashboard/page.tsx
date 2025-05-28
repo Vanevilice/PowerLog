@@ -3,19 +3,50 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePricingData, type DashboardServiceSection } from '@/contexts/PricingDataContext';
+import { usePricingData, type DashboardServiceSection, type DashboardServiceDataRow } from '@/contexts/PricingDataContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, FileText, UploadCloud, Info, Train, DollarSign } from 'lucide-react';
+import { AlertTriangle, FileText, UploadCloud, Info, Train, DollarSign, Copy } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast'; // Import useToast
 
 export default function DashboardPage() {
   const { dashboardServiceSections, isSeaRailExcelDataLoaded } = usePricingData();
+  const { toast } = useToast(); // Initialize toast
 
   React.useEffect(() => {
     console.log("[DashboardPage] isSeaRailExcelDataLoaded:", isSeaRailExcelDataLoaded);
     console.log("[DashboardPage] dashboardServiceSections:", dashboardServiceSections);
   }, [isSeaRailExcelDataLoaded, dashboardServiceSections]);
+
+  const handleDashboardCopyRate = async (row: DashboardServiceDataRow) => {
+    let textToCopy = "";
+    const routeParts = row.route.split(' - ');
+    const originPart = routeParts[0]?.replace(/^(FOB|FI)\s*/i, '').trim() || 'N/A';
+    const primaryDestinationPart = routeParts.length > 1 ? routeParts.slice(1).join(' - ').trim() : 'N/A';
+
+    // Use railwayOriginInfo for the "FOR" part if available, otherwise use the primary destination part
+    const forPart = row.railwayOriginInfo && row.railwayOriginInfo !== 'N/A' 
+                    ? row.railwayOriginInfo.replace(/^(FOB|FI)\s*/i, '').trim() 
+                    : primaryDestinationPart;
+
+    textToCopy += `FOB ${originPart} - Владивосток - FOR ${forPart} :\n`;
+    textToCopy += `Фрахт: ${row.rate || 'N/A'}\n`;
+    if (row.railwayCost && row.railwayCost !== 'N/A') {
+      textToCopy += `Ж/Д Составляющая: ${row.railwayCost}\n`;
+    }
+    // Add a standard line if not already present (optional, based on requirements)
+    // textToCopy += `Прием и вывоз контейнера в режиме ГТД в пределах МКАД: 48 000 руб. с НДС 0%\n`;
+
+
+    try {
+      await navigator.clipboard.writeText(textToCopy.trim());
+      toast({ title: "Success!", description: "Rate copied to clipboard." });
+    } catch (err) {
+      toast({ variant: "destructive", title: "Copy Failed", description: "Could not copy to clipboard." });
+    }
+  };
+
 
   if (!isSeaRailExcelDataLoaded) {
     return (
@@ -92,10 +123,11 @@ export default function DashboardPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[35%] pl-6">Route (Origin - Destination)</TableHead>
+                    <TableHead className="w-[30%] pl-6">Route (Origin - Destination)</TableHead>
                     <TableHead className="w-[15%]">Sea Rate</TableHead>
-                    <TableHead className="w-[20%]">Container Info</TableHead>
-                    <TableHead className="w-[30%] pr-6">Comments / Railway Details</TableHead>
+                    <TableHead className="w-[15%]">Container Info</TableHead>
+                    <TableHead className="w-[25%]">Comments / Details</TableHead>
+                    <TableHead className="w-[15%] text-right pr-6">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -105,16 +137,25 @@ export default function DashboardPage() {
                         <TableCell className="font-medium pl-6 py-3">{row.route || 'N/A'}</TableCell>
                         <TableCell className="py-3">{row.rate || 'N/A'}</TableCell>
                         <TableCell className="py-3">{row.containerInfo || 'N/A'}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground pr-6 py-3">{row.additionalComment || '-'}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground py-3">{row.additionalComment || '-'}</TableCell>
+                        <TableCell className="text-right pr-6 py-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDashboardCopyRate(row)}
+                          >
+                            <Copy className="mr-2 h-3 w-3" /> Copy Rate
+                          </Button>
+                        </TableCell>
                       </TableRow>
                       {row.railwayCost && (
                         <TableRow className="bg-muted/20 hover:bg-muted/30 border-t border-dashed">
                           <TableCell className="pl-10 py-2 text-sm font-medium text-primary flex items-center">
-                            <Train className="mr-2 h-4 w-4 text-primary/80" /> Railway Leg:
+                            <Train className="mr-2 h-4 w-4 text-primary/80" /> Railway Leg: {row.railwayOriginInfo || ''}
                           </TableCell>
                           <TableCell className="py-2 text-sm font-semibold text-primary">{row.railwayCost}</TableCell>
                           <TableCell className="py-2 text-sm">{row.railwayContainerInfo || 'N/A'}</TableCell>
-                          <TableCell className="pr-6 py-2 text-xs text-muted-foreground">{row.railwayComment || '-'}</TableCell>
+                          <TableCell colSpan={2} className="pr-6 py-2 text-xs text-muted-foreground">{row.railwayComment || '-'}</TableCell>
                         </TableRow>
                       )}
                     </React.Fragment>
@@ -140,4 +181,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
