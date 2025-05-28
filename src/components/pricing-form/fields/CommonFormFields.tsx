@@ -6,10 +6,10 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/comp
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { UploadCloud, Loader2, AlertCircle } from 'lucide-react';
-import type { RouteFormValues, CalculationMode, PricingDataContextType } from '@/types';
+import type { RouteFormValues, CalculationMode, PricingDataContextType } from '@/types'; // Using consolidated types
 
 interface CommonFormFieldsProps {
-  form: UseFormReturn<RouteFormValues>;
+  form: UseFormReturn<RouteFormValues>; // Use consolidated RouteFormValues
   isParsingSeaRailFile: boolean;
   isParsingDirectRailFile: boolean;
   handleSeaRailFileUploadClick: () => void;
@@ -18,8 +18,8 @@ interface CommonFormFieldsProps {
   directRailFileInputRef: React.RefObject<HTMLInputElement>;
   handleSeaRailFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   handleDirectRailFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  calculationModeContext: CalculationMode; // From context
-  setCalculationModeContext: PricingDataContextType['setCalculationMode']; // From context
+  calculationModeContext: CalculationMode;
+  setCalculationModeContext: PricingDataContextType['setCalculationMode'];
   exchangeRate: string | null;
 }
 
@@ -37,7 +37,7 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
   setCalculationModeContext,
   exchangeRate,
 }) => {
-  const { control, getValues } = form;
+  const { control, getValues, setValue } = form;
 
   return (
     <>
@@ -84,17 +84,18 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
 
       <FormField
         control={control}
-        // Name is arbitrary here as value/onChange are controlled by context calculationMode
-        name="calculationModeToggle"
-        render={({ field }) => ( // field is not directly used for value/onChange
+        name="calculationModeToggle" // This field now exists in RouteFormValues and RouteSchema
+        render={({ field }) => (
           <FormItem className="space-y-3">
             <FormLabel className="text-base font-semibold">Calculation Mode</FormLabel>
             <FormControl>
               <RadioGroup
                 onValueChange={(value: string) => {
-                  setCalculationModeContext(value as CalculationMode);
+                  const newMode = value as CalculationMode;
+                  field.onChange(newMode); // Update form state for calculationModeToggle
+                  setCalculationModeContext(newMode); // Update context state
                 }}
-                value={calculationModeContext} // Use context value
+                value={field.value || calculationModeContext} // Prefer field.value, fallback to context for initialization
                 className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4"
               >
                 <FormItem className="flex items-center space-x-2 space-y-0">
@@ -154,3 +155,5 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
     </>
   );
 };
+
+    

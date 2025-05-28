@@ -5,12 +5,12 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/comp
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Ship, Anchor, Package, Train, MapPinned, Home } from 'lucide-react';
-import type { RouteFormValues, ShipmentType } from '@/types';
+import type { RouteFormValues, ShipmentType } from '@/types'; // Using consolidated types
 import { CONTAINER_TYPES_CONST, NONE_SEALINE_VALUE } from '@/lib/pricing/constants';
 import { getSeaLinePlaceholder, getRussianCityPlaceholder, getArrivalStationPlaceholder } from '@/lib/pricing/ui-helpers';
 
 interface SeaRailFormFieldsProps {
-  form: UseFormReturn<RouteFormValues>;
+  form: UseFormReturn<RouteFormValues>; // Use consolidated RouteFormValues
   isParsingSeaRailFile: boolean;
   isSeaRailExcelDataLoaded: boolean;
   excelOriginPorts: string[];
@@ -19,7 +19,7 @@ interface SeaRailFormFieldsProps {
   excelRussianDestinationCitiesMasterList: string[];
   localAvailableRussianDestinationCities: string[];
   localAvailableArrivalStations: string[];
-  hasRestoredFromCache: boolean; // To control auto-clearing logic
+  hasRestoredFromCache: boolean;
 }
 
 export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
@@ -60,13 +60,13 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
             <FormControl>
               <RadioGroup
                 onValueChange={(value) => {
-                  field.onChange(value);
+                  field.onChange(value as ShipmentType); // Ensure value is cast to ShipmentType
                   if (hasRestoredFromCache) {
                     setValue("destinationPort", "", { shouldValidate: true });
                     setValue("seaLineCompany", NONE_SEALINE_VALUE, { shouldValidate: true });
                   }
                 }}
-                defaultValue={field.value}
+                defaultValue={field.value} // field.value should be ShipmentType
                 value={field.value}
                 className="flex flex-row space-x-4"
               >
@@ -102,7 +102,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
                     setValue("arrivalStationSelection", "", { shouldValidate: true });
                   }
                 }}
-                value={field.value}
+                value={field.value || ""}
                 disabled={!isSeaRailExcelDataLoaded || excelOriginPorts.length === 0 || isParsingSeaRailFile}
               >
                 <FormControl>
@@ -136,7 +136,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
                     setValue("arrivalStationSelection", "", { shouldValidate: true });
                   }
                 }}
-                value={field.value}
+                value={field.value || ""}
                 disabled={!isSeaRailExcelDataLoaded || localAvailableDestinationPorts.length === 0 || isParsingSeaRailFile || !watchedOriginPort}
               >
                 <FormControl>
@@ -190,7 +190,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel className="flex items-center"><Package className="mr-2 h-4 w-4 text-primary" /> Container Type</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value} disabled={isParsingSeaRailFile || !isSeaRailExcelDataLoaded}>
+            <Select onValueChange={field.onChange} value={field.value || ""} disabled={isParsingSeaRailFile || !isSeaRailExcelDataLoaded}>
               <FormControl><SelectTrigger><SelectValue placeholder={isParsingSeaRailFile ? "Processing..." : (isSeaRailExcelDataLoaded ? "Select container type" : "Upload Море + Ж/Д Excel")} /></SelectTrigger></FormControl>
               <SelectContent>
                 {CONTAINER_TYPES_CONST.map((type) => (<SelectItem key={"container-" + type} value={type}>{type}</SelectItem>))}
@@ -258,3 +258,5 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
     </>
   );
 };
+
+    

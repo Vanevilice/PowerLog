@@ -1,30 +1,21 @@
 
 import type { UseFormReturn } from 'react-hook-form';
 import { useToast } from '@/hooks/use-toast';
-import { calculateShippingCost, type SmartPricingOutput as SmartPricingOutputFlow } from "@/ai/flows/smart-pricing"; // Ensure correct path
-import { generatePricingCommentary, type PricingCommentaryInput } from "@/ai/flows/pricing-commentary"; // Ensure correct path
+import { calculateShippingCost } from "@/ai/flows/smart-pricing";
+import { generatePricingCommentary, type PricingCommentaryInput } from "@/ai/flows/pricing-commentary";
 import type {
-  RouteFormValues,
-  SmartPricingOutput,
-  PricingDataContextType,
-  ExcelRoute,
-  ExcelSOCRoute,
-  RailDataEntry,
-  DirectRailEntry,
-  BestPriceRoute,
-  CalculationDetailsForInstructions,
-  ShipmentType,
-  ContainerType,
-} from '@/types';
+  RouteFormValues, SmartPricingOutput, PricingDataContextType, ExcelRoute, ExcelSOCRoute,
+  RailDataEntry, DirectRailEntry, BestPriceRoute, CalculationDetailsForInstructions,
+  ShipmentType, ContainerType, // These now come from @/types
+} from '@/types'; // Centralized types
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, USD_RUB_CONVERSION_RATE, DROP_OFF_TRIGGER_PHRASES } from './constants';
 
-interface CalculationArgs {
-  values: RouteFormValues;
-  form: UseFormReturn<RouteFormValues>; // For getValues
+interface CalculationArgsBase {
+  values: RouteFormValues; // Use consolidated RouteFormValues
   context: PricingDataContextType;
   toast: ReturnType<typeof useToast>['toast'];
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  setShippingInfo: React.Dispatch<React.SetStateAction<SmartPricingOutput | null>>;
+  setShippingInfo: React.Dispatch<React.SetStateAction<SmartPricingOutput | null>>; // Use consolidated SmartPricingOutput
   setLastSuccessfulCalculation: React.Dispatch<React.SetStateAction<CalculationDetailsForInstructions | null>>;
   setCachedShippingInfo: PricingDataContextType['setCachedShippingInfo'];
   setCachedLastSuccessfulCalculation: PricingDataContextType['setCachedLastSuccessfulCalculation'];
@@ -33,10 +24,10 @@ interface CalculationArgs {
 export async function processSeaPlusRailCalculation({
   values, context, toast, setIsLoading, setShippingInfo, setLastSuccessfulCalculation,
   setCachedShippingInfo, setCachedLastSuccessfulCalculation
-}: Omit<CalculationArgs, 'form'> & { values: RouteFormValues } ) { // form not needed directly here if values are passed
+}: CalculationArgsBase ) {
   const { excelRouteData, excelSOCRouteData, excelRailData, excelDropOffData } = context;
-  
-  if (!values.destinationPort && context.calculationMode === "sea_plus_rail") {
+
+  if (context.calculationMode === "sea_plus_rail" && !values.destinationPort) {
     toast({ variant: "destructive", title: "Missing Information", description: "Please select Destination Port (Sea)." });
     setIsLoading(false);
     return;
@@ -70,8 +61,8 @@ export async function processSeaPlusRailCalculation({
 
   for (const route of currentSeaDataset) {
     const routeOrigins = route[originFieldKey as keyof typeof route] as string[] | undefined;
-    const isOriginMatch = Array.isArray(routeOrigins) && routeOrigins.includes(originPort!);
-    const isDestinationMatch = Array.isArray(route.destinationPorts) && route.destinationPorts.includes(destinationPort!);
+    const isOriginMatch = originPort && Array.isArray(routeOrigins) && routeOrigins.includes(originPort);
+    const isDestinationMatch = destinationPort && Array.isArray(route.destinationPorts) && route.destinationPorts.includes(destinationPort);
     if (isOriginMatch && isDestinationMatch) {
       const isSeaLineMatch = actualSeaLine ? (Array.isArray(route.seaLines) && route.seaLines.includes(actualSeaLine)) : true;
       if (isSeaLineMatch) {
@@ -99,8 +90,8 @@ export async function processSeaPlusRailCalculation({
       }
     }
   }
-  if (!matchedSeaRouteInfo && !commentaryReason) commentaryReason = "No sea route found for " + originPort + " to " + destinationPort + " for " + shipmentType + ".";
-  else if (foundSeaPrice === null && matchedSeaRouteInfo && !commentaryReason.startsWith("Sea pricing for " + containerType)) commentaryReason = "Sea pricing for " + containerType + " on " + shipmentType + " route " + originPort + " to " + destinationPort + (actualSeaLine ? " via " + actualSeaLine : "") + " is not available.";
+  if (!matchedSeaRouteInfo && !commentaryReason) commentaryReason = "No sea route found in Excel for " + originPort + " to " + destinationPort + " for " + shipmentType + " shipment.";
+  else if (foundSeaPrice === null && matchedSeaRouteInfo && !commentaryReason.startsWith("Sea pricing for " + containerType)) commentaryReason = "Sea pricing for " + containerType + " on " + shipmentType + " route " + originPort + " to " + destinationPort + (actualSeaLine ? " via " + actualSeaLine : "") + " is not available in Excel.";
 
   const isFurtherRailJourney = russianDestinationCity && destinationPort && VLADIVOSTOK_VARIANTS.some(v => destinationPort.startsWith(v.split(" ")[0])) && !VLADIVOSTOK_VARIANTS.some(v => v === russianDestinationCity && destinationPort.startsWith(v.split(" ")[0]));
 
@@ -135,11 +126,11 @@ export async function processSeaPlusRailCalculation({
             railCostFound = true; commentaryReason = ""; break;
           }
         }
-        if (!railCostFound && !commentaryReason.includes("Rail pricing components")) commentaryReason = (commentaryReason ? commentaryReason + " " : "") + "Rail pricing for " + containerType + " from " + destinationPort + "-compatible station to " + russianDestinationCity + (arrivalStationSelection ? " (station: " + arrivalStationSelection + ")" : "") + " missing for station " + compatibleDepartureStation + ".";
+        if (!railCostFound && !commentaryReason.includes("Rail pricing components")) commentaryReason = (commentaryReason ? commentaryReason + " " : "") + "Rail pricing components for " + containerType + " from a " + destinationPort + "-compatible station to " + russianDestinationCity + (arrivalStationSelection ? " (station: " + arrivalStationSelection + ")" : "") + " are missing for station " + compatibleDepartureStation + ".";
       }
       if (railCostFound) break;
     }
-    if (!railCostFound && !commentaryReason.includes("missing components")) { commentaryReason = (commentaryReason ? commentaryReason + " " : "") + "No compatible rail route from " + destinationPort + "-related station to " + russianDestinationCity + (arrivalStationSelection ? " (station: " + arrivalStationSelection + ")" : "") + "."; railLegFailed = true; }
+    if (!railCostFound && !commentaryReason.includes("missing components")) { commentaryReason = (commentaryReason ? commentaryReason + " " : "") + "No compatible and fully priced rail route found from a " + destinationPort + "-related station to " + russianDestinationCity + (arrivalStationSelection ? " (station: " + arrivalStationSelection + ")" : "") + "."; railLegFailed = true; }
     else if (!railCostFound && commentaryReason.includes("missing components")) railLegFailed = true;
   } else if (foundSeaPrice === null && isFurtherRailJourney) { commentaryReason += (commentaryReason ? " " : "") + "Cannot price rail to " + russianDestinationCity + " as sea pricing failed."; railLegFailed = true; }
 
@@ -166,12 +157,12 @@ export async function processSeaPlusRailCalculation({
           else {
             const dropOffPriceForContainer = containerType === "20DC" ? dropOffEntry.price20DC : dropOffEntry.price40HC;
             if (dropOffPriceForContainer !== null) foundDropOffCost = dropOffPriceForContainer;
-            else { dropOffLegFailed = true; commentaryReason += (commentaryReason ? " " : "") + "Drop-off for " + actualSeaLine + " to " + cityForDropOffLookup + ", price for " + containerType + " missing."; }
+            else { dropOffLegFailed = true; commentaryReason += (commentaryReason ? " " : "") + "Drop-off charges triggered for " + actualSeaLine + " to " + cityForDropOffLookup + ", but price for " + containerType + " is missing."; }
           }
           dropOffEntryMatched = true; break;
         }
       }
-      if (!dropOffEntryMatched && !isPandaLine) { commentaryReason += (commentaryReason ? " " : "") + "Drop-off for " + actualSeaLine + " to " + cityForDropOffLookup + ", no entry found."; dropOffLegFailed = true; }
+      if (!dropOffEntryMatched && !isPandaLine) { commentaryReason += (commentaryReason ? " " : "") + "Drop-off charges triggered for " + actualSeaLine + " to " + cityForDropOffLookup + ", but no matching drop-off pricing entry found."; dropOffLegFailed = true; }
     }
   }
 
@@ -191,11 +182,11 @@ export async function processSeaPlusRailCalculation({
         shipmentType, originCity: originPort!, destinationCity: destinationPort!, seaLineCompany: actualSeaLine, containerType: containerType!, seaCost: finalSeaPriceWithMargin, seaComment: foundSeaComment,
         railCost20DC_24t: containerType === "20DC" ? finalRailBaseCost24tWithMargin : null, railCost20DC_28t: containerType === "20DC" ? finalRailBaseCost28tWithMargin : null, railGuardCost20DC: containerType === "20DC" ? foundRailGuardCost20DC : null,
         railCost40HC: containerType === "40HC" ? finalRailBaseCost40HCWithMargin : null, railGuardCost40HC: containerType === "40HC" ? foundRailGuardCost40HC : null,
-        railArrivalStation: foundRailArrivalStation, dropOffCost: shipmentType === "COC" ? foundDropOffCost : null, dropOffComment: shipmentType === "COC" ? foundDropOffComment : null, socComment, russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : undefined,
+        railArrivalStation: foundRailArrivalStation, railDepartureStation: foundRailDepartureStation, dropOffCost: shipmentType === "COC" ? foundDropOffCost : null, dropOffComment: shipmentType === "COC" ? foundDropOffComment : null, socComment, russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : undefined,
       };
-      const result = await calculateShippingCost(aiInput as SmartPricingOutputFlow); // Cast if AI flow type differs
-      setShippingInfo(result as SmartPricingOutput); // Cast if component state type differs
-      setCachedShippingInfo(result as SmartPricingOutput);
+      const result = await calculateShippingCost(aiInput);
+      setShippingInfo(result);
+      setCachedShippingInfo(result);
       const calcDetails: CalculationDetailsForInstructions = {
         shipmentType, originPort: originPort!, destinationPort: destinationPort!, seaLineCompany: actualSeaLine, containerType, russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : undefined, railArrivalStation: foundRailArrivalStation, railDepartureStation: foundRailDepartureStation,
         seaCostBase: foundSeaPrice, seaMarginApplied: seaMargin, seaCostFinal: finalSeaPriceWithMargin, seaComment: foundSeaComment,
@@ -206,7 +197,7 @@ export async function processSeaPlusRailCalculation({
       };
       setLastSuccessfulCalculation(calcDetails);
       setCachedLastSuccessfulCalculation(calcDetails);
-      if ((railLegFailed || (dropOffLegFailed && !actualSeaLine?.toLowerCase().includes('panda express line'))) && (result as SmartPricingOutput).commentary && !(result as SmartPricingOutput).commentary!.includes("No compatible and complete rail route") && !(result as SmartPricingOutput).commentary!.includes("Drop-off charges triggered")) {
+      if ((railLegFailed || (dropOffLegFailed && !actualSeaLine?.toLowerCase().includes('panda express line'))) && result.commentary && !result.commentary.includes("No compatible and complete rail route") && !result.commentary.includes("Drop-off charges triggered")) {
         toast({ title: "Partial Pricing Info", description: commentaryReason || "Rail/Drop-off pricing not fully available." });
       } else if (commentaryReason && commentaryReason.length > 0 && !hasAnyPricedComponent) {
         toast({ title: "Pricing Not Available", description: commentaryReason, variant: "destructive" });
@@ -224,8 +215,8 @@ export async function processSeaPlusRailCalculation({
         finalCommentaryText = commentaryReason + "\n\nAI Suggestions: " + commentaryResult.commentary;
       }
       const commentaryOutputDisplay = { commentary: finalCommentaryText };
-      setShippingInfo(commentaryOutputDisplay);
-      setCachedShippingInfo(commentaryOutputDisplay);
+      setShippingInfo(commentaryOutputDisplay as SmartPricingOutput); // Cast for display
+      setCachedShippingInfo(commentaryOutputDisplay as SmartPricingOutput);
     }
   } catch (error) {
     console.error("Error processing shipping request:", error);
@@ -240,7 +231,7 @@ export async function processSeaPlusRailCalculation({
 export async function processDirectRailCalculation({
   values, context, toast, setIsLoading, setShippingInfo, setLastSuccessfulCalculation,
   setCachedShippingInfo, setCachedLastSuccessfulCalculation
-}: Omit<CalculationArgs, 'form'> & { values: RouteFormValues }) {
+}: CalculationArgsBase) {
   const { excelDirectRailData } = context;
   setIsLoading(true);
   setShippingInfo(null);
@@ -265,29 +256,32 @@ export async function processDirectRailCalculation({
     }
   }
   if (matchedDirectRailEntry) {
-    setShippingInfo({
+    const result: SmartPricingOutput = { // Construct as SmartPricingOutput for consistency
       directRailCityOfDeparture: matchedDirectRailEntry.cityOfDeparture, directRailDepartureStation: matchedDirectRailEntry.departureStation,
       directRailDestinationCity: matchedDirectRailEntry.destinationCity, directRailBorder: matchedDirectRailEntry.border,
       directRailCost: matchedDirectRailEntry.price, directRailETD: matchedDirectRailEntry.etd,
       directRailCommentary: matchedDirectRailEntry.commentary, directRailAgentName: matchedDirectRailEntry.agentName,
       directRailIncoterms: matchedDirectRailEntry.incoterms,
       commentary: "Direct rail price from " + matchedDirectRailEntry.cityOfDeparture + " to " + matchedDirectRailEntry.destinationCity + " via " + matchedDirectRailEntry.border + " with agent " + matchedDirectRailEntry.agentName + " (Incoterms: " + matchedDirectRailEntry.incoterms + "). ETD: " + (matchedDirectRailEntry.etd || 'N/A') + ". " + (matchedDirectRailEntry.commentary || ""),
-    });
+    };
+    setShippingInfo(result);
+    setCachedShippingInfo(result);
     toast({ title: "Direct Rail Price Found", description: "Details displayed below." });
   } else {
     toast({ variant: "destructive", title: "No Direct Rail Route Found", description: "No matching direct rail route." });
     setShippingInfo({ commentary: "No matching direct rail route found." });
+    setCachedShippingInfo({ commentary: "No matching direct rail route found." });
   }
   setIsLoading(false);
 }
 
 
 interface BestPriceArgs {
-  form: UseFormReturn<RouteFormValues>;
+  form: UseFormReturn<RouteFormValues>; // Use consolidated RouteFormValues
   context: PricingDataContextType;
   toast: ReturnType<typeof useToast>['toast'];
   setIsCalculatingBestPrice: React.Dispatch<React.SetStateAction<boolean>>;
-  setShippingInfo: React.Dispatch<React.SetStateAction<SmartPricingOutput | null>>;
+  setShippingInfo: React.Dispatch<React.SetStateAction<SmartPricingOutput | null>>; // Use consolidated
   setBestPriceResults: PricingDataContextType['setBestPriceResults'];
   setCachedFormValues: PricingDataContextType['setCachedFormValues'];
   setIsNavigatingToBestPrices: React.Dispatch<React.SetStateAction<boolean>>;
@@ -448,3 +442,4 @@ export function calculateBestPrice({
   setIsCalculatingBestPrice(false);
 }
 
+    

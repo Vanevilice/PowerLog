@@ -2,30 +2,26 @@
 import React from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import type {
-  RouteFormValues,
-  PricingDataContextType,
-  ShipmentType,
-  ExcelRoute,
-  ExcelSOCRoute,
-  RailDataEntry,
-  CalculationMode,
-} from '@/types';
+  RouteFormValues, PricingDataContextType, ShipmentType,
+  ExcelRoute, ExcelSOCRoute, RailDataEntry, CalculationMode,
+  SmartPricingOutput, // Using the consolidated type
+} from '@/types'; // All types from src/types
 import { DEFAULT_DIRECT_RAIL_FORM_VALUES, DEFAULT_SEA_RAIL_FORM_VALUES, NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS } from '@/lib/pricing/constants';
 
 interface UsePricingFormEffectsProps {
-  form: UseFormReturn<RouteFormValues>;
+  form: UseFormReturn<RouteFormValues>; // Use consolidated RouteFormValues
   context: PricingDataContextType;
   hasRestoredFromCache: boolean;
   setLocalAvailableDestinationPorts: React.Dispatch<React.SetStateAction<string[]>>;
-  localAvailableDestinationPorts: string[];
+  localAvailableDestinationPorts: string[]; // Pass this for comparison to avoid unnecessary updates
   setLocalAvailableSeaLines: React.Dispatch<React.SetStateAction<string[]>>;
-  localAvailableSeaLines: string[];
+  localAvailableSeaLines: string[]; // Pass for comparison
   setLocalAvailableRussianDestinationCities: React.Dispatch<React.SetStateAction<string[]>>;
-  localAvailableRussianDestinationCities: string[];
+  localAvailableRussianDestinationCities: string[]; // Pass for comparison
   setLocalAvailableArrivalStations: React.Dispatch<React.SetStateAction<string[]>>;
-  localAvailableArrivalStations: string[];
-  setShippingInfoState: React.Dispatch<React.SetStateAction<any | null>>; // Adjust 'any'
-  setLastSuccessfulCalculationState: React.Dispatch<React.SetStateAction<any | null>>; // Adjust 'any'
+  localAvailableArrivalStations: string[]; // Pass for comparison
+  setShippingInfoState: React.Dispatch<React.SetStateAction<SmartPricingOutput | null>>;
+  setLastSuccessfulCalculationState: React.Dispatch<React.SetStateAction<any | null>>; // Adjust 'any' if a specific type exists
 }
 
 export function usePricingFormEffects({
@@ -57,12 +53,13 @@ export function usePricingFormEffects({
 
   // Effect for resetting form parts on calculationMode change
   React.useEffect(() => {
-    if (hasRestoredFromCache) {
+    if (hasRestoredFromCache) { // Only reset if not initial load or cache restoration is done
       const currentFormValues = getValues();
       if (calculationMode === "sea_plus_rail") {
         reset({
-          ...currentFormValues,
-          ...DEFAULT_DIRECT_RAIL_FORM_VALUES,
+          ...currentFormValues, // Preserve common fields like margins
+          ...DEFAULT_DIRECT_RAIL_FORM_VALUES, // Clear direct rail fields
+          // Explicitly set sea_plus_rail fields, falling back to defaults if not present in currentFormValues
           shipmentType: currentFormValues.shipmentType || DEFAULT_SEA_RAIL_FORM_VALUES.shipmentType,
           originPort: currentFormValues.originPort || DEFAULT_SEA_RAIL_FORM_VALUES.originPort,
           destinationPort: currentFormValues.destinationPort || DEFAULT_SEA_RAIL_FORM_VALUES.destinationPort,
@@ -70,16 +67,19 @@ export function usePricingFormEffects({
           containerType: currentFormValues.containerType || DEFAULT_SEA_RAIL_FORM_VALUES.containerType,
           russianDestinationCity: currentFormValues.russianDestinationCity || DEFAULT_SEA_RAIL_FORM_VALUES.russianDestinationCity,
           arrivalStationSelection: currentFormValues.arrivalStationSelection || DEFAULT_SEA_RAIL_FORM_VALUES.arrivalStationSelection,
+          calculationModeToggle: "sea_plus_rail", // Sync toggle
         });
       } else { // direct_rail mode
         reset({
-          ...currentFormValues,
-          ...DEFAULT_SEA_RAIL_FORM_VALUES,
+          ...currentFormValues, // Preserve common fields
+          ...DEFAULT_SEA_RAIL_FORM_VALUES, // Clear sea+rail fields
+          // Explicitly set direct_rail fields
           directRailAgentName: currentFormValues.directRailAgentName || DEFAULT_DIRECT_RAIL_FORM_VALUES.directRailAgentName,
           directRailCityOfDeparture: currentFormValues.directRailCityOfDeparture || DEFAULT_DIRECT_RAIL_FORM_VALUES.directRailCityOfDeparture,
           directRailDestinationCityDR: currentFormValues.directRailDestinationCityDR || DEFAULT_DIRECT_RAIL_FORM_VALUES.directRailDestinationCityDR,
           directRailIncoterms: currentFormValues.directRailIncoterms || DEFAULT_DIRECT_RAIL_FORM_VALUES.directRailIncoterms,
           directRailBorder: currentFormValues.directRailBorder || DEFAULT_DIRECT_RAIL_FORM_VALUES.directRailBorder,
+          calculationModeToggle: "direct_rail", // Sync toggle
         });
       }
       setShippingInfoState(null);
@@ -147,7 +147,7 @@ export function usePricingFormEffects({
     const originFieldKey = watchedShipmentType === "COC" ? "originPorts" : "departurePorts";
     const filteredSeaLines = new Set<string>();
     currentDataset.forEach(route => {
-      const routeOrigins = route[originFieldKey as keyof typeof route] as string[] | undefined;
+      const routeOrigins = route[originFieldKey as keyof route] as string[] | undefined;
       if (Array.isArray(routeOrigins) && routeOrigins.includes(watchedOriginPort) &&
           Array.isArray(route.destinationPorts) && route.destinationPorts.includes(watchedDestinationPort)) {
         if (Array.isArray(route.seaLines)) route.seaLines.forEach(sl => filteredSeaLines.add(sl));
@@ -232,25 +232,39 @@ export function usePricingFormEffects({
     }
   }, [watchedRussianDestinationCity, watchedDestinationPort, isSeaRailExcelDataLoaded, excelRailData, setValue, getValues, hasRestoredFromCache, localAvailableArrivalStations, setLocalAvailableArrivalStations]);
 
-  // Effect for auto-clearing dependent fields on higher-level changes
+  // Effect for auto-clearing dependent fields on higher-level changes (Shipment Type, Origin, Sea Dest)
   React.useEffect(() => {
-    if (hasRestoredFromCache) {
+    if (hasRestoredFromCache) { // Only apply these auto-clears after initial setup/cache restoration.
       const currentOrigin = getValues("originPort");
       const currentSeaDest = getValues("destinationPort");
       const currentSeaLine = getValues("seaLineCompany");
-      if (!currentOrigin && currentSeaDest !== "" && getValues("destinationPort") !== "") setValue("destinationPort", "", { shouldValidate: true });
-      if ((!currentOrigin || !currentSeaDest) && currentSeaLine !== NONE_SEALINE_VALUE && getValues("seaLineCompany") !== NONE_SEALINE_VALUE) {
-        setValue("seaLineCompany", NONE_SEALINE_VALUE, { shouldValidate: true });
+      // If origin is cleared, clear its dependents
+      if (!currentOrigin) {
+        if (currentSeaDest !== "") setValue("destinationPort", "", { shouldValidate: true });
+        // SeaLine depends on both origin and seaDest
+      }
+      // If origin or seaDest is cleared (or not set), clear SeaLine
+      if (!currentOrigin || !currentSeaDest) {
+        if (currentSeaLine !== NONE_SEALINE_VALUE) setValue("seaLineCompany", NONE_SEALINE_VALUE, { shouldValidate: true });
+      }
+      // If Sea Destination is cleared, or if it's not a Vladivostok variant, clear Russian City and Arrival Station.
+      // This is slightly more aggressive to ensure consistency.
+      if (!currentSeaDest || (currentSeaDest && !VLADIVOSTOK_VARIANTS.some(variant => currentSeaDest.startsWith(variant.split(" ")[0])))) {
+          if (getValues("russianDestinationCity") !== "") setValue("russianDestinationCity", "", { shouldValidate: true });
+          if (getValues("arrivalStationSelection") !== "") setValue("arrivalStationSelection", "", { shouldValidate: true });
       }
     }
   }, [watchedShipmentType, watchedOriginPort, watchedDestinationPort, setValue, getValues, hasRestoredFromCache]);
 
-  // Effect for caching form values
+
+  // Effect for caching form values (stringified to avoid deep comparison issues)
   const currentFormValues = watch();
   const watchedFormValuesString = React.useMemo(() => JSON.stringify(currentFormValues), [currentFormValues]);
   React.useEffect(() => {
-    if (isSeaRailExcelDataLoaded || context.isDirectRailExcelDataLoaded) {
+    if (isSeaRailExcelDataLoaded || context.isDirectRailExcelDataLoaded) { // Only cache if some data is loaded
       setCachedFormValues(JSON.parse(watchedFormValuesString));
     }
   }, [watchedFormValuesString, setCachedFormValues, isSeaRailExcelDataLoaded, context.isDirectRailExcelDataLoaded]);
 }
+
+    

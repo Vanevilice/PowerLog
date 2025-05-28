@@ -2,25 +2,19 @@
 import * as XLSX from 'xlsx';
 import type { UseFormReturn } from 'react-hook-form';
 import type {
-  ExcelRoute,
-  ExcelSOCRoute,
-  RailDataEntry as ContextRailDataEntry, // Renamed to avoid conflict
-  DropOffEntry,
-  DirectRailEntry,
-  RouteFormValues,
-  ShipmentType,
-  PricingDataContextType,
-} from '@/types'; // Adjust if types are moved
-import { useToast } from '@/hooks/use-toast'; // Assuming useToast is accessible
+  ExcelRoute, ExcelSOCRoute, RailDataEntry, DropOffEntry, DirectRailEntry,
+  RouteFormValues, ShipmentType, PricingDataContextType, // Using consolidated types
+} from '@/types';
+import type { useToast } from '@/hooks/use-toast';
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS } from './constants';
 
-// Helper parsing functions (moved from original component)
+// Helper parsing functions
 export function parsePortsCell(cellValue: string | undefined, isDestination: boolean): string[] {
   if (!cellValue) return [];
   const ports = new Set<string>();
   const cellString = String(cellValue).trim();
-  const entries = cellString.split(/\/(?![^(]*\))/g);
-  const destPortPattern = /([^\/(]+)\s*\(([^)]+)\)/;
+  const entries = cellString.split(/\/(?![^(]*\))/g); // Split by slash not inside parentheses
+  const destPortPattern = /([^\/(]+)\s*\(([^)]+)\)/; // e.g., "PortName (SubPort1/SubPort2)"
 
   entries.forEach(entry => {
     entry = entry.trim();
@@ -33,13 +27,13 @@ export function parsePortsCell(cellValue: string | undefined, isDestination: boo
         subPortsString.split('/').map(p => p.trim()).forEach(subPort => {
           if (subPort) ports.add(baseName + " (" + subPort + ")");
         });
-        if (!subPortsString && baseName) {
+        if (!subPortsString && baseName) { // Case where there's a base name but no sub-ports in parens, e.g. "PortName ()"
            ports.add(baseName);
         }
       } else {
-        ports.add(entry);
+        ports.add(entry); // Regular port name without sub-ports in parens
       }
-    } else {
+    } else { // Origin port, simpler parsing
       ports.add(entry);
     }
   });
@@ -74,7 +68,7 @@ export function parseDropOffCitiesCell(cellValue: string | undefined): string[] 
 export function parseGenericListCell(cellValue: string | undefined): string[] {
     if (!cellValue) return [];
     const items = new Set<string>();
-    String(cellValue).trim().split(/[,;\/]/g).forEach(item => { // Split by comma, semicolon, or slash
+    String(cellValue).trim().split(/[,;\/]/g).forEach(item => {
         const trimmedItem = item.trim();
         if (trimmedItem) items.add(trimmedItem);
     });
@@ -87,39 +81,30 @@ export function parsePriceCell(cellValue: any): number | null {
   return isNaN(num) ? null : num;
 }
 
-interface ExcelParserArgs {
+interface ExcelParserArgsBase {
   file: File;
-  form: UseFormReturn<RouteFormValues>;
-  contextSetters: Pick<
-    PricingDataContextType,
-    | 'setExcelRouteData' | 'setExcelSOCRouteData' | 'setExcelRailData' | 'setExcelDropOffData'
-    | 'setExcelDirectRailData' | 'setIsSeaRailExcelDataLoaded' | 'setIsDirectRailExcelDataLoaded'
-    | 'setExcelOriginPorts' | 'setExcelDestinationPorts' | 'setExcelRussianDestinationCitiesMasterList'
-    | 'setDirectRailAgents' | 'setDirectRailDepartureCities' | 'setDirectRailDestinationCitiesDR'
-    | 'setDirectRailIncotermsList' | 'setDirectRailBordersList'
-    | 'setCachedShippingInfo' | 'setCachedFormValues' | 'setCachedLastSuccessfulCalculation'
-    | 'setBestPriceResults'
-  >;
-  setShippingInfoState: (info: any | null) => void; // From component's useState
-  setHasRestoredFromCacheState: (flag: boolean) => void; // From component's useState
+  form: UseFormReturn<RouteFormValues>; // Use the consolidated RouteFormValues
+  contextSetters: PricingDataContextType; // Pass the whole context for setters
+  setShippingInfoState: (info: any | null) => void;
+  setHasRestoredFromCacheState: (flag: boolean) => void;
   toast: ReturnType<typeof useToast>['toast'];
   fileInputRef: React.RefObject<HTMLInputElement>;
+  setIsParsingState: (isParsing: boolean) => void;
 }
 
-// Sea + Rail Excel Processing
-export async function handleSeaRailFileParse(args: ExcelParserArgs & {
-    setIsParsingState: (isParsing: boolean) => void;
-}) {
+
+export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
   const { file, form, contextSetters, setShippingInfoState, setHasRestoredFromCacheState, toast, fileInputRef, setIsParsingState } = args;
-  
+
   setIsParsingState(true);
   setShippingInfoState(null);
   contextSetters.setBestPriceResults(null);
   contextSetters.setCachedShippingInfo(null);
   contextSetters.setCachedFormValues(null);
   contextSetters.setCachedLastSuccessfulCalculation(null);
-  setHasRestoredFromCacheState(false);
+  setHasRestoredFromCacheState(false); // Important to reset this for subsequent uploads
 
+  // Clear previous Sea+Rail related data
   contextSetters.setExcelRouteData([]);
   contextSetters.setExcelSOCRouteData([]);
   contextSetters.setExcelRailData([]);
@@ -128,20 +113,22 @@ export async function handleSeaRailFileParse(args: ExcelParserArgs & {
   contextSetters.setExcelDestinationPorts([]);
   contextSetters.setExcelRussianDestinationCitiesMasterList([]);
   contextSetters.setIsSeaRailExcelDataLoaded(false);
-  
+
+  // Reset relevant form fields for sea+rail mode
   form.reset({
-    ...form.getValues(),
-    shipmentType: "COC" as ShipmentType,
+    ...form.getValues(), // keep other mode's values and general values like margins
+    shipmentType: "COC", // Default to COC
     originPort: "",
     destinationPort: "",
     seaLineCompany: NONE_SEALINE_VALUE,
-    containerType: undefined,
+    containerType: undefined, // Or a sensible default like CONTAINER_TYPES_CONST[0]
     russianDestinationCity: "",
     arrivalStationSelection: "",
-    // Keep margins if they were set
-    seaMargin: form.getValues('seaMargin'),
-    railMargin: form.getValues('railMargin'),
+    // Keep margins if they were set, or reset if specific to file:
+    // seaMargin: form.getValues('seaMargin'),
+    // railMargin: form.getValues('railMargin'),
   });
+
 
   const reader = new FileReader();
   reader.onload = async (e) => {
@@ -152,7 +139,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgs & {
         const allUniqueOrigins = new Set<string>();
         const allUniqueSeaDestinationsMaster = new Set<string>();
 
-        // COC Data (Sheet 3)
+        // COC Data (Sheet 3, index 2)
         const thirdSheetName = workbook.SheetNames[2];
         const newRouteDataLocal: ExcelRoute[] = [];
         if (thirdSheetName) {
@@ -178,10 +165,11 @@ export async function handleSeaRailFileParse(args: ExcelParserArgs & {
             contextSetters.setExcelRouteData(newRouteDataLocal);
             toast({ title: "COC Sea Routes Loaded", description: "Found " + newRouteDataLocal.length + " entries."});
         } else {
+            contextSetters.setExcelRouteData([]);
             toast({ variant: "destructive", title: "File Error", description: "Sheet 3 (COC sea routes) not found." });
         }
 
-        // SOC Data (Sheet 2)
+        // SOC Data (Sheet 2, index 1)
         const secondSheetName = workbook.SheetNames[1];
         const newSOCRouteDataLocal: ExcelSOCRoute[] = [];
         if (secondSheetName) {
@@ -207,6 +195,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgs & {
             contextSetters.setExcelSOCRouteData(newSOCRouteDataLocal);
             toast({ title: "SOC Sea Routes Loaded", description: "Found " + newSOCRouteDataLocal.length + " entries." });
         } else {
+            contextSetters.setExcelSOCRouteData([]);
             toast({ variant: "destructive", title: "File Error", description: "Sheet 2 (SOC sea routes) not found." });
         }
 
@@ -214,10 +203,12 @@ export async function handleSeaRailFileParse(args: ExcelParserArgs & {
         contextSetters.setExcelDestinationPorts(Array.from(allUniqueSeaDestinationsMaster).sort((a,b) => {
             if (VLADIVOSTOK_VARIANTS.includes(a) && !VLADIVOSTOK_VARIANTS.includes(b)) return -1;
             if (!VLADIVOSTOK_VARIANTS.includes(a) && VLADIVOSTOK_VARIANTS.includes(b)) return 1;
+            if (a === "Владивосток" && b !== "Владивосток") return -1; // Prioritize plain "Владивосток"
+            if (a !== "Владивосток" && b === "Владивосток") return 1;
             return a.localeCompare(b);
         }));
 
-        // Drop Off Data (Sheet 4)
+        // Drop Off Data (Sheet 4, index 3)
         const fourthSheetName = workbook.SheetNames[3];
         const newDropOffDataLocal: DropOffEntry[] = [];
         if (fourthSheetName) {
@@ -234,12 +225,13 @@ export async function handleSeaRailFileParse(args: ExcelParserArgs & {
             contextSetters.setExcelDropOffData(newDropOffDataLocal);
             toast({ title: "Drop Off Data Loaded", description: "Found " + newDropOffDataLocal.length + " entries." });
         } else {
+            contextSetters.setExcelDropOffData([]);
             toast({ variant: "default", title: "File Info", description: "Sheet 4 (drop-off) not found." });
         }
 
-        // Rail Data (Sheet 5)
+        // Rail Data (Sheet 5, index 4)
         const fifthSheetName = workbook.SheetNames[4];
-        const newRailDataLocal: ContextRailDataEntry[] = [];
+        const newRailDataLocal: RailDataEntry[] = [];
         const uniqueRussianCitiesFromSheet = new Set<string>();
         if (fifthSheetName) {
           const fifthSheetRawData = XLSX.utils.sheet_to_json<any[]>(workbook.Sheets[fifthSheetName], { header: 1 });
@@ -262,16 +254,18 @@ export async function handleSeaRailFileParse(args: ExcelParserArgs & {
           contextSetters.setExcelRussianDestinationCitiesMasterList(Array.from(uniqueRussianCitiesFromSheet).sort());
           toast({ title: "Rail Data Loaded", description: "Found " + uniqueRussianCitiesFromSheet.size + " Russian cities & " + newRailDataLocal.length + " rail prices." });
         } else {
+          contextSetters.setExcelRailData([]);
+          contextSetters.setExcelRussianDestinationCitiesMasterList([]);
           toast({ variant: "default", title: "File Info", description: "Sheet 5 (rail data) not found." });
         }
 
         contextSetters.setIsSeaRailExcelDataLoaded(true);
-        setHasRestoredFromCacheState(false);
+        setHasRestoredFromCacheState(false); // Ensure effects re-run for newly loaded data
         toast({ title: "Море + Ж/Д Excel Processed", description: "All relevant sheets parsed."});
       } catch (parseError) {
         console.error("Error parsing Sea+Rail Excel:", parseError);
         contextSetters.setIsSeaRailExcelDataLoaded(false);
-        toast({ variant: "destructive", title: "Parsing Error", description: "Could not parse Sea+Rail Excel."});
+        toast({ variant: "destructive", title: "Parsing Error", description: "Could not parse Sea+Rail Excel. Check sheet format."});
       } finally {
         setIsParsingState(false);
       }
@@ -291,18 +285,16 @@ export async function handleSeaRailFileParse(args: ExcelParserArgs & {
 }
 
 
-// Direct Rail Excel Processing
-export async function handleDirectRailFileParse(args: ExcelParserArgs & {
-    setIsParsingState: (isParsing: boolean) => void;
-}) {
+export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
   const { file, form, contextSetters, setShippingInfoState, setHasRestoredFromCacheState, toast, fileInputRef, setIsParsingState } = args;
-  
+
   setIsParsingState(true);
   setShippingInfoState(null);
   contextSetters.setCachedShippingInfo(null);
   contextSetters.setCachedLastSuccessfulCalculation(null);
-  setHasRestoredFromCacheState(false);
+  setHasRestoredFromCacheState(false); // Important to reset
 
+  // Clear previous Direct Rail data
   contextSetters.setExcelDirectRailData([]);
   contextSetters.setDirectRailAgents([]);
   contextSetters.setDirectRailDepartureCities([]);
@@ -311,8 +303,9 @@ export async function handleDirectRailFileParse(args: ExcelParserArgs & {
   contextSetters.setDirectRailBordersList([]);
   contextSetters.setIsDirectRailExcelDataLoaded(false);
 
+  // Reset direct rail form fields
   form.reset({
-    ...form.getValues(),
+    ...form.getValues(), // keep other mode's values and general values
     directRailAgentName: "",
     directRailCityOfDeparture: "",
     directRailDestinationCityDR: "",
@@ -361,9 +354,10 @@ export async function handleDirectRailFileParse(args: ExcelParserArgs & {
           contextSetters.setDirectRailIncotermsList(Array.from(uniqueIncoterms).sort());
           contextSetters.setDirectRailBordersList(Array.from(uniqueBorders).sort());
           contextSetters.setIsDirectRailExcelDataLoaded(true);
-          setHasRestoredFromCacheState(false);
+          setHasRestoredFromCacheState(false); // Ensure effects re-run
           toast({ title: "Прямое ЖД Excel Processed", description: "Found " + newDirectRailDataLocal.length + " entries." });
         } else {
+          contextSetters.setIsDirectRailExcelDataLoaded(false);
           toast({ variant: "destructive", title: "File Error", description: "First sheet (Direct Rail) not found." });
         }
       } catch (parseError) {
@@ -387,6 +381,5 @@ export async function handleDirectRailFileParse(args: ExcelParserArgs & {
   reader.readAsArrayBuffer(file);
   if (fileInputRef.current) fileInputRef.current.value = "";
 }
-
 
     
