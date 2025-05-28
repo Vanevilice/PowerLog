@@ -3,6 +3,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { usePricingData, type DashboardServiceSection, type DashboardServiceDataRow, type RailwayLegData } from '@/contexts/PricingDataContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -14,7 +15,6 @@ import { useToast } from '@/hooks/use-toast';
 export default function DashboardPage() {
   const { dashboardServiceSections, isSeaRailExcelDataLoaded } = usePricingData();
   const { toast } = useToast();
-  // railwaySelection: key is "sectionIndex-rowIndex", value is the index of the selected railwayLeg, or null
   const [railwaySelection, setRailwaySelection] = React.useState<Record<string, number | null>>({});
 
   React.useEffect(() => {
@@ -27,16 +27,27 @@ export default function DashboardPage() {
     setRailwaySelection(prev => {
       const currentSelectedLegIndex = prev[key];
       if (currentSelectedLegIndex === legIndex) {
-        // If the clicked leg is already selected, deselect it
-        return { ...prev, [key]: null };
+        return { ...prev, [key]: null }; // Deselect if already selected
       } else {
-        // Otherwise, select the new leg (this implicitly deselects any other for this row)
-        return { ...prev, [key]: legIndex };
+        return { ...prev, [key]: legIndex }; // Select the new leg
       }
     });
   };
 
   const handleDashboardCopyRate = async (row: DashboardServiceDataRow, sectionIndex: number, rowIndex: number) => {
+    // --- Start Detailed Logging ---
+    console.log(`[DashboardCopyRate] >>> BUTTON CLICKED for Section ${sectionIndex}, Row ${rowIndex}, Route: '${row.route}'`);
+    console.log(`[DashboardCopyRate] Current 'row' object being processed:`, JSON.parse(JSON.stringify(row)));
+    if (row.railwayLegs && row.railwayLegs.length > 0) {
+      console.log(`[DashboardCopyRate] 'row.railwayLegs' (length ${row.railwayLegs.length}):`, JSON.parse(JSON.stringify(row.railwayLegs)));
+    } else {
+      console.log(`[DashboardCopyRate] 'row.railwayLegs' is empty or undefined.`);
+    }
+    const selectionKey = `${sectionIndex}-${rowIndex}`;
+    const selectedLegIndex = railwaySelection[selectionKey];
+    console.log(`[DashboardCopyRate] selectionKey: '${selectionKey}', selectedLegIndex from state: ${selectedLegIndex}`);
+    // --- End Detailed Logging ---
+
     let textToCopy = "";
     const routeParts = row.route.split(' - ');
     const originPartRaw = routeParts[0] || 'N/A';
@@ -46,18 +57,9 @@ export default function DashboardPage() {
     let railwayCostDisplay = 'N/A';
     let includeRailwayPart = false;
 
-    const selectionKey = `${sectionIndex}-${rowIndex}`;
-    const selectedLegIndex = railwaySelection[selectionKey];
-
-    console.log(`[DashboardCopyRate] For row ${rowIndex} in section ${sectionIndex} (Route: ${row.route}):`);
-    console.log(`  SelectionKey: ${selectionKey}`);
-    console.log(`  SelectedLegIndex from state: ${selectedLegIndex}`);
-    console.log(`  Row railwayLegs data:`, row.railwayLegs);
-
-
     if (selectedLegIndex !== null && selectedLegIndex !== undefined && row.railwayLegs && row.railwayLegs[selectedLegIndex]) {
         const selectedLeg = row.railwayLegs[selectedLegIndex];
-        console.log(`  Selected Leg Data:`, selectedLeg);
+        console.log(`[DashboardCopyRate] USING Selected Leg (index ${selectedLegIndex}):`, JSON.parse(JSON.stringify(selectedLeg)));
         if (selectedLeg.originInfo && selectedLeg.originInfo !== 'N/A') {
             // Remove leading "CY ", "FOB ", or "FI " from the selected leg's originInfo for the "FOR" part
             forPartDisplay = selectedLeg.originInfo.replace(/^(FOB|FI|CY)\s*/i, '').trim();
@@ -65,11 +67,15 @@ export default function DashboardPage() {
         if (selectedLeg.cost && selectedLeg.cost !== 'N/A') {
             railwayCostDisplay = selectedLeg.cost;
             includeRailwayPart = true;
+        } else {
+             console.log(`[DashboardCopyRate] Selected leg (index ${selectedLegIndex}) has no valid cost ('${selectedLeg.cost}'). Railway part will NOT be included.`);
         }
-    } else if (routeParts.length > 1) { // Fallback if no railway leg selected: use destination from main route
-        console.log(`  No specific railway leg selected or data missing, falling back to main route destination.`);
-        const destinationPartRaw = routeParts.slice(1).join(' - ');
-        forPartDisplay = destinationPartRaw.replace(/^(FOB|FI|CY)\s*/i, '').trim();
+    } else {
+        console.log(`[DashboardCopyRate] NO specific railway leg selected (selectedLegIndex: ${selectedLegIndex}). Falling back to main route destination for 'FOR' part.`);
+        if (routeParts.length > 1) { // Fallback if no railway leg selected: use destination from main route
+            const destinationPartRaw = routeParts.slice(1).join(' - ');
+            forPartDisplay = destinationPartRaw.replace(/^(FOB|FI|CY)\s*/i, '').trim();
+        }
     }
     
     textToCopy += `FOB ${originPart} - Владивосток - FOR ${forPartDisplay} :\n`;
@@ -79,7 +85,9 @@ export default function DashboardPage() {
       textToCopy += `Ж/Д Составляющая: ${railwayCostDisplay}\n`;
     }
     
-    console.log(`  Final textToCopy:\n${textToCopy}`);
+    console.log(`[DashboardCopyRate] Final textToCopy for Row ${rowIndex}:\n${textToCopy}`);
+    console.log(`[DashboardCopyRate] <<< END OF COPY for Section ${sectionIndex}, Row ${rowIndex}`);
+
 
     try {
       await navigator.clipboard.writeText(textToCopy.trim());
