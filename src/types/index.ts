@@ -64,6 +64,9 @@ export interface DashboardServiceDataRow {
   rate: string;
   containerInfo: string;
   additionalComment: string;
+  railwayCost?: string; // New: For "CY" row data
+  railwayContainerInfo?: string; // New
+  railwayComment?: string; // New
 }
 
 export interface DashboardServiceSection {

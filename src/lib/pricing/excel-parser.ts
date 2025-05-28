@@ -3,57 +3,73 @@ import * as XLSX from 'xlsx';
 import type { UseFormReturn } from 'react-hook-form';
 import type {
   ExcelRoute, ExcelSOCRoute, RailDataEntry as ContextRailDataEntry, DropOffEntry, DirectRailEntry,
-  RouteFormValues, PricingDataContextType, SmartPricingOutput, PricingCommentaryOutput,
-  DashboardServiceSection, DashboardServiceDataRow
+  RouteFormValues, PricingDataContextType, CombinedAiOutput,
+  DashboardServiceSection, DashboardServiceDataRow // Using CombinedAiOutput now
 } from '@/types';
 import type { useToast } from '@/hooks/use-toast';
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS } from './constants';
 
 
 export function formatDashboardRate(rateString: string | number | undefined): string {
-  if (rateString === null || rateString === undefined || String(rateString).trim() === "") return 'N/A';
+  if (rateString === null || rateString === undefined) return 'N/A';
+  let sValue = String(rateString).trim();
+  if (sValue === "") return 'N/A';
 
-  let cleanedString = String(rateString).replace(/\s/g, ''); // Remove all spaces
-  
-  // Determine currency - assuming USD if $ is present, otherwise infer or default
-  let currency = "USD"; // Default or infer if needed
-  if (cleanedString.includes('$')) {
+  let currency = ""; // Default to empty, infer if possible
+  let cleanedString = sValue;
+
+  if (sValue.includes('$')) {
     currency = "USD";
-    cleanedString = cleanedString.replace('$', '');
-  } else if (cleanedString.toLowerCase().includes('rub') || cleanedString.includes('₽')) {
+    cleanedString = sValue.replace('$', '').trim();
+  } else if (sValue.toLowerCase().includes('rub') || sValue.includes('₽')) {
     currency = "RUB";
-    cleanedString = cleanedString.replace(/rub|₽/gi, '');
+    cleanedString = sValue.replace(/rub|₽/gi, '').trim();
+  } else {
+    // Attempt to infer currency if not explicit and if it's just a number
+    // If it contains only digits, spaces, commas, periods, assume USD as a fallback
+    // or leave currency blank if no strong indicator.
+    // For now, if no explicit symbol, let's assume it might be USD or leave currency blank.
+    // This part can be refined based on typical data patterns if needed.
+    // If only numbers, spaces, and common separators, it's hard to be certain without context.
+    // Let's default to USD if only numbers, but this is a guess.
+    if (/^[\d\s.,]+$/.test(cleanedString)) {
+        // currency = "USD"; // Or leave blank: currency = "";
+    }
   }
   
-  // Remove comma and everything after it if it's like ",00"
-  cleanedString = cleanedString.replace(/,00$/, '');
-  cleanedString = cleanedString.replace(/,\d{1,2}$/, ''); // Also handle cases like ",50" if you want to strip all decimals for dashboard
+  // Further clean the numeric part: remove all spaces, replace comma with dot for float parsing
+  cleanedString = cleanedString.replace(/\s/g, '').replace(',', '.');
 
-  // Convert to number if possible for re-formatting, or use as is if it's complex
-  const num = parseFloat(cleanedString.replace(',', '.')); // Attempt to parse remaining
-  
+  // Remove typical Excel accounting noise if it's at the end, like ",00" or ".-"
+  cleanedString = cleanedString.replace(/[,.]00$/, ''); // e.g. "1500,00" -> "1500"
+  cleanedString = cleanedString.replace(/\.-$/, '');    // e.g. "1500.-" -> "1500"
+
+
+  const num = parseFloat(cleanedString);
+
   if (!isNaN(num)) {
-    // Format with space as thousand separator, no decimals for whole numbers
-    return num.toLocaleString('fr-FR', { 
-             minimumFractionDigits: 0, 
-             maximumFractionDigits: 0 
-           }) + ` ${currency}`;
+    const formattedNum = num.toLocaleString('fr-FR', {
+      minimumFractionDigits: (num % 1 === 0) ? 0 : 2, // Show decimals only if they exist
+      maximumFractionDigits: 2
+    });
+    return currency ? `${formattedNum} ${currency}` : formattedNum; // Append currency if detected
   }
-  // If it's not a number after cleanup, return the cleaned string or original if too complex
-  return String(rateString).trim(); // Fallback to original trimmed string if parsing is problematic
+
+  // If parsing as number failed, but we had an original string, return the original (trimmed).
+  // This handles cases like "Market price" or other non-numeric valid entries.
+  return sValue;
 }
 
 
 export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardServiceSection[] {
   const rawData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
-  console.log("[ExcelParser] Raw data from dashboard sheet:", JSON.parse(JSON.stringify(rawData.slice(0, 10)))); // Log first 10 rows
+  console.log("[ExcelParser] Raw data from dashboard sheet (first 10 rows):", JSON.parse(JSON.stringify(rawData.slice(0, 10))));
 
   const parsedSections: DashboardServiceSection[] = [];
   let currentSection: DashboardServiceSection | null = null;
 
   rawData.forEach((rowArray, rowIndex) => {
     if (!Array.isArray(rowArray) || rowArray.every(cell => cell === null || cell === undefined || String(cell).trim() === "")) {
-      // Blank line often indicates end of a section
       if (currentSection && currentSection.dataRows.length > 0) {
         console.log(`[ExcelParser] Pushing section (due to blank line): ${currentSection.serviceName}, rows: ${currentSection.dataRows.length}`);
         parsedSections.push(currentSection);
@@ -62,40 +78,40 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
       return;
     }
 
-    const firstCell = String(rowArray[0] || '').trim();
-    const secondCell = String(rowArray[1] || '').trim();
-    const thirdCell = String(rowArray[2] || '').trim();
-    const fourthCell = String(rowArray[3] || '').trim();
+    const firstCell = String(rowArray[0] || '').trim(); // Route (FOB...) or Service Name
+    const secondCell = rowArray[1]; // Rate
+    const thirdCell = String(rowArray[2] || '').trim(); // Container Info
+    const fourthCell = String(rowArray[3] || '').trim(); // Additional Comment / CY indicator
 
-    const isLikelyDataRow = firstCell.toUpperCase().startsWith("FOB") && (secondCell || thirdCell); // FOB and has rate or container
+    const isLikelyFOBDataRow = firstCell.toUpperCase().startsWith("FOB") && (secondCell !== null && secondCell !== undefined);
+    const isLikelyCYDataRow = fourthCell.toUpperCase().startsWith("CY");
 
-    if (!isLikelyDataRow && firstCell) { // Potential service name / header
+    if (isLikelyCYDataRow && currentSection && currentSection.dataRows.length > 0) {
+      // This is a CY row, meant to augment the last FOB row
+      const lastFobRow = currentSection.dataRows[currentSection.dataRows.length - 1];
+      lastFobRow.railwayCost = formatDashboardRate(secondCell); // Column B for CY row is railway cost
+      lastFobRow.railwayContainerInfo = thirdCell; // Column C for CY row is railway container info
+      lastFobRow.railwayComment = fourthCell.substring(2).trim(); // Remove "CY" prefix and trim
+      console.log(`[ExcelParser] Augmented FOB row with CY data: ${lastFobRow.route}, RailwayCost: ${lastFobRow.railwayCost}`);
+    } else if (isLikelyFOBDataRow) {
+      if (!currentSection) { // Data row appears before a service header
+        currentSection = { serviceName: "General Services (Sheet 1)", dataRows: [] };
+        console.log("[ExcelParser] Data row found before service header. Creating default section.");
+      }
+      const dataRow: DashboardServiceDataRow = {
+        route: firstCell,
+        rate: formatDashboardRate(secondCell),
+        containerInfo: thirdCell || 'N/A',
+        additionalComment: (fourthCell && !isLikelyCYDataRow) ? fourthCell : '-' // Only use 4th cell if not a CY row's comment
+      };
+      currentSection.dataRows.push(dataRow);
+    } else if (firstCell) { // Potential service name / header (and not an FOB or CY row)
       if (currentSection && currentSection.dataRows.length > 0) {
         console.log(`[ExcelParser] Pushing section (due to new header): ${currentSection.serviceName}, rows: ${currentSection.dataRows.length}`);
         parsedSections.push(currentSection);
       }
       currentSection = { serviceName: firstCell, dataRows: [] };
       console.log(`[ExcelParser] Started new section: ${firstCell}`);
-    } else if (currentSection && isLikelyDataRow) {
-      const rate = formatDashboardRate(secondCell || undefined);
-      const containerInfo = thirdCell || 'N/A';
-      const additionalComment = fourthCell || '-';
-      
-      const dataRow: DashboardServiceDataRow = {
-        route: firstCell,
-        rate: rate,
-        containerInfo: containerInfo,
-        additionalComment: additionalComment
-      };
-      currentSection.dataRows.push(dataRow);
-    } else if (!currentSection && isLikelyDataRow) {
-        // Data row appears before a service header. Create a default section.
-        console.log("[ExcelParser] Data row found before any service header. Creating default section.");
-        currentSection = { serviceName: "General Services (Sheet 1)", dataRows: [] };
-        const rate = formatDashboardRate(secondCell || undefined);
-        const containerInfo = thirdCell || 'N/A';
-        const additionalComment = fourthCell || '-';
-        currentSection.dataRows.push({ route: firstCell, rate, containerInfo, additionalComment });
     }
   });
 
@@ -176,29 +192,29 @@ export function parseGenericListCell(cellValue: string | undefined): string[] {
 }
 
 
+// Updated to return string | number | null to handle cases like "$ 816/$ 1020"
 export function parsePriceCell(cellValue: any): string | number | null {
-  if (cellValue === null || cellValue === undefined || String(cellValue).trim() === "") {
-    return null;
-  }
+  if (cellValue === null || cellValue === undefined) return null;
   const sValueOriginal = String(cellValue).trim();
+  if (sValueOriginal === "") return null;
+
+  // Attempt to parse as a number first
   const sValueNumeric = sValueOriginal.replace(/\s/g, '').replace(',', '.');
   const num = parseFloat(sValueNumeric);
 
-  if (isNaN(num)) {
-    // If it's not a number, but the original cell value was a non-empty string, return the original string
-    if (sValueOriginal !== "") {
-      return sValueOriginal; // Return the original string like "$ 816/$ 1020" or "Market"
-    }
-    return null; // Truly unparsable or empty after trim
+  if (!isNaN(num)) {
+    return num; // Successfully parsed as a number
+  } else {
+    // If not a number, return the original string (e.g., for "$ 816/$ 1020" or "Market")
+    return sValueOriginal;
   }
-  return num; // Parsed as a number
 }
 
 export interface ExcelParserArgsBase {
-  file: File;
+  file: File; // Expect a File object directly
   form: UseFormReturn<RouteFormValues>;
   contextSetters: PricingDataContextType;
-  setShippingInfoState: (info: SmartPricingOutput | PricingCommentaryOutput | null) => void;
+  setShippingInfoState: (info: CombinedAiOutput | null) => void;
   setHasRestoredFromCacheState: (flag: boolean) => void;
   toast: ReturnType<typeof useToast>['toast'];
   fileInputRef: React.RefObject<HTMLInputElement>;
@@ -210,14 +226,15 @@ export interface ExcelParserArgsBase {
 export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
   const { file, form, contextSetters, setShippingInfoState, setHasRestoredFromCacheState, toast, fileInputRef, setIsParsingState, setBestPriceResults } = args;
 
+  console.log("[ExcelParser] handleSeaRailFileParse started for file:", file?.name);
   setIsParsingState(true);
   setShippingInfoState(null);
-  setBestPriceResults(null); // Clear previous best price results
+  setBestPriceResults(null);
 
   contextSetters.setCachedShippingInfo(null);
   contextSetters.setCachedFormValues(null);
   contextSetters.setCachedLastSuccessfulCalculation(null);
-  setHasRestoredFromCacheState(false); // Important to reset this for subsequent uploads
+  setHasRestoredFromCacheState(false);
 
   contextSetters.setExcelRouteData([]);
   contextSetters.setExcelSOCRouteData([]);
@@ -408,11 +425,11 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
                 departureStations: parsedDepartureStations,
                 arrivalStations: parsedArrivalStations,
                 cityOfArrival: cityOfArrival,
-                price20DC_24t: parsePriceCell(row[3]) as number | null, // Rail prices are expected to be numbers
+                price20DC_24t: parsePriceCell(row[3]) as number | null,
                 guardCost20DC: parsePriceCell(row[4]) as number | null,
                 price20DC_28t: parsePriceCell(row[5]) as number | null,
-                price40HC: parsePriceCell(row[6]) as number | null,    // Assumed to be number
-                guardCost40HC: parsePriceCell(row[7]) as number | null,  // Assumed to be number
+                price40HC: parsePriceCell(row[6]) as number | null,
+                guardCost40HC: parsePriceCell(row[7]) as number | null,
               });
               if (cityOfArrival) uniqueRussianCitiesFromSheet.add(cityOfArrival);
             }
@@ -427,8 +444,8 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
         }
 
         contextSetters.setIsSeaRailExcelDataLoaded(true);
-        console.log("[ExcelParser] setIsSeaRailExcelDataLoaded set to true.");
-        setHasRestoredFromCacheState(false);
+        console.log("[ExcelParser] setIsSeaRailExcelDataLoaded set to true after parsing all Sea+Rail sheets.");
+        setHasRestoredFromCacheState(false); // Important: Reset this AFTER data loading and initial form reset based on data
         toast({ title: "Море + Ж/Д Excel Processed", description: "All relevant sheets parsed."});
 
       } catch (parseError) {
@@ -437,6 +454,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
         toast({ variant: "destructive", title: "Parsing Error", description: "Could not parse Sea+Rail Excel. Check sheet format."});
       } finally {
         setIsParsingState(false);
+        console.log("[ExcelParser] handleSeaRailFileParse finished.");
       }
     } else if (typeof XLSX === 'undefined') {
         toast({ variant: "destructive", title: "Setup Incomplete", description: "XLSX library not available."});
@@ -457,10 +475,11 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
 export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
   const { file, form, contextSetters, setShippingInfoState, setHasRestoredFromCacheState, toast, fileInputRef, setIsParsingState } = args;
 
+  console.log("[ExcelParser] handleDirectRailFileParse started for file:", file?.name);
   setIsParsingState(true);
   setShippingInfoState(null);
   contextSetters.setCachedShippingInfo(null);
-  contextSetters.setCachedFormValues(null);
+  contextSetters.setCachedFormValues(null); // Clear cached form values for the other mode
   contextSetters.setCachedLastSuccessfulCalculation(null);
   setHasRestoredFromCacheState(false);
 
@@ -505,7 +524,7 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
               agentName: String(row[0] || '').trim(), cityOfDeparture: String(row[1] || '').trim(),
               departureStation: String(row[2] || '').trim(), border: String(row[3] || '').trim(),
               destinationCity: String(row[4] || '').trim(), incoterms: String(row[5] || '').trim(),
-              price: parsePriceCell(row[6]) as number | null, // Direct rail price assumed to be number
+              price: parsePriceCell(row[6]) as number | null,
               etd: String(row[7] || '').trim(), commentary: String(row[8] || '').trim(),
             };
             if (entry.agentName) uniqueAgents.add(entry.agentName);
@@ -524,7 +543,7 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
           contextSetters.setDirectRailIncotermsList(Array.from(uniqueIncoterms).sort());
           contextSetters.setDirectRailBordersList(Array.from(uniqueBorders).sort());
           contextSetters.setIsDirectRailExcelDataLoaded(true);
-          setHasRestoredFromCacheState(false);
+          setHasRestoredFromCacheState(false); // Important: Reset this AFTER data loading
           toast({ title: "Прямое ЖД Excel Processed", description: "Found " + newDirectRailDataLocal.length + " entries." });
         } else {
           contextSetters.setIsDirectRailExcelDataLoaded(false);
@@ -536,6 +555,7 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
         toast({ variant: "destructive", title: "Parsing Error", description: "Could not parse Direct Rail Excel."});
       } finally {
         setIsParsingState(false);
+        console.log("[ExcelParser] handleDirectRailFileParse finished.");
       }
     } else if (typeof XLSX === 'undefined') {
         toast({ variant: "destructive", title: "Setup Incomplete", description: "XLSX library not available."});
@@ -551,4 +571,3 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
   reader.readAsArrayBuffer(file);
   if (fileInputRef.current) fileInputRef.current.value = "";
 }
-

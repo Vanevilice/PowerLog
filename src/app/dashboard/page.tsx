@@ -7,12 +7,11 @@ import { usePricingData, type DashboardServiceSection } from '@/contexts/Pricing
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, FileText, UploadCloud, Info } from 'lucide-react';
+import { AlertTriangle, FileText, UploadCloud, Info, Train, DollarSign } from 'lucide-react';
 
 export default function DashboardPage() {
   const { dashboardServiceSections, isSeaRailExcelDataLoaded } = usePricingData();
 
-  // Log context values when component renders
   React.useEffect(() => {
     console.log("[DashboardPage] isSeaRailExcelDataLoaded:", isSeaRailExcelDataLoaded);
     console.log("[DashboardPage] dashboardServiceSections:", dashboardServiceSections);
@@ -88,25 +87,37 @@ export default function DashboardPage() {
           <CardHeader className="pb-4 bg-muted/30 border-b">
             <CardTitle className="text-xl font-semibold text-primary">{section.serviceName || `Service Section ${sectionIndex + 1}`}</CardTitle>
           </CardHeader>
-          <CardContent className="p-0"> {/* Remove padding to allow table to fill */}
+          <CardContent className="p-0">
             {section.dataRows && section.dataRows.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[40%] pl-6">Route (Origin - Destination)</TableHead>
-                    <TableHead className="w-[20%]">Rate</TableHead>
-                    <TableHead className="w-[25%]">Container Info</TableHead>
-                    <TableHead className="w-[15%] pr-6">Additional Comment</TableHead>
+                    <TableHead className="w-[35%] pl-6">Route (Origin - Destination)</TableHead>
+                    <TableHead className="w-[15%]">Sea Rate</TableHead>
+                    <TableHead className="w-[20%]">Container Info</TableHead>
+                    <TableHead className="w-[30%] pr-6">Comments / Railway Details</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {section.dataRows.map((row, rowIndex) => (
-                    <TableRow key={`row-${sectionIndex}-${rowIndex}`} className="hover:bg-muted/10">
-                      <TableCell className="font-medium pl-6 py-3">{row.route || 'N/A'}</TableCell>
-                      <TableCell className="py-3">{row.rate || 'N/A'}</TableCell>
-                      <TableCell className="py-3">{row.containerInfo || 'N/A'}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground pr-6 py-3">{row.additionalComment || '-'}</TableCell>
-                    </TableRow>
+                    <React.Fragment key={`row-frag-${sectionIndex}-${rowIndex}`}>
+                      <TableRow className="hover:bg-muted/10">
+                        <TableCell className="font-medium pl-6 py-3">{row.route || 'N/A'}</TableCell>
+                        <TableCell className="py-3">{row.rate || 'N/A'}</TableCell>
+                        <TableCell className="py-3">{row.containerInfo || 'N/A'}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground pr-6 py-3">{row.additionalComment || '-'}</TableCell>
+                      </TableRow>
+                      {row.railwayCost && (
+                        <TableRow className="bg-muted/20 hover:bg-muted/30 border-t border-dashed">
+                          <TableCell className="pl-10 py-2 text-sm font-medium text-primary flex items-center">
+                            <Train className="mr-2 h-4 w-4 text-primary/80" /> Railway Leg:
+                          </TableCell>
+                          <TableCell className="py-2 text-sm font-semibold text-primary">{row.railwayCost}</TableCell>
+                          <TableCell className="py-2 text-sm">{row.railwayContainerInfo || 'N/A'}</TableCell>
+                          <TableCell className="pr-6 py-2 text-xs text-muted-foreground">{row.railwayComment || '-'}</TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
                   ))}
                 </TableBody>
               </Table>
@@ -116,7 +127,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       ))}
-       {dashboardServiceSections.length === 0 && isSeaRailExcelDataLoaded && ( // This specific case might be caught by the earlier check, but kept for safety
+       {dashboardServiceSections.length === 0 && isSeaRailExcelDataLoaded && (
          <Card className="shadow-lg rounded-xl bg-card border border-border">
            <CardHeader>
              <CardTitle className="text-xl font-semibold text-primary">No Services Found</CardTitle>
