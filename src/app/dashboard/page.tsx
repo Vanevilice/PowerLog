@@ -7,12 +7,18 @@ import { usePricingData, type DashboardServiceSection } from '@/contexts/Pricing
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, FileText, UploadCloud } from 'lucide-react';
+import { AlertTriangle, FileText, UploadCloud, Info } from 'lucide-react';
 
 export default function DashboardPage() {
   const { dashboardServiceSections, isSeaRailExcelDataLoaded } = usePricingData();
 
-  if (!isSeaRailExcelDataLoaded || !dashboardServiceSections || dashboardServiceSections.length === 0) {
+  // Log context values when component renders
+  React.useEffect(() => {
+    console.log("[DashboardPage] isSeaRailExcelDataLoaded:", isSeaRailExcelDataLoaded);
+    console.log("[DashboardPage] dashboardServiceSections:", dashboardServiceSections);
+  }, [isSeaRailExcelDataLoaded, dashboardServiceSections]);
+
+  if (!isSeaRailExcelDataLoaded) {
     return (
       <div className="container mx-auto p-4 md:p-8 text-center flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
         <Card className="w-full max-w-lg shadow-lg rounded-xl bg-card border border-border">
@@ -36,6 +42,32 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  if (!dashboardServiceSections || dashboardServiceSections.length === 0) {
+    return (
+      <div className="container mx-auto p-4 md:p-8 text-center flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Card className="w-full max-w-lg shadow-lg rounded-xl bg-card border border-border">
+          <CardHeader>
+            <div className="flex justify-center items-center mb-3">
+              <Info className="h-12 w-12 text-primary" />
+            </div>
+            <CardTitle className="text-2xl font-semibold text-primary">No Dashboard Data Found</CardTitle>
+            <CardDescription className="text-muted-foreground">
+              The &quot;Море + Ж/Д&quot; Excel file was loaded, but no dashboard sections were found or parsed from its first sheet. Please check the file format.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/">
+                <UploadCloud className="mr-2 h-4 w-4" /> Back to Calculator
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8">
@@ -84,7 +116,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       ))}
-       {dashboardServiceSections.length === 0 && isSeaRailExcelDataLoaded && (
+       {dashboardServiceSections.length === 0 && isSeaRailExcelDataLoaded && ( // This specific case might be caught by the earlier check, but kept for safety
          <Card className="shadow-lg rounded-xl bg-card border border-border">
            <CardHeader>
              <CardTitle className="text-xl font-semibold text-primary">No Services Found</CardTitle>
