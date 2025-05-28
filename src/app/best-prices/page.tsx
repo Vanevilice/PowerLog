@@ -187,7 +187,7 @@ export default function BestPricesPage() {
         </Button>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {bestPriceResults.map((route, index) => (
           <Card key={route.id} className="shadow-xl rounded-xl overflow-hidden flex flex-col bg-card border border-border hover:shadow-2xl transition-shadow duration-300">
             <CardHeader className="pb-4 bg-muted/30 border-b">
@@ -339,3 +339,5 @@ export default function BestPricesPage() {
     </div>
   );
 }
+
+    
