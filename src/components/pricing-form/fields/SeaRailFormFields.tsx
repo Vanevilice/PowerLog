@@ -55,11 +55,9 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
     ? "Upload Море + Ж/Д Excel"
     : !watchedOriginPort
     ? "Select Origin Port First"
-    : localAvailableDestinationPorts.length > 0
-    ? localAvailableDestinationPorts.includes("Владивосток")
-      ? "Владивосток"
-      : "Select destination port"
-    : "No destinations for origin";
+    : localAvailableDestinationPorts.length > 0 // If there are *any* destinations for the selected origin
+    ? "Владивосток" // Then show "Владивосток" as the placeholder
+    : "No destinations for origin"; // Otherwise, if no destinations, show this
 
   return (
     <>
