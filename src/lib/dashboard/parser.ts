@@ -1,5 +1,5 @@
 
-import type * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx'; // Added this import
 import type { DashboardServiceSection, DashboardServiceDataRow, RailwayLegData } from '@/types';
 import { formatDashboardRate, parseContainerInfoCell } from './utils';
 import { isFobOrFiRow, isCyRowByColD, isPotentialServiceHeaderRow, isCyInColA } from './row-identifier';
@@ -11,6 +11,7 @@ function processFobOrFiRow(rowArray: any[]): DashboardServiceDataRow | null {
   const fourthCellContent = String(rowArray[3] || '').trim(); // Potential comment column
 
   if (!isFobOrFiRow(firstCell, secondCellContent)) {
+    // console.warn("[DashboardParser] processFobOrFiRow determined this is not an FOB/FI row:", rowArray);
     return null;
   }
 
@@ -42,6 +43,7 @@ function processRailwayLegRow(rowArray: any[]): RailwayLegData | null {
   
   let legComment = commentCellD;
   // If Col D starts with "CY", strip it and take the rest as comment.
+  // This logic is now part of the primary CY check, but good to keep for comment extraction
   if (isCyRowByColD(commentCellD)) { 
       legComment = commentCellD.substring(2).trim().replace(/^[:\s]+/, '');
   }
@@ -53,16 +55,17 @@ function processRailwayLegRow(rowArray: any[]): RailwayLegData | null {
       : commentFromLegContainerCell;
   }
   
+  // Return null if all effectively empty, to avoid pushing empty leg objects
   if (!originInfoRaw && cost === 'N/A' && legContainerType === 'N/A' && !legComment) {
     // console.warn("[DashboardParser] processRailwayLegRow returning null due to all fields being effectively empty for row:", rowArray);
     return null;
   }
 
   return {
-    originInfo: originInfoRaw || "N/A",
+    originInfo: originInfoRaw || "N/A", // Ensure no empty strings, default to N/A
     cost: cost,
-    containerInfo: legContainerType || "N/A",
-    comment: legComment || '-',
+    containerInfo: legContainerType || "N/A", // Ensure no empty strings
+    comment: legComment || '-', // Ensure no empty strings
   };
 }
 
@@ -102,7 +105,7 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
     }
 
     const firstCell = String(rowArray[0] || '').trim();
-    const secondCellContent = rowArray[1]; 
+    const secondCellContent = rowArray[1]; // Used to check if it's an FOB/FI row
     const fourthCellContent = String(rowArray[3] || '').trim();
 
     const isFobFiType = isFobOrFiRow(firstCell, secondCellContent);
@@ -113,8 +116,8 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
 
     if (isFobFiType) {
       if (!currentSection) {
-        // If there's no current section, this FOB/FI row might be starting an implicit section
-        // Or, it belongs to a header that was just above it. For now, create an implicit one if needed.
+        // This logic should ideally be handled by potential header row processing
+        // For safety, if an FOB/FI row appears without a preceding header, create an implicit section
         currentSection = { serviceName: `Service Section (Implicit at row ${index + 1})`, dataRows: [] };
         // console.log(`[DashboardParser] Implicit section started for FOB/FI: '${currentSection.serviceName}' at row ${index}`);
       }
@@ -144,12 +147,12 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
       } else {
         // console.warn(`[DashboardParser]     Found CY row ${index} but no 'lastFobRowRef' to attach to. Row:`, rowArray);
       }
-    } else { 
-      // Not FOB/FI, not CY - could be a header or an empty/irrelevant row
+    } else { // Not FOB/FI, not CY - could be a header or an empty/irrelevant row
+      // Use the refined header check
       const isHeader = isPotentialServiceHeaderRow(rowArray, firstCell, isFobFiType, isCyByColDType, isCyByColAType);
       if (isHeader) {
         // console.log(`[DashboardParser] Potential Header Row at index ${index}: '${firstCell}'. Finalizing previous section: ${currentSection?.serviceName}`);
-        finalizeCurrentSection(currentSection, parsedSections); 
+        finalizeCurrentSection(currentSection, parsedSections); // Finalize previous section before starting new
         
         const serviceNameColB = String(rowArray[1] || '').trim();
         const serviceNameColC = String(rowArray[2] || '').trim();
@@ -158,7 +161,7 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
         if (serviceNameColB && serviceNameColC) newServiceName = `${serviceNameColB} ${serviceNameColC}`;
         else if (serviceNameColB) newServiceName = serviceNameColB;
         else if (serviceNameColC) newServiceName = serviceNameColC;
-        else if (firstCell) newServiceName = firstCell; 
+        else if (firstCell) newServiceName = firstCell; // Fallback to first cell if B and C are empty but A has content
         
         currentSection = { serviceName: newServiceName || `Service Section (Fallback at row ${index + 1})`, dataRows: [] };
         lastFobRowRef = null; // Reset for new section
@@ -169,6 +172,7 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
     }
   });
 
+  // Finalize the last section after the loop
   finalizeCurrentSection(currentSection, parsedSections);
   // console.log("[DashboardParser] Finished parseDashboardSheet, total sections found:", parsedSections.length);
   // console.log("[DashboardParser] Final Structure:", JSON.parse(JSON.stringify(parsedSections)));
