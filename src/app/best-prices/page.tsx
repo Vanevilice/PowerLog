@@ -2,12 +2,12 @@
 "use client";
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { usePricingData, type BestPriceRoute } from '@/contexts/PricingDataContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Ship, Train, Copy, Edit3, Info, ListOrdered } from 'lucide-react'; // Removed DollarSign, added ListOrdered
+import { ArrowLeft, Ship, Train, Copy, Edit3, Info, ListOrdered } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDisplayCost } from '@/lib/pricing/ui-helpers';
 import { VLADIVOSTOK_VARIANTS } from '@/lib/pricing/constants';
@@ -238,7 +238,7 @@ export default function BestPricesPage() {
                     {route.seaCostUSD !== null && (
                       <p className="flex justify-between">
                         <span>Sea Freight Cost:</span>
-                        <span className="font-semibold">{formatDisplayCost(route.seaCostUSD, 'USD')}</span>
+                        <span className="font-semibold text-primary">{formatDisplayCost(route.seaCostUSD, 'USD')}</span>
                       </p>
                     )}
                     {route.seaComment && (
@@ -259,19 +259,19 @@ export default function BestPricesPage() {
                         {route.railCost20DC_24t_RUB !== null && (
                           <p className="flex justify-between">
                             <span>Rail Freight Cost (20DC &lt;24t):</span>
-                            <span className="font-semibold">{formatDisplayCost(route.railCost20DC_24t_RUB, 'RUB')}</span>
+                            <span className="font-semibold text-primary">{formatDisplayCost(route.railCost20DC_24t_RUB, 'RUB')}</span>
                           </p>
                         )}
                         {route.railCost20DC_28t_RUB !== null && (
                           <p className="flex justify-between">
                             <span>Rail Freight Cost (20DC &lt;28t):</span>
-                            <span className="font-semibold">{formatDisplayCost(route.railCost20DC_28t_RUB, 'RUB')}</span>
+                            <span className="font-semibold text-primary">{formatDisplayCost(route.railCost20DC_28t_RUB, 'RUB')}</span>
                           </p>
                         )}
                         {route.railGuardCost20DC_RUB !== null && (
                           <p className="flex justify-between">
                             <span>Rail Guard Cost (20DC):</span>
-                            <span className="font-semibold">{formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB')}</span>
+                            <span className="font-semibold text-primary">{formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB')}</span>
                           </p>
                         )}
                       </>
@@ -281,13 +281,13 @@ export default function BestPricesPage() {
                         {route.railCost40HC_RUB !== null && (
                           <p className="flex justify-between">
                             <span>Rail Freight Cost (40HC):</span>
-                            <span className="font-semibold">{formatDisplayCost(route.railCost40HC_RUB, 'RUB')}</span>
+                            <span className="font-semibold text-primary">{formatDisplayCost(route.railCost40HC_RUB, 'RUB')}</span>
                           </p>
                         )}
                         {route.railGuardCost40HC_RUB !== null && (
                           <p className="flex justify-between">
                             <span>Rail Guard Cost (40HC):</span>
-                            <span className="font-semibold">{formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB')}</span>
+                            <span className="font-semibold text-primary">{formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB')}</span>
                           </p>
                         )}
                       </>
@@ -295,7 +295,7 @@ export default function BestPricesPage() {
                      {route.dropOffCostUSD !== null && route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line') && (
                         <p className="flex justify-between">
                             <span>Drop Off Cost:</span>
-                            <span className="font-semibold">{formatDisplayCost(route.dropOffCostUSD, 'USD')}</span>
+                            <span className="font-semibold text-primary">{formatDisplayCost(route.dropOffCostUSD, 'USD')}</span>
                         </p>
                     )}
                     {route.dropOffComment && route.shipmentType === "COC" && (
@@ -319,7 +319,7 @@ export default function BestPricesPage() {
                 <Button
                   onClick={() => handleCreateInstructions(route)}
                   variant="default"
-                  className="w-full flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground"
+                  className="w-full flex-1"
                   size="sm"
                 >
                   <Edit3 className="mr-2 h-4 w-4" /> Create Instructions
