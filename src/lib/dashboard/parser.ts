@@ -28,8 +28,7 @@ function processFobOrFiRow(rowArray: any[]): DashboardServiceDataRow | null {
     rate: formatDashboardRate(secondCellContent),
     containerInfo: containerTypeExtracted,
     additionalComment: finalAdditionalComment || '-',
-    railwayLegs: [], // Initialize railwayLegs as an empty array
-    railwayOriginInfo: undefined, // Will be populated by CY row if applicable
+    railwayLegs: [], // CRITICAL: Initialize railwayLegs as an empty array
   };
 }
 
@@ -73,10 +72,10 @@ function finalizeCurrentSection(currentSection: DashboardServiceSection | null, 
   if (currentSection && currentSection.dataRows.length > 0) {
     // console.log(`[DashboardParser] Finalizing section: "${currentSection.serviceName}" with ${currentSection.dataRows.length} FOB/FI rows.`);
     // currentSection.dataRows.forEach((row, index) => {
-    //   console.log(`  [FOB Row ${index}]: ${row.route}, Railway Legs: ${row.railwayLegs ? row.railwayLegs.length : 0}`);
+    //   console.log(`  [FOB Row ${index} ('${row.route}')]: Railway Legs count: ${row.railwayLegs ? row.railwayLegs.length : 0}`);
     //   if (row.railwayLegs) {
     //     row.railwayLegs.forEach((leg, legIdx) => {
-    //       console.log(`    [Leg ${legIdx}]: Origin: ${leg.originInfo}, Cost: ${leg.cost}, Container: ${leg.containerInfo}, Comment: ${leg.comment}`);
+    //       console.log(`    [Leg ${legIdx} for '${row.route}']: Origin: ${leg.originInfo}, Cost: ${leg.cost}`);
     //     });
     //   }
     // });
@@ -86,15 +85,16 @@ function finalizeCurrentSection(currentSection: DashboardServiceSection | null, 
 
 
 export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardServiceSection[] {
+  // console.log("[DashboardParser] Starting parseDashboardSheet");
   const rawData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
   const parsedSections: DashboardServiceSection[] = [];
   let currentSection: DashboardServiceSection | null = null;
-  let currentFobRowForLegs: DashboardServiceDataRow | null = null; // Holds a direct reference to the current FOB/FI row object in dataRows
+  let lastFobRowRef: DashboardServiceDataRow | null = null; // This will hold the reference to the FOB/FI row object
 
   rawData.forEach((rowArray, index) => {
     if (!Array.isArray(rowArray) || rowArray.every(cell => cell === null || cell === undefined || String(cell).trim() === "")) {
-      // Blank row. Does not reset currentFobRowForLegs, as CY rows might appear after a blank line.
-      // Section finalization is primarily driven by new headers.
+      // Blank row. Does not reset lastFobRowRef.
+      // console.log(`[DashboardParser] Row ${index + 1} is blank. lastFobRowRef remains: ${lastFobRowRef?.route}`);
       return;
     }
 
@@ -104,10 +104,10 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
     const colD = String(rowArray[3] || '').trim();
 
     const isFobFiType = isFobOrFiRow(firstCell, rowArray[1]);
-    const isCyByColDType = isCyRowByColD(colD);
-    const isCyByColAType = !isFobFiType && isCyInColA(firstCell);
-    const isCyType = isCyByColDType || isCyByColAType;
-    
+    const isCyColDType = isCyRowByColD(colD);
+    const isCyColAType = !isFobFiType && isCyInColA(firstCell); // Ensure it's not also an FOB/FI row
+    const isCyType = isCyColDType || isCyColAType;
+
     const isHeaderType = isPotentialServiceHeaderRow(rowArray, firstCell, isFobFiType, isCyType);
 
     if (isHeaderType) {
@@ -118,39 +118,41 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
       else if (colC) newServiceName = colC;
       else if (firstCell) newServiceName = firstCell;
       currentSection = { serviceName: newServiceName || `Service Section (Row ${index + 1})`, dataRows: [] };
-      currentFobRowForLegs = null; // New section, so no current FOB row
+      lastFobRowRef = null; // Reset for the new section
+      // console.log(`[DashboardParser] New Header: ${currentSection.serviceName} at row ${index + 1}. Reset lastFobRowRef.`);
     } else if (isFobFiType) {
       if (!currentSection) {
         currentSection = { serviceName: `Service Section (Implicit at row ${index + 1})`, dataRows: [] };
+        // console.log(`[DashboardParser] Implicit Header: ${currentSection.serviceName} at row ${index + 1}`);
       }
       const newFobRow = processFobOrFiRow(rowArray);
       if (newFobRow) {
         currentSection.dataRows.push(newFobRow);
-        // Get a direct reference to the object just added to the array
-        currentFobRowForLegs = currentSection.dataRows[currentSection.dataRows.length - 1];
+        lastFobRowRef = newFobRow; // Set lastFobRowRef to this new FOB/FI row object
+        // console.log(`[DashboardParser] Processed FOB/FI row: '${newFobRow.route}'. Set lastFobRowRef. Initial railway legs count: ${lastFobRowRef.railwayLegs?.length}`);
       }
     } else if (isCyType) {
-      if (currentFobRowForLegs) { // Check if there's an active FOB/FI row (referenced object)
+      if (currentSection && lastFobRowRef) { // Check if we have an active section and a parent FOB/FI row
         const railwayLegData = processRailwayLegRow(rowArray);
         if (railwayLegData) {
-          // railwayLegs array is initialized in processFobOrFiRow
-          currentFobRowForLegs.railwayLegs!.push(railwayLegData); // Modify the referenced object directly
-
-          // Set railwayOriginInfo on the parent FOB row if it's the first leg and info is useful
-          if (currentFobRowForLegs.railwayLegs!.length === 1 && !currentFobRowForLegs.railwayOriginInfo && railwayLegData.originInfo && railwayLegData.originInfo !== 'N/A') {
-            currentFobRowForLegs.railwayOriginInfo = railwayLegData.originInfo;
-          }
+          // railwayLegs should be initialized in processFobOrFiRow
+          lastFobRowRef.railwayLegs.push(railwayLegData);
+          // console.log(`[DashboardParser] Added Railway Leg to '${lastFobRowRef.route}': Origin: ${railwayLegData.originInfo}. Total legs now: ${lastFobRowRef.railwayLegs.length}`);
         }
       } else {
-        // console.warn(`[DashboardParser] CY row at index ${index} found, but no current FOB/FI row reference to attach it to. Skipping.`);
+        // console.warn(`[DashboardParser] CY row at index ${index} found, but no current section or lastFobRowRef to attach it to. Skipping. Current Section: ${currentSection?.serviceName}, lastFobRowRef Route: ${lastFobRowRef?.route}`);
       }
     } else {
-      // Non-header, non-FOB/FI, non-CY row.
-      // We don't reset currentFobRowForLegs here, as CY rows might follow this "noise".
-      // A new header or a new FOB/FI row will reset it.
+      // Non-header, non-FOB/FI, non-CY row (e.g., notes, sub-headers not caught by isHeaderType).
+      // These rows should NOT reset lastFobRowRef, allowing CY rows to potentially appear after them
+      // and still associate with the last valid FOB/FI row.
+      // console.log(`[DashboardParser] Other type of row at index ${index}. Content: ${firstCell}. lastFobRowRef ('${lastFobRowRef?.route}') is NOT reset.`);
     }
   });
 
   finalizeCurrentSection(currentSection, parsedSections);
+  // console.log("[DashboardParser] Finished parseDashboardSheet. Total sections:", parsedSections.length);
   return parsedSections;
 }
+
+    
