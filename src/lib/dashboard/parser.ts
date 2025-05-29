@@ -29,6 +29,7 @@ function processFobOrFiRow(rowArray: any[]): DashboardServiceDataRow | null {
     containerInfo: containerTypeExtracted,
     additionalComment: finalAdditionalComment || '-',
     railwayLegs: [], // Initialize railwayLegs as an empty array
+    railwayOriginInfo: undefined, // Will be populated by CY row if applicable
   };
 }
 
@@ -41,9 +42,12 @@ function processRailwayLegRow(rowArray: any[]): RailwayLegData | null {
   const { containerType: legContainerType, comment: commentFromLegContainerCell } = parseContainerInfoCell(containerCell);
 
   let legComment = commentCellD;
-  if (isCyRowByColD(commentCellD)) {
+  if (isCyRowByColD(commentCellD)) { // Check if comment in D starts with CY
       legComment = commentCellD.substring(2).trim().replace(/^[:\s]+/, '');
+  } else if (isCyInColA(originInfoRaw) && !isCyRowByColD(commentCellD)) { // If CY is in Col A and not in D, Col D is pure comment
+      legComment = commentCellD;
   }
+
 
   if (commentFromLegContainerCell) {
     legComment = legComment
@@ -51,17 +55,19 @@ function processRailwayLegRow(rowArray: any[]): RailwayLegData | null {
       : commentFromLegContainerCell;
   }
 
+  // Only return a leg if there's some meaningful data
   if (!originInfoRaw && cost === 'N/A' && legContainerType === 'N/A' && !legComment) {
     return null;
   }
 
   return {
-    originInfo: originInfoRaw || "N/A",
+    originInfo: originInfoRaw || "N/A", // Store the full content of Col A for railway leg
     cost: cost,
     containerInfo: legContainerType || "N/A",
     comment: legComment || '-',
   };
 }
+
 
 function finalizeCurrentSection(currentSection: DashboardServiceSection | null, parsedSections: DashboardServiceSection[]): void {
   if (currentSection && currentSection.dataRows.length > 0) {
@@ -78,30 +84,33 @@ function finalizeCurrentSection(currentSection: DashboardServiceSection | null, 
   }
 }
 
+
 export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardServiceSection[] {
   const rawData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
   const parsedSections: DashboardServiceSection[] = [];
   let currentSection: DashboardServiceSection | null = null;
+  let currentFobRowForLegs: DashboardServiceDataRow | null = null; // Holds a direct reference to the current FOB/FI row object in dataRows
 
   rawData.forEach((rowArray, index) => {
     if (!Array.isArray(rowArray) || rowArray.every(cell => cell === null || cell === undefined || String(cell).trim() === "")) {
-      finalizeCurrentSection(currentSection, parsedSections);
-      currentSection = null;
+      // Blank row. Does not reset currentFobRowForLegs, as CY rows might appear after a blank line.
+      // Section finalization is primarily driven by new headers.
       return;
     }
 
     const firstCell = String(rowArray[0] || '').trim();
     const colB = String(rowArray[1] || '').trim();
     const colC = String(rowArray[2] || '').trim();
-    const fourthCellContent = String(rowArray[3] || '').trim();
+    const colD = String(rowArray[3] || '').trim();
 
-    const isFobFi = isFobOrFiRow(firstCell, rowArray[1]);
-    const isCyByD = isCyRowByColD(fourthCellContent);
-    const isCyByA = !isFobFi && isCyInColA(firstCell);
-    const isCy = isCyByD || isCyByA;
-    const isHeader = isPotentialServiceHeaderRow(rowArray, firstCell, isFobFi, isCy);
+    const isFobFiType = isFobOrFiRow(firstCell, rowArray[1]);
+    const isCyByColDType = isCyRowByColD(colD);
+    const isCyByColAType = !isFobFiType && isCyInColA(firstCell);
+    const isCyType = isCyByColDType || isCyByColAType;
+    
+    const isHeaderType = isPotentialServiceHeaderRow(rowArray, firstCell, isFobFiType, isCyType);
 
-    if (isHeader) {
+    if (isHeaderType) {
       finalizeCurrentSection(currentSection, parsedSections);
       let newServiceName = "";
       if (colB && colC) newServiceName = `${colB} ${colC}`;
@@ -109,30 +118,37 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
       else if (colC) newServiceName = colC;
       else if (firstCell) newServiceName = firstCell;
       currentSection = { serviceName: newServiceName || `Service Section (Row ${index + 1})`, dataRows: [] };
-    } else if (isFobFi) {
+      currentFobRowForLegs = null; // New section, so no current FOB row
+    } else if (isFobFiType) {
       if (!currentSection) {
         currentSection = { serviceName: `Service Section (Implicit at row ${index + 1})`, dataRows: [] };
       }
-      const newFobRow = processFobOrFiRow(rowArray); // Initializes railwayLegs = []
+      const newFobRow = processFobOrFiRow(rowArray);
       if (newFobRow) {
         currentSection.dataRows.push(newFobRow);
+        // Get a direct reference to the object just added to the array
+        currentFobRowForLegs = currentSection.dataRows[currentSection.dataRows.length - 1];
       }
-    } else if (isCy) {
-      if (currentSection && currentSection.dataRows.length > 0) {
-        // Append to the last FOB/FI row in the current section's dataRows
-        const parentFobRow = currentSection.dataRows[currentSection.dataRows.length - 1];
+    } else if (isCyType) {
+      if (currentFobRowForLegs) { // Check if there's an active FOB/FI row (referenced object)
         const railwayLegData = processRailwayLegRow(rowArray);
         if (railwayLegData) {
-          // railwayLegs should have been initialized by processFobOrFiRow
-          if (!parentFobRow.railwayLegs) { 
-            // This is a safeguard, should ideally not be needed if processFobOrFiRow is correct
-            parentFobRow.railwayLegs = []; 
+          // railwayLegs array is initialized in processFobOrFiRow
+          currentFobRowForLegs.railwayLegs!.push(railwayLegData); // Modify the referenced object directly
+
+          // Set railwayOriginInfo on the parent FOB row if it's the first leg and info is useful
+          if (currentFobRowForLegs.railwayLegs!.length === 1 && !currentFobRowForLegs.railwayOriginInfo && railwayLegData.originInfo && railwayLegData.originInfo !== 'N/A') {
+            currentFobRowForLegs.railwayOriginInfo = railwayLegData.originInfo;
           }
-          parentFobRow.railwayLegs.push(railwayLegData);
         }
+      } else {
+        // console.warn(`[DashboardParser] CY row at index ${index} found, but no current FOB/FI row reference to attach it to. Skipping.`);
       }
+    } else {
+      // Non-header, non-FOB/FI, non-CY row.
+      // We don't reset currentFobRowForLegs here, as CY rows might follow this "noise".
+      // A new header or a new FOB/FI row will reset it.
     }
-    // "Other" rows are ignored for now unless they are blank (which finalizes a section)
   });
 
   finalizeCurrentSection(currentSection, parsedSections);
