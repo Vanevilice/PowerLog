@@ -4,14 +4,16 @@ import type { DashboardServiceSection, DashboardServiceDataRow, RailwayLegData }
 import { formatDashboardRate, parseContainerInfoCell } from './utils';
 import { isFobOrFiRow, isCyRowByColD, isCyInColA, isPotentialServiceHeaderRow } from './row-identifier';
 
-function processFobOrFiRow(rowArray: any[]): DashboardServiceDataRow | null {
+// --- Helper functions to process individual row types (largely unchanged, but ensure initialization) ---
+
+function processFobOrFiRow(rowArray: any[], excelRowNum: number): DashboardServiceDataRow | null {
   const firstCell = String(rowArray[0] || '').trim();
   const secondCellContent = rowArray[1]; // Rate column
   const thirdCellContent = String(rowArray[2] || '').trim(); // Container info column
   const fourthCellContent = String(rowArray[3] || '').trim(); // Potential comment column
 
   if (!isFobOrFiRow(firstCell, secondCellContent)) {
-    // console.log(`[processFobOrFiRow] Row is not FOB/FI type. First cell: '${firstCell}', Second cell: '${secondCellContent}'`);
+    // console.log(`[processFobOrFiRow - Row ${excelRowNum}] Not FOB/FI type.`);
     return null;
   }
 
@@ -27,90 +29,69 @@ function processFobOrFiRow(rowArray: any[]): DashboardServiceDataRow | null {
   return {
     route: firstCell,
     rate: formatDashboardRate(secondCellContent),
-    containerInfo: containerTypeExtracted, // Will be 'N/A' if not parsed
+    containerInfo: containerTypeExtracted,
     additionalComment: finalAdditionalComment || '-',
     railwayLegs: [], // CRITICAL: Initialize railwayLegs as an empty array
   };
 }
 
-function processRailwayLegRow(rowArray: any[]): RailwayLegData | null {
+function processRailwayLegRow(rowArray: any[], excelRowNum: number): RailwayLegData | null {
   const originInfoRaw = String(rowArray[0] || '').trim();
-  const costRaw = rowArray[1]; // Keep raw value for formatDashboardRate
+  const costRaw = rowArray[1];
   const containerCell = String(rowArray[2] || '').trim();
   const commentCellD = String(rowArray[3] || '').trim();
 
-  const costFormatted = formatDashboardRate(costRaw); // Handles null, undefined, string, number
+  const costFormatted = formatDashboardRate(costRaw);
   const { containerType: legContainerType, comment: commentFromLegContainerCell } = parseContainerInfoCell(containerCell);
 
   let legComment = commentCellD;
-  if (isCyRowByColD(commentCellD)) { // If "CY..." is in Column D
+  if (isCyRowByColD(commentCellD)) {
       legComment = commentCellD.substring(2).trim().replace(/^[:\s]+/, '');
-  } else if (isCyInColA(originInfoRaw) && !isCyRowByColD(commentCellD)) { // If "CY" is in Column A and NOT in Column D
-      legComment = commentCellD; // Use Column D as is for comment
+  } else if (isCyInColA(originInfoRaw) && !isCyRowByColD(commentCellD)) {
+      legComment = commentCellD;
   }
-  // If neither, legComment remains as commentCellD (which could be empty)
 
   if (commentFromLegContainerCell) {
     legComment = legComment ? `${commentFromLegContainerCell} | ${legComment}` : commentFromLegContainerCell;
   }
   const finalComment = legComment.trim();
 
-  // A leg is valid if it has an origin, or a non-"N/A" cost, or a non-"N/A" container type (from parseContainerInfoCell), or a non-empty comment.
   const hasOrigin = originInfoRaw !== '';
-  const hasCost = costFormatted !== 'N/A'; 
-  // legContainerType from parseContainerInfoCell defaults to 'N/A' if not found.
-  const hasContainer = legContainerType !== 'N/A'; 
+  const hasCost = costFormatted !== 'N/A';
+  const hasContainer = legContainerType !== 'N/A';
   const hasComment = finalComment !== '' && finalComment !== '-';
 
   if (!hasOrigin && !hasCost && !hasContainer && !hasComment) {
-    // This log helps identify rows that are CY-type but considered empty by this logic
-    // console.log(`[processRailwayLegRow] Returning null (all fields empty/default for CY row). Raw: [${rowArray.join('|')}]`);
+    // console.log(`[processRailwayLegRow - Row ${excelRowNum}] Considered empty, returning null.`);
     return null;
   }
 
   return {
-    originInfo: originInfoRaw || "N/A", // Default to "N/A" if raw is empty
-    cost: costFormatted, // formatDashboardRate handles 'N/A' for null/undefined/empty inputs
-    containerInfo: legContainerType, // parseContainerInfoCell defaults to 'N/A'
-    comment: finalComment || '-', // Default to '-' if comment is empty after trim
+    originInfo: originInfoRaw || "N/A",
+    cost: costFormatted,
+    containerInfo: legContainerType,
+    comment: finalComment || '-',
   };
 }
 
+// --- New Two-Pass Parsing Logic ---
 
-function finalizeCurrentSection(currentSection: DashboardServiceSection | null, parsedSections: DashboardServiceSection[]): void {
-  if (currentSection && currentSection.dataRows.length > 0) {
-    // console.log(`[DashboardParser] >>> Finalizing section: "${currentSection.serviceName}" with ${currentSection.dataRows.length} FOB/FI rows.`);
-    // currentSection.dataRows.forEach((row, index) => {
-    //   console.log(
-    //     `  [FOB Row ${index} in finalizing section "${currentSection.serviceName}"] Route: '${row.route}', Railway Legs count: ${row.railwayLegs ? row.railwayLegs.length : 'undefined/null'}`
-    //   );
-    //   if (row.railwayLegs && row.railwayLegs.length > 0) {
-    //     // console.log(`    First leg for '${row.route}':`, JSON.stringify(row.railwayLegs[0]));
-    //   } else if (row.railwayLegs && row.railwayLegs.length === 0) {
-    //     // console.log(`    WARNING: Row '${row.route}' has an empty railwayLegs array.`);
-    //   } else {
-    //     // console.log(`    WARNING: Row '${row.route}' has railwayLegs as undefined/null.`);
-    //   }
-    // });
-    parsedSections.push(currentSection);
-    // console.log(`[DashboardParser] <<< Finished finalizing section: "${currentSection.serviceName}". Section pushed to parsedSections.`);
-  }
-}
+type ParsedRowItem =
+  | { type: 'header'; serviceName: string; originalRowIndex: number }
+  | { type: 'fobFi'; data: DashboardServiceDataRow; originalRowIndex: number }
+  | { type: 'railwayLeg'; data: RailwayLegData; originalRowIndex: number }
+  | { type: 'blankOrOther'; originalRowIndex: number };
 
-
-export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardServiceSection[] {
-  const rawData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
-  const parsedSections: DashboardServiceSection[] = [];
-  let currentSection: DashboardServiceSection | null = null;
-  let currentFobRowForLegs: DashboardServiceDataRow | null = null; 
-
-  // console.log(`[DashboardParser] Starting to parse ${rawData.length} raw rows.`);
+function classifyAndParseAllRows(rawData: any[][]): ParsedRowItem[] {
+  const typedRows: ParsedRowItem[] = [];
 
   rawData.forEach((rowArray, index) => {
-    const excelRowNum = index + 1; // 1-based for easier Excel reference
+    const excelRowNum = index + 1; // 1-based for Excel reference
+
     if (!Array.isArray(rowArray) || rowArray.every(cell => cell === null || cell === undefined || String(cell).trim() === "")) {
-      // console.log(`[DashboardParser] Row ${excelRowNum}: Skipping completely blank row.`);
-      return; // Skip fully blank rows
+      typedRows.push({ type: 'blankOrOther', originalRowIndex: index });
+      // console.log(`[Pass 1 - Row ${excelRowNum}]: Classified as blankOrOther (empty)`);
+      return;
     }
 
     const firstCell = String(rowArray[0] || '').trim();
@@ -120,60 +101,109 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
 
     const isFobFiType = isFobOrFiRow(firstCell, rowArray[1]);
     const isCyColDType = isCyRowByColD(colD);
-    const isCyColAType = !isFobFiType && isCyInColA(firstCell); // Must not also be an FOB/FI row
+    const isCyColAType = !isFobFiType && isCyInColA(firstCell);
     const isCyType = isCyColDType || isCyColAType;
     const isHeaderType = isPotentialServiceHeaderRow(rowArray, firstCell, isFobFiType, isCyColDType, isCyColAType);
 
-    // console.log(`[DashboardParser] Row ${excelRowNum}: Data [${rowArray.slice(0,4).join('|')}], isHeader=${isHeaderType}, isFobFi=${isFobFiType}, isCy=${isCyType} (isCyColD=${isCyColDType}, isCyColA=${isCyColAType})`);
-
     if (isHeaderType) {
-      finalizeCurrentSection(currentSection, parsedSections);
-      currentFobRowForLegs = null; // Reset FOB/FI context for new section
-      let newServiceName = "";
-      if (colB && colC) newServiceName = `${colB} ${colC}`;
-      else if (colB) newServiceName = colB;
-      else if (colC) newServiceName = colC;
-      else if (firstCell) newServiceName = firstCell; // Fallback to first cell if B and C are empty
-      currentSection = { serviceName: newServiceName || `Service Section (Row ${excelRowNum})`, dataRows: [] };
-      // console.log(`[DashboardParser] Row ${excelRowNum}: New Header identified: "${currentSection.serviceName}". Reset currentFobRowForLegs.`);
+      let serviceName = "";
+      if (colB && colC) serviceName = `${colB} ${colC}`;
+      else if (colB) serviceName = colB;
+      else if (colC) serviceName = colC;
+      else if (firstCell) serviceName = firstCell;
+      typedRows.push({ type: 'header', serviceName: serviceName || `Service Section (Row ${excelRowNum})`, originalRowIndex: index });
+      // console.log(`[Pass 1 - Row ${excelRowNum}]: Classified as HEADER. Name: "${serviceName}"`);
     } else if (isFobFiType) {
-      if (!currentSection) { // If no current section, start a new one implicitly
-        currentSection = { serviceName: `Service Section (Implicit at row ${excelRowNum})`, dataRows: [] };
-        // console.log(`[DashboardParser] Row ${excelRowNum}: Implicit Header created: "${currentSection.serviceName}". currentFobRowForLegs is currently ${currentFobRowForLegs ? `'${currentFobRowForLegs.route}'` : 'null'}.`);
-      }
-      const newFobRow = processFobOrFiRow(rowArray);
-      if (newFobRow) {
-        currentSection.dataRows.push(newFobRow);
-        currentFobRowForLegs = newFobRow; // << Point to the object that was just pushed
-        // console.log(`[DashboardParser] Row ${excelRowNum}: Processed FOB/FI row, added to section "${currentSection.serviceName}". Route: '${newFobRow.route}'. Set as currentFobRowForLegs. Legs count: ${newFobRow.railwayLegs.length}.`);
+      const fobFiData = processFobOrFiRow(rowArray, excelRowNum);
+      if (fobFiData) {
+        typedRows.push({ type: 'fobFi', data: fobFiData, originalRowIndex: index });
+        // console.log(`[Pass 1 - Row ${excelRowNum}]: Classified as FOB/FI. Route: "${fobFiData.route}"`);
       } else {
-        currentFobRowForLegs = null; // Invalid FOB/FI row, so clear current parent context
-        // console.warn(`[DashboardParser] Row ${excelRowNum}: Identified as FOB/FI type, but processFobOrFiRow returned null. Cleared currentFobRowForLegs.`);
+        // This case should ideally not happen if isFobFiType is true, but as a fallback:
+        typedRows.push({ type: 'blankOrOther', originalRowIndex: index });
+        // console.warn(`[Pass 1 - Row ${excelRowNum}]: Identified as FOB/FI type, but processFobOrFiRow returned null. Classifying as blankOrOther.`);
       }
     } else if (isCyType) {
-      if (currentFobRowForLegs) {
-        // console.log(`[DashboardParser] Row ${excelRowNum}: Identified as CY. Attempting to attach to currentFobRowForLegs: '${currentFobRowForLegs.route}'. Legs before: ${currentFobRowForLegs.railwayLegs.length}`);
-        const railwayLegData = processRailwayLegRow(rowArray);
-        if (railwayLegData) {
-          // console.log(`[DashboardParser DEBUG] About to push leg to '${currentFobRowForLegs.route}'. Current legs count: ${currentFobRowForLegs.railwayLegs.length}. Leg Data:`, JSON.stringify(railwayLegData));
-          currentFobRowForLegs.railwayLegs.push(railwayLegData);
-          // console.log(`[DashboardParser] Row ${excelRowNum}: Attached Railway Leg ('${railwayLegData.originInfo}') to '${currentFobRowForLegs.route}'. Total legs on parent now: ${currentFobRowForLegs.railwayLegs.length}.`);
-        } else {
-          // console.warn(`[DashboardParser] Row ${excelRowNum}: Identified as CY for '${currentFobRowForLegs.route}', but processRailwayLegRow returned null. Not attached. Raw CY data: [${rowArray.join('|')}]`);
-        }
+      const railwayLegData = processRailwayLegRow(rowArray, excelRowNum);
+      if (railwayLegData) {
+        typedRows.push({ type: 'railwayLeg', data: railwayLegData, originalRowIndex: index });
+        // console.log(`[Pass 1 - Row ${excelRowNum}]: Classified as RAILWAY_LEG. Origin: "${railwayLegData.originInfo}"`);
       } else {
-        // console.warn(`[DashboardParser] Row ${excelRowNum}: Identified as CY, but no currentFobRowForLegs (no active FOB/FI parent). Raw CY data: [${rowArray.join('|')}] Skipping.`);
+        // This row looked like a CY row but processed to null, treat as other.
+        typedRows.push({ type: 'blankOrOther', originalRowIndex: index });
+        // console.log(`[Pass 1 - Row ${excelRowNum}]: Identified as CY_TYPE, but processRailwayLegRow returned null. Classifying as blankOrOther.`);
       }
     } else {
-      // This row is not a header, not FOB/FI, and not CY.
-      // It could be a spacer or miscellaneous text.
-      // currentFobRowForLegs is intentionally NOT reset here.
-      // console.log(`[DashboardParser] Row ${excelRowNum}: Not Header, FOB/FI, or CY. currentFobRowForLegs ('${currentFobRowForLegs?.route || 'null'}') maintained. Data: [${rowArray.join('|')}]`);
+      typedRows.push({ type: 'blankOrOther', originalRowIndex: index });
+      // console.log(`[Pass 1 - Row ${excelRowNum}]: Classified as blankOrOther (default). Content: [${rowArray.slice(0,4).join('|')}]`);
+    }
+  });
+  return typedRows;
+}
+
+export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardServiceSection[] {
+  const rawData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
+  // console.log(`[parseDashboardSheet] Raw data rows from Excel: ${rawData.length}`);
+
+  const typedRowItems = classifyAndParseAllRows(rawData);
+  // console.log(`[parseDashboardSheet] Typed row items from Pass 1: ${typedRowItems.length}`);
+
+  const parsedSections: DashboardServiceSection[] = [];
+  let currentSection: DashboardServiceSection | null = null;
+  let currentFobFiParentForRow: DashboardServiceDataRow | null = null;
+
+  function finalizeCurrentSection() {
+    if (currentSection && currentSection.dataRows.length > 0) {
+      // console.log(`[Pass 2] >>> Finalizing section: "${currentSection.serviceName}" with ${currentSection.dataRows.length} FOB/FI rows.`);
+      // currentSection.dataRows.forEach((row, idx) => {
+      //   console.log(`  [FOB Row ${idx} in final section "${currentSection.serviceName}"] Route: '${row.route}', Railway Legs count: ${row.railwayLegs.length}`);
+      //   if (row.railwayLegs.length > 0) {
+      //      console.log(`    First leg for '${row.route}':`, JSON.stringify(row.railwayLegs[0]));
+      //   }
+      // });
+      parsedSections.push(currentSection);
+    }
+    currentSection = null;
+    currentFobFiParentForRow = null;
+  }
+
+  typedRowItems.forEach((item) => {
+    const excelRowNum = item.originalRowIndex + 1;
+    switch (item.type) {
+      case 'header':
+        finalizeCurrentSection(); // Finalize previous before starting new
+        currentSection = { serviceName: item.serviceName, dataRows: [] };
+        currentFobFiParentForRow = null; // Reset parent context for new section
+        // console.log(`[Pass 2 - Row ${excelRowNum}]: HEADER encountered. New section: "${item.serviceName}". Reset currentFobFiParentForRow.`);
+        break;
+      case 'fobFi':
+        if (!currentSection) { // Implicit section start if no header was found first
+          currentSection = { serviceName: `Service Section (Implicit at row ${excelRowNum})`, dataRows: [] };
+          // console.log(`[Pass 2 - Row ${excelRowNum}]: FOB/FI encountered. Implicit new section: "${currentSection.serviceName}".`);
+        }
+        currentSection.dataRows.push(item.data);
+        // IMPORTANT: currentFobFiParentForRow must refer to the object *inside* currentSection.dataRows
+        currentFobFiParentForRow = currentSection.dataRows[currentSection.dataRows.length - 1];
+        // console.log(`[Pass 2 - Row ${excelRowNum}]: FOB/FI processed. Route: "${item.data.route}". Set as currentFobFiParentForRow. Legs attached so far to this parent: ${currentFobFiParentForRow.railwayLegs.length}`);
+        break;
+      case 'railwayLeg':
+        if (currentFobFiParentForRow) {
+          currentFobFiParentForRow.railwayLegs.push(item.data);
+          // console.log(`[Pass 2 - Row ${excelRowNum}]: RAILWAY_LEG processed. Origin: "${item.data.originInfo}". Attached to parent: "${currentFobFiParentForRow.route}". Parent now has ${currentFobFiParentForRow.railwayLegs.length} legs.`);
+        } else {
+          // console.warn(`[Pass 2 - Row ${excelRowNum}]: RAILWAY_LEG found (Origin: "${item.data.originInfo}") but no currentFobFiParentForRow. Orphaned leg.`);
+        }
+        break;
+      case 'blankOrOther':
+        // Generally, blank lines do not reset the currentFobFiParentForRow context.
+        // It remains active until a new header or a new FOB/FI row changes it.
+        // console.log(`[Pass 2 - Row ${excelRowNum}]: BLANK_OR_OTHER encountered. currentFobFiParentForRow ("${currentFobFiParentForRow?.route || 'null'}") maintained.`);
+        break;
     }
   });
 
-  finalizeCurrentSection(currentSection, parsedSections); // Finalize the last section
-  // console.log(`[DashboardParser] Finished parsing all rows. Total sections parsed: ${parsedSections.length}`);
+  finalizeCurrentSection(); // Finalize the very last section
+  // console.log(`[parseDashboardSheet] Finished Pass 2. Total sections structured: ${parsedSections.length}`);
   return parsedSections;
 }
 
