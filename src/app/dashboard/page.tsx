@@ -15,60 +15,47 @@ import { useToast } from '@/hooks/use-toast';
 export default function DashboardPage() {
   const { dashboardServiceSections, isSeaRailExcelDataLoaded } = usePricingData();
   const { toast } = useToast();
-  const [railwaySelection, setRailwaySelection] = React.useState<Record<string, number | null>>({});
+  // railwaySelection now stores the selected leg index per section
+  const [railwaySelection, setRailwaySelection] = React.useState<Record<number, number | null>>({});
 
   React.useEffect(() => {
     // console.log("[DashboardPage] isSeaRailExcelDataLoaded:", isSeaRailExcelDataLoaded);
     // console.log("[DashboardPage] dashboardServiceSections:", dashboardServiceSections);
   }, [isSeaRailExcelDataLoaded, dashboardServiceSections]);
 
-  const handleRailwayLegCheckboxChange = (sectionIndex: number, rowIndex: number, legIndex: number) => {
-    const key = `${sectionIndex}-${rowIndex}`;
+  const handleRailwayLegCheckboxChange = (sectionIndex: number, legIndex: number) => {
     setRailwaySelection(prev => {
-      const currentSelectedLegIndex = prev[key];
-      if (currentSelectedLegIndex === legIndex) {
-        return { ...prev, [key]: null }; // Deselect if already selected
+      const currentSelectedLegIndexForSection = prev[sectionIndex];
+      if (currentSelectedLegIndexForSection === legIndex) {
+        return { ...prev, [sectionIndex]: null }; // Deselect if already selected
       } else {
-        return { ...prev, [key]: legIndex }; // Select the new leg
+        return { ...prev, [sectionIndex]: legIndex }; // Select the new leg for the section
       }
     });
   };
 
-  const handleDashboardCopyRate = async (row: DashboardServiceDataRow, sectionIndex: number, rowIndex: number) => {
-    // --- Start Detailed Logging ---
-    console.log(`[DashboardCopyRate] >>> BUTTON CLICKED for Section ${sectionIndex}, Row ${rowIndex}, Route: '${row.route}'`);
+  const handleDashboardCopyRate = async (row: DashboardServiceDataRow, sectionIndex: number) => {
+    console.log(`[DashboardCopyRate] >>> BUTTON CLICKED for Section ${sectionIndex}, Route: '${row.route}'`);
     console.log(`[DashboardCopyRate] Current 'row' object being processed:`, JSON.parse(JSON.stringify(row)));
     
-    const selectionKey = `${sectionIndex}-${rowIndex}`;
-    const selectedLegIndex = railwaySelection[selectionKey];
-    console.log(`[DashboardCopyRate] selectionKey: '${selectionKey}', selectedLegIndex from state: ${selectedLegIndex}`);
+    const selectedLegIndexForSection = railwaySelection[sectionIndex];
+    console.log(`[DashboardCopyRate] selectedLegIndex for section ${sectionIndex}: ${selectedLegIndexForSection}`);
 
-    let selectedLeg: RailwayLegData | null | undefined = null;
+    let selectedLeg: RailwayLegData | null = null;
 
-    if (selectedLegIndex !== null && selectedLegIndex !== undefined) {
-      if (row.railwayLegs && row.railwayLegs.length > selectedLegIndex) {
-        selectedLeg = row.railwayLegs[selectedLegIndex];
-        console.log(`[DashboardCopyRate] Selected Leg (index ${selectedLegIndex}) from CURRENT row:`, JSON.parse(JSON.stringify(selectedLeg)));
+    if (selectedLegIndexForSection !== null && selectedLegIndexForSection !== undefined) {
+      // Get railway legs from the first row of the section, as they are common
+      const sectionFirstRow = dashboardServiceSections[sectionIndex]?.dataRows[0];
+      if (sectionFirstRow && sectionFirstRow.railwayLegs && sectionFirstRow.railwayLegs.length > selectedLegIndexForSection) {
+        selectedLeg = sectionFirstRow.railwayLegs[selectedLegIndexForSection];
+        console.log(`[DashboardCopyRate] Selected Leg (index ${selectedLegIndexForSection}) from COMMON section legs:`, JSON.parse(JSON.stringify(selectedLeg)));
       } else {
-        console.log(`[DashboardCopyRate] Current row has no/insufficient railwayLegs. Attempting to use last row in section.`);
-        const currentSection = dashboardServiceSections[sectionIndex];
-        if (currentSection && currentSection.dataRows.length > 0) {
-          const lastFobFiRowInSection = currentSection.dataRows[currentSection.dataRows.length - 1];
-          if (lastFobFiRowInSection && lastFobFiRowInSection.railwayLegs && lastFobFiRowInSection.railwayLegs.length > selectedLegIndex) {
-            selectedLeg = lastFobFiRowInSection.railwayLegs[selectedLegIndex];
-            console.log(`[DashboardCopyRate] Selected Leg (index ${selectedLegIndex}) from LAST row in section:`, JSON.parse(JSON.stringify(selectedLeg)));
-          } else {
-            console.log(`[DashboardCopyRate] Last row in section also has no/insufficient railwayLegs for index ${selectedLegIndex}.`);
-          }
-        } else {
-          console.log(`[DashboardCopyRate] Could not find current section or it has no data rows.`);
-        }
+        console.log(`[DashboardCopyRate] Could not retrieve common railway legs for section ${sectionIndex} or leg index ${selectedLegIndexForSection} is out of bounds.`);
       }
     }
-     if (selectedLegIndex !== undefined && selectedLeg === null) {
-        console.warn(`[DashboardCopyRate] A railway leg was selected (index: ${selectedLegIndex}), but no valid leg data could be retrieved for copying.`);
+     if (selectedLegIndexForSection !== undefined && selectedLeg === null) {
+        console.warn(`[DashboardCopyRate] A railway leg was selected for section ${sectionIndex} (index: ${selectedLegIndexForSection}), but no valid leg data could be retrieved.`);
     }
-
 
     let textToCopy = "";
     const routeParts = row.route.split(' - ');
@@ -79,8 +66,8 @@ export default function DashboardPage() {
     let railwayCostDisplay = 'N/A';
     let includeRailwayPart = false;
 
-    if (selectedLeg) { // Check if selectedLeg was successfully populated
-        console.log(`[DashboardCopyRate] USING Selected Leg (source: ${row.railwayLegs && row.railwayLegs[selectedLegIndex!] === selectedLeg ? 'current_row' : 'last_row_in_section_or_undefined'}) :`, JSON.parse(JSON.stringify(selectedLeg)));
+    if (selectedLeg) {
+        console.log(`[DashboardCopyRate] USING Selected Leg for section ${sectionIndex}:`, JSON.parse(JSON.stringify(selectedLeg)));
         if (selectedLeg.originInfo && selectedLeg.originInfo !== 'N/A') {
             forPartDisplay = selectedLeg.originInfo.replace(/^(FOB|FI|CY)\s*/i, '').trim();
         }
@@ -88,10 +75,10 @@ export default function DashboardPage() {
             railwayCostDisplay = selectedLeg.cost;
             includeRailwayPart = true;
         } else {
-             console.log(`[DashboardCopyRate] Selected leg (from either current or last row) has no valid cost ('${selectedLeg.cost}'). Railway part will NOT be included.`);
+             console.log(`[DashboardCopyRate] Selected common leg for section ${sectionIndex} has no valid cost ('${selectedLeg.cost}'). Railway part will NOT be included.`);
         }
     } else {
-        console.log(`[DashboardCopyRate] NO specific railway leg selected or data found (selectedLegIndex: ${selectedLegIndex}). Falling back to main route destination for 'FOR' part.`);
+        console.log(`[DashboardCopyRate] NO specific railway leg selected for section ${sectionIndex} or data found. Falling back to main route destination for 'FOR' part.`);
         if (routeParts.length > 1) { 
             const destinationPartRaw = routeParts.slice(1).join(' - ');
             forPartDisplay = destinationPartRaw.replace(/^(FOB|FI|CY)\s*/i, '').trim();
@@ -105,9 +92,8 @@ export default function DashboardPage() {
       textToCopy += `Ж/Д Составляющая: ${railwayCostDisplay}\n`;
     }
     
-    console.log(`[DashboardCopyRate] Final textToCopy for Row ${rowIndex}:\n${textToCopy}`);
-    console.log(`[DashboardCopyRate] <<< END OF COPY for Section ${sectionIndex}, Row ${rowIndex}`);
-
+    console.log(`[DashboardCopyRate] Final textToCopy for route ${row.route}:\n${textToCopy}`);
+    console.log(`[DashboardCopyRate] <<< END OF COPY for Section ${sectionIndex}, Route: ${row.route}`);
 
     try {
       await navigator.clipboard.writeText(textToCopy.trim());
@@ -183,27 +169,29 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {dashboardServiceSections.map((section, sectionIndex) => (
+      {dashboardServiceSections.map((section, sectionIndex) => {
+        const commonRailwayLegsForSection = section.dataRows[0]?.railwayLegs || [];
+        return (
         <Card key={`section-${sectionIndex}`} className="shadow-xl rounded-xl overflow-hidden bg-card border border-border hover:shadow-2xl transition-shadow duration-300">
           <CardHeader className="pb-4 bg-muted/30 border-b">
             <CardTitle className="text-xl font-semibold text-primary">{section.serviceName || `Service Section ${sectionIndex + 1}`}</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {section.dataRows && section.dataRows.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[30%] pl-6">Route (Origin - Destination)</TableHead>
-                    <TableHead className="w-[15%]">Sea Rate</TableHead>
-                    <TableHead className="w-[15%]">Container Info</TableHead>
-                    <TableHead className="w-[25%]">Comments / Details</TableHead>
-                    <TableHead className="w-[15%] text-right pr-6">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {section.dataRows.map((row, rowIndex) => (
-                    <React.Fragment key={`row-frag-${sectionIndex}-${rowIndex}`}>
-                      <TableRow className="hover:bg-muted/10">
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[30%] pl-6">Route (Origin - Destination)</TableHead>
+                      <TableHead className="w-[15%]">Sea Rate</TableHead>
+                      <TableHead className="w-[15%]">Container Info</TableHead>
+                      <TableHead className="w-[25%]">Comments / Details</TableHead>
+                      <TableHead className="w-[15%] text-right pr-6">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {section.dataRows.map((row, rowIndex) => (
+                      <TableRow key={`row-${sectionIndex}-${rowIndex}`} className="hover:bg-muted/10">
                         <TableCell className="font-medium pl-6 py-3">{row.route || 'N/A'}</TableCell>
                         <TableCell className="py-3">{row.rate || 'N/A'}</TableCell>
                         <TableCell className="py-3">{row.containerInfo || 'N/A'}</TableCell>
@@ -213,41 +201,58 @@ export default function DashboardPage() {
                             variant="outline"
                             size="sm"
                             className="border-primary text-primary hover:bg-primary/10"
-                            onClick={() => handleDashboardCopyRate(row, sectionIndex, rowIndex)}
+                            onClick={() => handleDashboardCopyRate(row, sectionIndex)}
                           >
                             <Copy className="mr-2 h-3 w-3" /> Copy Rate
                           </Button>
                         </TableCell>
                       </TableRow>
-                      {row.railwayLegs && row.railwayLegs.map((leg, legIndex) => (
-                        <TableRow key={`leg-${sectionIndex}-${rowIndex}-${legIndex}`} className="bg-muted/20 hover:bg-muted/30 border-t border-dashed">
-                           <TableCell className="pl-6 py-2 text-sm font-medium text-primary flex items-center">
-                             <Checkbox
-                                id={`rail-select-${sectionIndex}-${rowIndex}-${legIndex}`}
-                                checked={railwaySelection[`${sectionIndex}-${rowIndex}`] === legIndex}
-                                onCheckedChange={() => {
-                                  handleRailwayLegCheckboxChange(sectionIndex, rowIndex, legIndex);
-                                }}
-                                className="mr-2"
-                              />
-                            <Train className="mr-2 h-4 w-4 text-primary/80" /> 
-                            {leg.originInfo || 'Railway Leg'}
-                          </TableCell>
-                          <TableCell className="py-2 text-sm font-semibold text-primary">{leg.cost}</TableCell>
-                          <TableCell className="py-2 text-sm">{leg.containerInfo || 'N/A'}</TableCell>
-                          <TableCell colSpan={2} className="pr-6 py-2 text-xs text-muted-foreground">{leg.comment || '-'}</TableCell>
-                        </TableRow>
-                      ))}
-                    </React.Fragment>
-                  ))}
-                </TableBody>
-              </Table>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                {commonRailwayLegsForSection.length > 0 && (
+                  <div className="p-4 border-t">
+                    <h4 className="text-md font-semibold mb-2 text-primary flex items-center">
+                        <Train className="mr-2 h-5 w-5 text-accent" /> Available Railway Legs for this Section
+                    </h4>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-8"></TableHead> {/* Checkbox column */}
+                                <TableHead>Origin Info</TableHead>
+                                <TableHead>Cost</TableHead>
+                                <TableHead>Container</TableHead>
+                                <TableHead>Comment</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {commonRailwayLegsForSection.map((leg, legIndex) => (
+                                <TableRow key={`common-leg-${sectionIndex}-${legIndex}`} className="hover:bg-muted/10">
+                                    <TableCell className="p-2">
+                                        <Checkbox
+                                            id={`rail-select-section-${sectionIndex}-leg-${legIndex}`}
+                                            checked={railwaySelection[sectionIndex] === legIndex}
+                                            onCheckedChange={() => handleRailwayLegCheckboxChange(sectionIndex, legIndex)}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="py-2 text-sm">{leg.originInfo || 'N/A'}</TableCell>
+                                    <TableCell className="py-2 text-sm font-semibold">{leg.cost || 'N/A'}</TableCell>
+                                    <TableCell className="py-2 text-sm">{leg.containerInfo || 'N/A'}</TableCell>
+                                    <TableCell className="py-2 text-xs text-muted-foreground">{leg.comment || '-'}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </>
             ) : (
               <p className="p-6 text-muted-foreground">No data rows found for this service.</p>
             )}
           </CardContent>
         </Card>
-      ))}
+      )})}
        {dashboardServiceSections.length === 0 && isSeaRailExcelDataLoaded && (
          <Card className="shadow-lg rounded-xl bg-card border border-border">
            <CardHeader>
