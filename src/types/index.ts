@@ -216,6 +216,7 @@ export interface PricingDataContextType {
   excelRussianDestinationCitiesMasterList: string[];
   setExcelRussianDestinationCitiesMasterList: React.Dispatch<React.SetStateAction<string[]>>;
 
+  // Master lists for Direct Rail (from Excel)
   directRailAgents: string[];
   setDirectRailAgents: React.Dispatch<React.SetStateAction<string[]>>;
   directRailDepartureCities: string[];
@@ -226,6 +227,15 @@ export interface PricingDataContextType {
   setDirectRailIncotermsList: React.Dispatch<React.SetStateAction<string[]>>;
   directRailBordersList: string[];
   setDirectRailBordersList: React.Dispatch<React.SetStateAction<string[]>>;
+
+  // Filtered lists for Direct Rail dropdowns
+  localAvailableDirectRailAgents: string[];
+  setLocalAvailableDirectRailAgents: React.Dispatch<React.SetStateAction<string[]>>;
+  localAvailableDirectRailIncoterms: string[];
+  setLocalAvailableDirectRailIncoterms: React.Dispatch<React.SetStateAction<string[]>>;
+  localAvailableDirectRailBorders: string[];
+  setLocalAvailableDirectRailBorders: React.Dispatch<React.SetStateAction<string[]>>;
+
 
   cachedFormValues: Partial<RouteFormValues> | null;
   setCachedFormValues: React.Dispatch<React.SetStateAction<Partial<RouteFormValues> | null>>;
@@ -311,3 +321,5 @@ export interface RateData {
     thcRail: number;
   };
 }
+
+    

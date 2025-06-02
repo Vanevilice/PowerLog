@@ -43,6 +43,7 @@ export default function PortPriceFinderForm(): JSX.Element {
   const [isNavigatingToBestPrices, setIsNavigatingToBestPrices] = React.useState(false);
   const [exchangeRate, setExchangeRate] = React.useState<string | null>(null);
 
+  // Local states for Sea+Rail filtered dropdowns
   const [localAvailableDestinationPorts, setLocalAvailableDestinationPorts] = React.useState<string[]>([]);
   const [localAvailableSeaLines, setLocalAvailableSeaLines] = React.useState<string[]>([]);
   const [localAvailableRussianDestinationCities, setLocalAvailableRussianDestinationCities] = React.useState<string[]>([]);
@@ -58,8 +59,11 @@ export default function PortPriceFinderForm(): JSX.Element {
     calculationMode,
     isSeaRailExcelDataLoaded, isDirectRailExcelDataLoaded,
     excelOriginPorts, excelRussianDestinationCitiesMasterList,
+    // Master lists for Direct Rail (consumed by usePricingFormEffects)
     directRailAgents, directRailDepartureCities, directRailDestinationCitiesDR,
     directRailIncotermsList, directRailBordersList,
+    // Filtered lists for Direct Rail (consumed by DirectRailFormFields)
+    localAvailableDirectRailAgents, localAvailableDirectRailIncoterms, localAvailableDirectRailBorders,
     cachedFormValues, cachedShippingInfo, cachedLastSuccessfulCalculation,
     setCachedFormValues, setCachedShippingInfo, setCachedLastSuccessfulCalculation,
     setBestPriceResults,
@@ -142,12 +146,8 @@ export default function PortPriceFinderForm(): JSX.Element {
   };
 
  const onSeaRailFileChangeWrapper = (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("[PortPriceFinderForm] onSeaRailFileChangeWrapper TRACER for Sea+Rail", event);
     const file = event.target.files?.[0];
-    console.log("[PortPriceFinderForm] Selected Sea+Rail file:", file);
-
     if (!file) {
-      console.log("[PortPriceFinderForm] No Sea+Rail file selected, attempting toast.");
       toast({
         variant: "destructive",
         title: "File Error",
@@ -158,9 +158,8 @@ export default function PortPriceFinderForm(): JSX.Element {
       }
       return;
     }
-    console.log("[PortPriceFinderForm] Sea+Rail file found, calling handleSeaRailFileParse.");
     handleSeaRailFileParse({
-      file, // Pass the File object directly
+      file, 
       form: form,
       contextSetters: pricingContext,
       setShippingInfoState: setShippingInfo as React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutput | null>>,
@@ -168,17 +167,13 @@ export default function PortPriceFinderForm(): JSX.Element {
       toast,
       fileInputRef: seaRailFileInputRef,
       setIsParsingState: setIsParsingSeaRailFile,
-      setBestPriceResults, // Make sure this is passed if needed by the parser
+      setBestPriceResults, 
     });
   };
 
   const onDirectRailFileChangeWrapper = (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("[PortPriceFinderForm] onDirectRailFileChangeWrapper TRACER for Direct Rail", event);
     const file = event.target.files?.[0];
-    console.log("[PortPriceFinderForm] Selected Direct Rail file:", file);
-
     if (!file) {
-      console.log("[PortPriceFinderForm] No Direct Rail file selected, attempting toast.");
       toast({
         variant: "destructive",
         title: "File Error",
@@ -189,9 +184,8 @@ export default function PortPriceFinderForm(): JSX.Element {
       }
       return;
     }
-    console.log("[PortPriceFinderForm] Direct Rail file found, calling handleDirectRailFileParse.");
     handleDirectRailFileParse({
-      file, // Pass the File object directly
+      file, 
       form: form,
       contextSetters: pricingContext,
       setShippingInfoState: setShippingInfo as React.Dispatch<React.SetStateAction<SmartPricingOutput | PricingCommentaryOutput | null>>,
@@ -199,7 +193,7 @@ export default function PortPriceFinderForm(): JSX.Element {
       toast,
       fileInputRef: directRailFileInputRef,
       setIsParsingState: setIsParsingDirectRailFile,
-      setBestPriceResults, // Make sure this is passed if needed by the parser
+      setBestPriceResults, 
     });
   };
   
@@ -236,8 +230,12 @@ export default function PortPriceFinderForm(): JSX.Element {
 
   const directRailFormProps = {
     form, isParsingDirectRailFile, isDirectRailExcelDataLoaded,
-    directRailDepartureCities, directRailDestinationCitiesDR, directRailAgents,
-    directRailIncotermsList, directRailBordersList,
+    // Master lists (for initial population, filtering happens in effects)
+    directRailDepartureCities, directRailDestinationCitiesDR, 
+    // Filtered lists for dropdowns
+    localAvailableDirectRailAgents, localAvailableDirectRailIncoterms, localAvailableDirectRailBorders,
+    // Pass master lists for placeholders too, if needed
+    masterAgentList: directRailAgents, masterIncotermsList: directRailIncotermsList, masterBorderList: directRailBordersList,
   };
 
   const currentFormValuesForButton = getValues();
@@ -247,7 +245,6 @@ export default function PortPriceFinderForm(): JSX.Element {
       <Card className="w-full max-w-xl mx-auto shadow-xl rounded-xl bg-card">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold text-primary flex items-center justify-center">
-            {/* Using an inline SVG that resembles an exchange/logistics icon */}
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-accent h-8 w-8"><path d="M10 20H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4"/><path d="M5 11h11"/><path d="m22 18-3-3 3-3"/><path d="M14 18h5"/></svg>
             PowerLog
           </CardTitle>
@@ -366,3 +363,5 @@ export default function PortPriceFinderForm(): JSX.Element {
     </React.Fragment>
   );
 }
+
+    

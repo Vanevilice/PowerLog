@@ -38,11 +38,17 @@ export const PricingDataProvider = ({ children }: { children: ReactNode }) => {
   const [excelDestinationPorts, setExcelDestinationPorts] = useState<string[]>([]);
   const [excelRussianDestinationCitiesMasterList, setExcelRussianDestinationCitiesMasterList] = useState<string[]>([]);
 
+  // Master lists for Direct Rail (from Excel parsing)
   const [directRailAgents, setDirectRailAgents] = useState<string[]>([]);
   const [directRailDepartureCities, setDirectRailDepartureCities] = useState<string[]>([]);
   const [directRailDestinationCitiesDR, setDirectRailDestinationCitiesDR] = useState<string[]>([]);
   const [directRailIncotermsList, setDirectRailIncotermsList] = useState<string[]>([]);
   const [directRailBordersList, setDirectRailBordersList] = useState<string[]>([]);
+
+  // Filtered (local available) lists for Direct Rail dropdowns
+  const [localAvailableDirectRailAgents, setLocalAvailableDirectRailAgents] = useState<string[]>([]);
+  const [localAvailableDirectRailIncoterms, setLocalAvailableDirectRailIncoterms] = useState<string[]>([]);
+  const [localAvailableDirectRailBorders, setLocalAvailableDirectRailBorders] = useState<string[]>([]);
 
   const [cachedFormValues, setCachedFormValues] = useState<Partial<RouteFormValues> | null>(null);
   const [cachedShippingInfo, setCachedShippingInfo] = useState<CombinedAiOutput | null>(null);
@@ -64,11 +70,17 @@ export const PricingDataProvider = ({ children }: { children: ReactNode }) => {
       excelOriginPorts, setExcelOriginPorts,
       excelDestinationPorts, setExcelDestinationPorts,
       excelRussianDestinationCitiesMasterList, setExcelRussianDestinationCitiesMasterList,
+      
       directRailAgents, setDirectRailAgents,
       directRailDepartureCities, setDirectRailDepartureCities,
       directRailDestinationCitiesDR, setDirectRailDestinationCitiesDR,
       directRailIncotermsList, setDirectRailIncotermsList,
       directRailBordersList, setDirectRailBordersList,
+
+      localAvailableDirectRailAgents, setLocalAvailableDirectRailAgents,
+      localAvailableDirectRailIncoterms, setLocalAvailableDirectRailIncoterms,
+      localAvailableDirectRailBorders, setLocalAvailableDirectRailBorders,
+
       cachedFormValues, setCachedFormValues,
       cachedShippingInfo, setCachedShippingInfo,
       cachedLastSuccessfulCalculation, setCachedLastSuccessfulCalculation,
@@ -87,3 +99,5 @@ export const usePricingData = (): PricingDataContextType => {
   }
   return context;
 };
+
+    
