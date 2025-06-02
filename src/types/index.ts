@@ -72,7 +72,7 @@ export interface DashboardServiceDataRow {
   rate: string;
   containerInfo: string;
   additionalComment: string;
-  railwayLegs?: RailwayLegData[]; // Changed to an array
+  railwayLegs?: RailwayLegData[];
 }
 
 export interface DashboardServiceSection {
@@ -165,15 +165,18 @@ export interface CalculationDetailsForInstructions {
 
 export interface BestPriceRoute {
   id: string;
-  shipmentType: ShipmentType;
-  originPort: string;
-  seaDestinationPort: string;
-  seaLineCompany?: string;
-  containerType: ContainerType;
-  russianDestinationCity: string;
-  railDepartureStation?: string;
-  railArrivalStation?: string;
-  seaCostUSD: number | null;
+  mode: 'sea_plus_rail' | 'direct_rail'; // Added to distinguish route type
+  shipmentType: ShipmentType | 'N/A'; // 'N/A' for direct rail if not applicable
+  originPort: string; // For direct rail, this will be directRailCityOfDeparture
+  seaDestinationPort: string; // For direct rail, this will be directRailDestinationCityDR
+  seaLineCompany?: string; // For direct rail, this could be directRailAgentName
+  containerType: ContainerType | 'N/A'; // 'N/A' if not specified for direct rail best price
+  russianDestinationCity: string; // For direct rail, this will be directRailDestinationCityDR
+  
+  // Sea+Rail specific (optional or null for direct rail)
+  railDepartureStation?: string; // Can also be used for directRailDepartureStation
+  railArrivalStation?: string; // Can also be used for directRailDestinationCity
+  seaCostUSD?: number | null;
   seaComment?: string | null;
   socComment?: string | null;
   railCost20DC_24t_RUB?: number | null;
@@ -184,7 +187,16 @@ export interface BestPriceRoute {
   dropOffCostUSD?: number | null;
   dropOffDisplayValue?: string | null;
   dropOffComment?: string | null;
-  totalComparisonCostRUB: number;
+  
+  totalComparisonCostRUB: number; // Universal sorting key (Sea+Rail total or Direct Rail price)
+
+  // Direct Rail specific fields (optional)
+  directRailAgentName?: string;
+  directRailIncoterms?: string;
+  directRailBorder?: string;
+  directRailPriceRUB?: number | null; // Specific field for direct rail price
+  directRailETD?: string;
+  directRailExcelCommentary?: string;
 }
 
 
@@ -321,5 +333,3 @@ export interface RateData {
     thcRail: number;
   };
 }
-
-    

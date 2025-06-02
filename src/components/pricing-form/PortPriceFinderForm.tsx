@@ -286,12 +286,19 @@ export default function PortPriceFinderForm(): JSX.Element {
                   type="button"
                   onClick={onCalculateBestPriceWrapper}
                   disabled={
-                    isCalculatingBestPrice || isLoading || isParsingSeaRailFile || isParsingDirectRailFile || 
-                    calculationMode === "direct_rail" || 
-                    !isSeaRailExcelDataLoaded || 
-                    !currentFormValuesForButton.originPort || 
-                    !currentFormValuesForButton.containerType ||
-                    (excelRussianDestinationCitiesMasterList.length > 0 && !currentFormValuesForButton.russianDestinationCity)
+                    isCalculatingBestPrice || isLoading || isParsingSeaRailFile || isParsingDirectRailFile ||
+                    (calculationMode === "sea_plus_rail" && (
+                      !isSeaRailExcelDataLoaded || 
+                      !currentFormValuesForButton.originPort || 
+                      !currentFormValuesForButton.containerType ||
+                      (excelRussianDestinationCitiesMasterList.length > 0 && !currentFormValuesForButton.russianDestinationCity)
+                    )) ||
+                    (calculationMode === "direct_rail" && (
+                      !isDirectRailExcelDataLoaded || 
+                      !currentFormValuesForButton.directRailCityOfDeparture || 
+                      !currentFormValuesForButton.directRailDestinationCityDR || 
+                      !currentFormValuesForButton.directRailIncoterms
+                    ))
                   }
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
@@ -363,5 +370,3 @@ export default function PortPriceFinderForm(): JSX.Element {
     </React.Fragment>
   );
 }
-
-    
