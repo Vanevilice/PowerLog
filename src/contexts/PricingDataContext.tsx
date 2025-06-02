@@ -6,7 +6,7 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 import type {
   CombinedAiOutput, // Using the consolidated type from types/index.ts
   ExcelRoute,
-  ExcelSOCRoute,
+  ExcelSOCRoute, // Added ExcelSOCRoute
   RailDataEntry,
   DropOffEntry,
   DirectRailEntry,
@@ -25,10 +25,10 @@ const PricingDataContext = createContext<PricingDataContextType | undefined>(und
 export const PricingDataProvider = ({ children }: { children: ReactNode }) => {
   const [calculationMode, setCalculationMode] = useState<CalculationMode>("sea_plus_rail");
 
-  const [excelRouteData, setExcelRouteData] = useState<ExcelRoute[]>([]);
-  const [excelSOCRouteData, setExcelSOCRouteData] = useState<ExcelSOCRoute[]>([]);
+  const [excelRouteData, setExcelRouteData] = useState<ExcelRoute[]>([]); // For COC
+  const [excelSOCRouteData, setExcelSOCRouteData] = useState<ExcelSOCRoute[]>([]); // Added for SOC
   const [excelRailData, setExcelRailData] = useState<RailDataEntry[]>([]);
-  const [excelDropOffData, setExcelDropOffData] = useState<DropOffEntry[]>([]);
+  const [excelDropOffData, setExcelDropOffData] = useState<DropOffEntry[]>([]); // For COC Drop-off
   const [excelDirectRailData, setExcelDirectRailData] = useState<DirectRailEntry[]>([]);
 
   const [isSeaRailExcelDataLoaded, setIsSeaRailExcelDataLoaded] = useState(false);
@@ -61,7 +61,7 @@ export const PricingDataProvider = ({ children }: { children: ReactNode }) => {
     <PricingDataContext.Provider value={{
       calculationMode, setCalculationMode,
       excelRouteData, setExcelRouteData,
-      excelSOCRouteData, setExcelSOCRouteData,
+      excelSOCRouteData, setExcelSOCRouteData, // Provide SOC data and setter
       excelRailData, setExcelRailData,
       excelDropOffData, setExcelDropOffData,
       excelDirectRailData, setExcelDirectRailData,
@@ -99,5 +99,6 @@ export const usePricingData = (): PricingDataContextType => {
   }
   return context;
 };
+    
 
     

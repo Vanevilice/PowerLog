@@ -20,12 +20,12 @@ export interface ExcelRoute { // COC Data from 3rd Sheet
 }
 
 export interface ExcelSOCRoute { // SOC Data from 2nd Sheet
-  departurePorts: string[];
+  departurePorts: string[]; // Using 'departurePorts' to distinguish if needed, content similar to originPorts
   destinationPorts: string[];
   seaLines: string[];
   price20DC: string | number | null;
   price40HC: string | number | null;
-  socComment?: string;
+  socComment?: string; // Specific comment for SOC routes
 }
 
 export interface RailDataEntry {
@@ -104,32 +104,33 @@ export interface RouteFormValues {
 // AI Flow Output Extension and Calculation Details
 export interface CombinedAiOutput extends SmartPricingOutputBase, PricingCommentaryOutputBase {
   shipmentType?: ShipmentType;
-  originCity?: string;
-  destinationCity?: string;
+  originCity?: string; // Corresponds to originPort or directRailCityOfDeparture
+  destinationCity?: string; // Corresponds to destinationPort (sea) or directRailDestinationCityDR
   seaLineCompany?: string;
   containerType?: ContainerType;
   seaCost?: number | null;
   seaComment?: string | null;
-  socComment?: string | null;
+  socComment?: string | null; // Added for SOC
 
   railCost20DC_24t?: number | null;
   railCost20DC_28t?: number | null;
   railGuardCost20DC?: number | null;
   railCost40HC?: number | null;
   railGuardCost40HC?: number | null;
-  russianDestinationCity?: string;
+  russianDestinationCity?: string; // The final Russian city for rail
   railArrivalStation?: string | null;
-  railDepartureStation?: string | null;
+  railDepartureStation?: string | null; // Departure station for the rail leg (e.g., from Vladivostok)
   dropOffCost?: number | null;
   dropOffDisplayValue?: string | null;
   dropOffComment?: string | null;
 
+  // Direct Rail specific fields
   directRailCityOfDeparture?: string;
-  directRailDepartureStation?: string;
+  directRailDepartureStation?: string; // Actual station for direct rail
   directRailBorder?: string;
   directRailCost?: number | null;
   directRailETD?: string;
-  directRailCommentary?: string | null;
+  directRailCommentary?: string | null; // Excel commentary for Direct Rail
   directRailAgentName?: string;
   directRailIncoterms?: string;
 }
@@ -138,16 +139,17 @@ export interface CombinedAiOutput extends SmartPricingOutputBase, PricingComment
 export interface CalculationDetailsForInstructions {
   shipmentType?: ShipmentType;
   originPort?: string;
-  destinationPort?: string;
+  destinationPort?: string; // Sea destination port
   seaLineCompany?: string;
   containerType?: ContainerType;
-  russianDestinationCity?: string;
+  russianDestinationCity?: string; // Final Russian city for rail
   railArrivalStation?: string;
-  railDepartureStation?: string;
+  railDepartureStation?: string; // Rail departure (e.g. from Vladivostok)
   seaCostBase?: number | null;
   seaMarginApplied?: number;
   seaCostFinal?: number | null;
   seaComment?: string | null;
+  socComment?: string | null; // Added for SOC
   railCostBase24t?: number | null;
   railCostBase28t?: number | null;
   railGuardCost20DC?: number | null;
@@ -160,7 +162,6 @@ export interface CalculationDetailsForInstructions {
   dropOffCost?: number | null;
   dropOffDisplayValue?: string | null;
   dropOffComment?: string | null;
-  socComment?: string | null;
 }
 
 export interface BestPriceRoute {
@@ -178,7 +179,7 @@ export interface BestPriceRoute {
   railArrivalStation?: string; // Can also be used for directRailDestinationCity
   seaCostUSD?: number | null;
   seaComment?: string | null;
-  socComment?: string | null;
+  socComment?: string | null; // Added for SOC
   railCost20DC_24t_RUB?: number | null;
   railCost20DC_28t_RUB?: number | null;
   railGuardCost20DC_RUB?: number | null;
@@ -205,13 +206,13 @@ export interface PricingDataContextType {
   calculationMode: CalculationMode;
   setCalculationMode: React.Dispatch<React.SetStateAction<CalculationMode>>;
 
-  excelRouteData: ExcelRoute[];
+  excelRouteData: ExcelRoute[]; // COC routes
   setExcelRouteData: React.Dispatch<React.SetStateAction<ExcelRoute[]>>;
-  excelSOCRouteData: ExcelSOCRoute[];
+  excelSOCRouteData: ExcelSOCRoute[]; // SOC routes
   setExcelSOCRouteData: React.Dispatch<React.SetStateAction<ExcelSOCRoute[]>>;
   excelRailData: RailDataEntry[];
   setExcelRailData: React.Dispatch<React.SetStateAction<RailDataEntry[]>>;
-  excelDropOffData: DropOffEntry[];
+  excelDropOffData: DropOffEntry[]; // COC Drop-off
   setExcelDropOffData: React.Dispatch<React.SetStateAction<DropOffEntry[]>>;
   excelDirectRailData: DirectRailEntry[];
   setExcelDirectRailData: React.Dispatch<React.SetStateAction<DirectRailEntry[]>>;
@@ -333,3 +334,5 @@ export interface RateData {
     thcRail: number;
   };
 }
+
+    
