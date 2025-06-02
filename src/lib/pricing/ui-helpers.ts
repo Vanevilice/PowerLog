@@ -8,6 +8,8 @@ import type {
   CalculationDetailsForInstructions,
   ShipmentType,
   ContainerType,
+  DashboardServiceDataRow, // Added for new utility
+  RailwayLegData,         // Added for new utility
 } from '@/types';
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS } from './constants';
 
@@ -241,4 +243,20 @@ export function handleDirectRailCopy(shippingInfo: SmartPricingOutput | null, to
     .catch(() => toast({ variant: "destructive", title: "Copy Failed" }));
 }
 
-    
+export function generateDashboardCopyText(
+  row: DashboardServiceDataRow,
+  selectedLeg: RailwayLegData | null,
+  originPart: string,
+  forPartDisplay: string
+): string {
+  let textToCopy = "";
+  
+  textToCopy += `FOB ${row.containerInfo || 'N/A'} ${originPart} - Владивосток - FOR ${forPartDisplay} :\n`;
+  textToCopy += `Фрахт: ${row.rate || 'N/A'}\n`;
+
+  if (selectedLeg && selectedLeg.cost && selectedLeg.cost !== 'N/A') {
+    textToCopy += `Ж/Д Составляющая: ${selectedLeg.cost}\n`;
+  }
+  
+  return textToCopy.trim();
+}

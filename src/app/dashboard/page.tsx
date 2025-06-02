@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertTriangle, FileText, UploadCloud, Info, Train, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { generateDashboardCopyText } from '@/lib/pricing/ui-helpers'; // Import the new utility
 
 export default function DashboardPage() {
   const { dashboardServiceSections, isSeaRailExcelDataLoaded } = usePricingData();
@@ -44,61 +45,45 @@ export default function DashboardPage() {
 
     if (selectedLegIndexForSection !== null && selectedLegIndexForSection !== undefined) {
       const sectionData = dashboardServiceSections[sectionIndex];
-      if (sectionData && sectionData.dataRows && sectionData.dataRows.length > 0) {
-        // Railway legs are common for the section, so take from the first row.
-        const commonLegs = sectionData.dataRows[0]?.railwayLegs;
-        if (commonLegs && commonLegs.length > selectedLegIndexForSection) {
-          selectedLeg = commonLegs[selectedLegIndexForSection];
-          console.log(`[DashboardCopyRate] Selected Leg (index ${selectedLegIndexForSection}) from COMMON section legs:`, JSON.parse(JSON.stringify(selectedLeg)));
-        } else {
-          console.log(`[DashboardCopyRate] Could not retrieve common railway legs for section ${sectionIndex} or leg index ${selectedLegIndexForSection} is out of bounds.`);
-        }
+      // Railway legs are common for the section, so take from the first row as they are now copied.
+      const commonLegs = sectionData?.dataRows?.[0]?.railwayLegs; 
+      if (commonLegs && commonLegs.length > selectedLegIndexForSection) {
+        selectedLeg = commonLegs[selectedLegIndexForSection];
+        console.log(`[DashboardCopyRate] Selected Leg (index ${selectedLegIndexForSection}) from COMMON section legs:`, JSON.parse(JSON.stringify(selectedLeg)));
+      } else {
+        console.log(`[DashboardCopyRate] Could not retrieve common railway legs for section ${sectionIndex} or leg index ${selectedLegIndexForSection} is out of bounds.`);
       }
     }
      if (selectedLegIndexForSection !== undefined && selectedLeg === null) {
         console.warn(`[DashboardCopyRate] A railway leg was selected for section ${sectionIndex} (index: ${selectedLegIndexForSection}), but no valid leg data could be retrieved.`);
     }
 
-    let textToCopy = "";
     const routeParts = row.route.split(' - ');
     const originPartRaw = routeParts[0] || 'N/A';
     const originPart = originPartRaw.replace(/^(FOB|FI)\s*/i, '').trim();
     
     let forPartDisplay = 'N/A';
-    let railwayCostDisplay = 'N/A';
-    let includeRailwayPart = false;
-
+    
     if (selectedLeg) {
         console.log(`[DashboardCopyRate] USING Selected Leg for section ${sectionIndex}:`, JSON.parse(JSON.stringify(selectedLeg)));
         if (selectedLeg.originInfo && selectedLeg.originInfo !== 'N/A') {
             forPartDisplay = selectedLeg.originInfo.replace(/^(FOB|FI|CY)\s*/i, '').trim();
         }
-        if (selectedLeg.cost && selectedLeg.cost !== 'N/A') {
-            railwayCostDisplay = selectedLeg.cost;
-            includeRailwayPart = true;
-        } else {
-             console.log(`[DashboardCopyRate] Selected common leg for section ${sectionIndex} has no valid cost ('${selectedLeg.cost}'). Railway part will NOT be included.`);
-        }
     } else {
-        console.log(`[DashboardCopyRate] NO specific railway leg selected for section ${sectionIndex} or data found. Falling back to main route destination for 'FOR' part.`);
+        console.log(`[DashboardCopyRate] NO specific railway leg selected or data found (selectedLegIndex: ${selectedLegIndexForSection}). Falling back to main route destination for 'FOR' part.`);
         if (routeParts.length > 1) { 
             const destinationPartRaw = routeParts.slice(1).join(' - ');
             forPartDisplay = destinationPartRaw.replace(/^(FOB|FI|CY)\s*/i, '').trim();
         }
     }
     
-    textToCopy += `FOB ${row.containerInfo || 'N/A'} ${originPart} - Владивосток - FOR ${forPartDisplay} :\n`;
-    textToCopy += `Фрахт: ${row.rate || 'N/A'}\n`;
-
-    if (includeRailwayPart) {
-      textToCopy += `Ж/Д Составляющая: ${railwayCostDisplay}\n`;
-    }
+    const textToCopy = generateDashboardCopyText(row, selectedLeg, originPart, forPartDisplay);
     
     console.log(`[DashboardCopyRate] Final textToCopy for route ${row.route}:\n${textToCopy}`);
     console.log(`[DashboardCopyRate] <<< END OF COPY for Section ${sectionIndex}, Route: ${row.route}`);
 
     try {
-      await navigator.clipboard.writeText(textToCopy.trim());
+      await navigator.clipboard.writeText(textToCopy);
       toast({ title: "Success!", description: "Rate copied to clipboard." });
     } catch (err) {
       toast({ variant: "destructive", title: "Copy Failed", description: "Could not copy to clipboard." });
