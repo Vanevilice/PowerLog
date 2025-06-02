@@ -50,6 +50,7 @@ function processRailwayLegRow(rowArray: any[], excelRowNum: number): RailwayLegD
       legComment = commentCellD;
   }
 
+
   if (commentFromLegContainerCell) {
     legComment = legComment ? `${commentFromLegContainerCell} | ${legComment}` : commentFromLegContainerCell;
   }
@@ -57,7 +58,7 @@ function processRailwayLegRow(rowArray: any[], excelRowNum: number): RailwayLegD
 
   const hasOrigin = originInfoRaw !== '' && originInfoRaw.toLowerCase() !== 'n/a';
   const hasCost = costFormatted !== 'N/A';
-  const hasContainer = legContainerType !== 'N/A'; // Check against 'N/A' which parseContainerInfoCell might return
+  const hasContainer = legContainerType !== 'N/A';
   const hasMeaningfulComment = finalComment !== '' && finalComment !== '-';
 
   // A railway leg is valid if any of its key fields have meaningful data.
@@ -67,8 +68,8 @@ function processRailwayLegRow(rowArray: any[], excelRowNum: number): RailwayLegD
 
   return {
     originInfo: originInfoRaw || "N/A",
-    cost: costFormatted, // formatDashboardRate handles null/undefined to 'N/A'
-    containerInfo: legContainerType, // parseContainerInfoCell returns 'N/A' if not found
+    cost: costFormatted, 
+    containerInfo: legContainerType, 
     comment: finalComment || '-',
   };
 }
@@ -141,15 +142,6 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
 
   function finalizeCurrentSection() {
     if (currentSection && currentSection.dataRows.length > 0) {
-      // console.log(`[DashboardParser] Finalizing section: "${currentSection.serviceName}" with ${currentSection.dataRows.length} FOB/FI rows.`);
-      // currentSection.dataRows.forEach((dataRow, idx) => {
-      //   console.log(`  [FOB Row ${idx} in final section "${currentSection.serviceName}"] Route: '${dataRow.route}', Railway Legs count: ${dataRow.railwayLegs?.length || 0}`);
-      //   if (dataRow.railwayLegs && dataRow.railwayLegs.length > 0) {
-      //     dataRow.railwayLegs.forEach((leg, legIdx) => {
-      //       console.log(`    Leg ${legIdx}: Origin: ${leg.originInfo}, Cost: ${leg.cost}`);
-      //     });
-      //   }
-      // });
       parsedSections.push(currentSection);
     }
     currentSection = null;
@@ -168,7 +160,6 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
         if (!currentSection) { 
           currentSection = { serviceName: `Service Section (Implicit at row ${excelRowNum})`, dataRows: [] };
         }
-        // Create a new object defensively, ensuring railwayLegs is a new array for this instance
         const newFobFiDataRow: DashboardServiceDataRow = {
           ...item.data, // Spread properties from the parsed data in Pass 1
           railwayLegs: [], // Explicitly re-initialize railwayLegs for this new object
@@ -178,13 +169,10 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
         break;
       case 'railwayLeg':
         if (currentFobFiParentForRow) {
-          // Ensure railwayLegs array exists on the parent
-          if (!currentFobFiParentForRow.railwayLegs) {
+          if (!currentFobFiParentForRow.railwayLegs) { // Defensive check, should be initialized
             currentFobFiParentForRow.railwayLegs = [];
           }
           currentFobFiParentForRow.railwayLegs.push(item.data);
-        } else {
-          // console.warn(`[DashboardParser Pass 2 - Row ${excelRowNum}]: RAILWAY_LEG found but no currentFobFiParentForRow. Orphaned leg.`);
         }
         break;
       case 'blankOrOther':
@@ -194,5 +182,24 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
   });
 
   finalizeCurrentSection(); 
+
+  // --- Third Pass: Post-processing to copy railway legs ---
+  parsedSections.forEach(section => {
+    if (section.dataRows && section.dataRows.length > 0) {
+      const lastDataRow = section.dataRows[section.dataRows.length - 1];
+      if (lastDataRow && lastDataRow.railwayLegs && lastDataRow.railwayLegs.length > 0) {
+        // Deep copy the railway legs from the last row
+        const legsToCopy = JSON.parse(JSON.stringify(lastDataRow.railwayLegs)) as RailwayLegData[];
+        
+        section.dataRows.forEach((dataRow, index) => {
+          if (index < section.dataRows.length - 1) { // Don't copy to the last row itself
+            dataRow.railwayLegs = JSON.parse(JSON.stringify(legsToCopy)); // Assign a fresh deep copy
+          }
+        });
+      }
+    }
+  });
+
   return parsedSections;
 }
+
