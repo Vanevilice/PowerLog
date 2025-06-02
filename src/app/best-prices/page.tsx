@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { usePricingData, type BestPriceRoute } from '@/contexts/PricingDataContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Ship, Train, Copy, Edit3, Info, ListOrdered } from 'lucide-react';
+import { ArrowLeft, Ship, Train, Copy, Edit3, Info, ListOrdered, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDisplayCost } from '@/lib/pricing/ui-helpers';
 import { VLADIVOSTOK_VARIANTS } from '@/lib/pricing/constants';
@@ -20,63 +20,75 @@ export default function BestPricesPage() {
   const handleCopyRate = async (route: BestPriceRoute, index: number) => {
     let textToCopy = "";
 
-    textToCopy += "FOB " + (route.containerType || 'N/A');
-    textToCopy += " " + (route.originPort || 'N/A');
-    textToCopy += " - " + (route.seaDestinationPort || 'N/A');
-    if (route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0]))) {
-      textToCopy += " - " + route.russianDestinationCity;
-       if (route.railArrivalStation) {
-        textToCopy += " (прибытие: " + route.railArrivalStation + ")";
+    if (route.mode === 'sea_plus_rail') {
+      textToCopy += "FOB " + (route.containerType || 'N/A');
+      textToCopy += " " + (route.originPort || 'N/A');
+      textToCopy += " - " + (route.seaDestinationPort || 'N/A');
+      if (route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0]))) {
+        textToCopy += " - " + route.russianDestinationCity;
+         if (route.railArrivalStation) {
+          textToCopy += " (прибытие: " + route.railArrivalStation + ")";
+        }
+      }
+      textToCopy += "\n";
+
+      const seaCostBaseForSum = route.seaCostUSD ?? 0;
+      let dropOffCostForSum = 0;
+      if (route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line')) {
+          dropOffCostForSum = route.dropOffCostUSD ?? 0;
+      }
+      const totalFreightCost = seaCostBaseForSum + dropOffCostForSum;
+      textToCopy += "Фрахт: " + formatDisplayCost(totalFreightCost > 0 ? totalFreightCost : null, 'USD') + "\n";
+
+      let jdLine = "";
+      if (route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0]))) {
+          jdLine = "Ж/Д Составляющая: ";
+          if (route.containerType === "20DC") {
+              let costsParts = [];
+              if (route.railCost20DC_24t_RUB !== null) costsParts.push(formatDisplayCost(route.railCost20DC_24t_RUB, 'RUB') + " (<24t)");
+              if (route.railCost20DC_28t_RUB !== null) costsParts.push(formatDisplayCost(route.railCost20DC_28t_RUB, 'RUB') + " (<28t)");
+              jdLine += costsParts.join(' / ') || "N/A";
+
+              const guardCostFormatted = formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB');
+              if (guardCostFormatted && guardCostFormatted !== 'N/A') {
+                  jdLine += " + Охрана " + guardCostFormatted;
+                  if (route.railGuardCost20DC_RUB && route.railGuardCost20DC_RUB > 0) {
+                       jdLine += " (Если код подохранный)";
+                  }
+              } else if (costsParts.length > 0) {
+                  jdLine += " + Охрана N/A";
+              }
+          } else if (route.containerType === "40HC") {
+              jdLine += formatDisplayCost(route.railCost40HC_RUB, 'RUB') || "N/A";
+              const guardCostFormatted = formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB');
+              if (guardCostFormatted && guardCostFormatted !== 'N/A') {
+                  jdLine += " + Охрана " + guardCostFormatted;
+                  if (route.railGuardCost40HC_RUB && route.railGuardCost40HC_RUB > 0) {
+                      jdLine += " (Если код подохранный)";
+                  }
+              } else if (route.railCost40HC_RUB !== null) {
+                  jdLine += " + Охрана N/A";
+              }
+          }
+      }
+      if (jdLine && jdLine !== "Ж/Д Составляющая: ") {
+          textToCopy += jdLine + "\n";
+      }
+      textToCopy += "Прием и вывоз контейнера в режиме ГТД в пределах МКАД: 48 000 руб. с НДС 0%\n";
+
+    } else if (route.mode === 'direct_rail') {
+      textToCopy += "Direct Rail Option:\n";
+      textToCopy += `Agent: ${route.directRailAgentName || 'N/A'}\n`;
+      textToCopy += `Departure: ${route.originPort || 'N/A'}\n`; // originPort used for Departure City in DR
+      textToCopy += `Destination: ${route.seaDestinationPort || 'N/A'}\n`; // seaDestinationPort for Destination City in DR
+      textToCopy += `Border: ${route.directRailBorder || 'N/A'}\n`;
+      textToCopy += `Incoterms: ${route.directRailIncoterms || 'N/A'}\n`;
+      textToCopy += `Cost: ${formatDisplayCost(route.directRailPriceRUB, 'RUB')}\n`;
+      textToCopy += `ETD: ${route.directRailETD || 'N/A'}\n`;
+      if (route.directRailExcelCommentary) {
+        textToCopy += `Commentary: ${route.directRailExcelCommentary}\n`;
       }
     }
-    textToCopy += "\n";
-
-    const seaCostBaseForSum = route.seaCostUSD ?? 0;
-    let dropOffCostForSum = 0;
-    if (route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line')) {
-        dropOffCostForSum = route.dropOffCostUSD ?? 0; // Use numeric dropOffCostUSD for sum
-    }
-    const totalFreightCost = seaCostBaseForSum + dropOffCostForSum;
-
-    textToCopy += "Фрахт: " + formatDisplayCost(totalFreightCost > 0 ? totalFreightCost : null, 'USD') + "\n";
-
-    let jdLine = "";
-    if (route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0]))) {
-        jdLine = "Ж/Д Составляющая: ";
-        if (route.containerType === "20DC") {
-            let costsParts = [];
-            if (route.railCost20DC_24t_RUB !== null) costsParts.push(formatDisplayCost(route.railCost20DC_24t_RUB, 'RUB') + " (<24t)");
-            if (route.railCost20DC_28t_RUB !== null) costsParts.push(formatDisplayCost(route.railCost20DC_28t_RUB, 'RUB') + " (<28t)");
-            jdLine += costsParts.join(' / ') || "N/A";
-
-            const guardCostFormatted = formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB');
-            if (guardCostFormatted && guardCostFormatted !== 'N/A') {
-                jdLine += " + Охрана " + guardCostFormatted;
-                if (route.railGuardCost20DC_RUB && route.railGuardCost20DC_RUB > 0) {
-                     jdLine += " (Если код подохранный)";
-                }
-            } else if (costsParts.length > 0) {
-                jdLine += " + Охрана N/A";
-            }
-        } else if (route.containerType === "40HC") {
-            jdLine += formatDisplayCost(route.railCost40HC_RUB, 'RUB') || "N/A";
-            const guardCostFormatted = formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB');
-            if (guardCostFormatted && guardCostFormatted !== 'N/A') {
-                jdLine += " + Охрана " + guardCostFormatted;
-                if (route.railGuardCost40HC_RUB && route.railGuardCost40HC_RUB > 0) {
-                    jdLine += " (Если код подохранный)";
-                }
-            } else if (route.railCost40HC_RUB !== null) {
-                jdLine += " + Охрана N/A";
-            }
-        }
-    }
-
-    if (jdLine && jdLine !== "Ж/Д Составляющая: ") {
-        textToCopy += jdLine + "\n";
-    }
-
-    textToCopy += "Прием и вывоз контейнера в режиме ГТД в пределах МКАД: 48 000 руб. с НДС 0%\n";
 
     try {
       await navigator.clipboard.writeText(textToCopy.trim());
@@ -87,11 +99,16 @@ export default function BestPricesPage() {
   };
 
   const handleCreateInstructions = (route: BestPriceRoute) => {
+    if (route.mode === 'direct_rail') {
+        toast({ title: "Not Available", description: "Instructions creation is not available for Direct Rail routes yet." });
+        return;
+    }
+    // Sea+Rail logic remains
     const queryParams = new URLSearchParams();
     if (route.originPort) queryParams.set('originPort', route.originPort);
     if (route.seaDestinationPort) queryParams.set('destinationPort', route.seaDestinationPort);
     if (route.seaLineCompany) queryParams.set('seaLineCompany', route.seaLineCompany);
-    if (route.containerType) queryParams.set('containerType', route.containerType);
+    if (route.containerType && route.containerType !== 'N/A') queryParams.set('containerType', route.containerType);
     if (route.seaComment) queryParams.set('seaComment', route.seaComment);
 
     if (route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0]))) {
@@ -105,8 +122,8 @@ export default function BestPricesPage() {
       queryParams.set('seaCostFinal', route.seaCostUSD.toString()); 
     }
 
-    queryParams.set('seaMarginApplied', '0'); // For best price, margins are not applied from form
-    queryParams.set('railMarginApplied', '0'); // For best price, margins are not applied from form
+    queryParams.set('seaMarginApplied', '0'); 
+    queryParams.set('railMarginApplied', '0'); 
 
     if (route.containerType === "20DC") {
         if (route.railCost20DC_24t_RUB !== null) queryParams.set('railCostBase24t', route.railCost20DC_24t_RUB.toString());
@@ -122,10 +139,9 @@ export default function BestPricesPage() {
         if (route.railCost40HC_RUB !== null) queryParams.set('railCostFinal40HC', route.railCost40HC_RUB.toString());
     }
 
-    // For dropOffCostDisplayValue, we send the numeric part if available, or the string if that's all we have
     if (route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line')) {
-        if (route.dropOffDisplayValue) { // This is the raw string like "$ X/$ Y" or a formatted number string
-             queryParams.set('dropOffCost', route.dropOffDisplayValue); // Send the display value
+        if (route.dropOffDisplayValue) { 
+             queryParams.set('dropOffCost', route.dropOffDisplayValue); 
         } else if (route.dropOffCostUSD !== null && route.dropOffCostUSD !== undefined) {
             queryParams.set('dropOffCost', route.dropOffCostUSD.toString());
         }
@@ -134,7 +150,7 @@ export default function BestPricesPage() {
     if (route.dropOffComment && route.shipmentType === "COC") {
       queryParams.set('dropOffComment', route.dropOffComment);
     }
-    if (route.shipmentType) queryParams.set('shipmentType', route.shipmentType);
+    if (route.shipmentType && route.shipmentType !== 'N/A') queryParams.set('shipmentType', route.shipmentType);
     if (route.socComment) queryParams.set('socComment', route.socComment);
 
     router.push("/instructions?" + queryParams.toString());
@@ -165,21 +181,34 @@ export default function BestPricesPage() {
     );
   }
 
+  const isDirectRailMode = bestPriceResults.some(r => r.mode === 'direct_rail');
+  const formModeText = isDirectRailMode ? "Direct Rail" : "Sea+Rail";
+
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-primary flex items-center">
             <ListOrdered className="mr-3 h-8 w-8 text-accent" />
-            Best {bestPriceResults.length} Shipping Options
+            Best {bestPriceResults.length} {formModeText} Options
           </h1>
           {cachedFormValues && (
              <p className="text-muted-foreground mt-1">
-              Based on: Origin <strong>{cachedFormValues.originPort || 'N/A'}</strong>,
-              Container <strong>{cachedFormValues.containerType || 'N/A'}</strong>,
-              Shipment <strong>{cachedFormValues.shipmentType || 'N/A'}</strong>
-              {cachedFormValues.russianDestinationCity && (
-                <>, Final Dest. City <strong>{cachedFormValues.russianDestinationCity}</strong></>
+              Based on: {isDirectRailMode ? (
+                <>
+                 Departure <strong>{cachedFormValues.directRailCityOfDeparture || 'N/A'}</strong>, 
+                 Destination <strong>{cachedFormValues.directRailDestinationCityDR || 'N/A'}</strong>,
+                 Incoterms <strong>{cachedFormValues.directRailIncoterms || 'N/A'}</strong>
+                </>
+              ) : (
+                <>
+                  Origin <strong>{cachedFormValues.originPort || 'N/A'}</strong>,
+                  Container <strong>{cachedFormValues.containerType || 'N/A'}</strong>,
+                  Shipment <strong>{cachedFormValues.shipmentType || 'N/A'}</strong>
+                  {cachedFormValues.russianDestinationCity && (
+                    <>, Final Dest. City <strong>{cachedFormValues.russianDestinationCity}</strong></>
+                  )}
+                </>
               )}
             </p>
           )}
@@ -194,6 +223,9 @@ export default function BestPricesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {bestPriceResults.map((route, index) => {
             const dropOffToDisplay = route.dropOffDisplayValue || (route.dropOffCostUSD !== null && route.dropOffCostUSD !== undefined ? formatDisplayCost(route.dropOffCostUSD, 'USD') : null);
+            const agentOrSeaLineLabel = route.mode === 'direct_rail' ? 'Agent:' : 'Sea Line:';
+            const agentOrSeaLineValue = route.mode === 'direct_rail' ? route.directRailAgentName : route.seaLineCompany;
+            
             return (
           <Card key={route.id} className="shadow-xl rounded-xl overflow-hidden flex flex-col bg-card border border-border hover:shadow-2xl transition-shadow duration-300">
             <CardHeader className="pb-4 bg-muted/30 border-b">
@@ -201,34 +233,51 @@ export default function BestPricesPage() {
                 Option {index + 1}
               </CardTitle>
               <CardDescription className="text-xs mt-1">
-                Route: {route.originPort} <Ship className="inline h-3 w-3 mx-0.5 text-muted-foreground" /> {route.seaDestinationPort}
-                {route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0])) && <> <Train className="inline h-3 w-3 mx-0.5 text-muted-foreground" /> {route.russianDestinationCity} {route.railArrivalStation ? ("(" + route.railArrivalStation + ")") : ''} </>}
-                 {route.seaLineCompany && <span className="block mt-1">Sea Line: <span className="font-medium">{route.seaLineCompany}</span></span>}
+                {route.mode === 'sea_plus_rail' ? (
+                    <>
+                    Route: {route.originPort} <Ship className="inline h-3 w-3 mx-0.5 text-muted-foreground" /> {route.seaDestinationPort}
+                    {route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0])) && <> <Train className="inline h-3 w-3 mx-0.5 text-muted-foreground" /> {route.russianDestinationCity} {route.railArrivalStation ? ("(" + route.railArrivalStation + ")") : ''} </>}
+                    </>
+                ) : ( // Direct Rail
+                    <>
+                    Route: {route.originPort} <Train className="inline h-3 w-3 mx-0.5 text-muted-foreground" /> {route.seaDestinationPort}
+                    </>
+                )}
+                 {agentOrSeaLineValue && <span className="block mt-1">{agentOrSeaLineLabel} <span className="font-medium">{agentOrSeaLineValue}</span></span>}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-3 text-sm flex-grow flex flex-col justify-between">
               <div>
                 {/* Route Details Section */}
                 <div className="grid grid-cols-[max-content_1fr] gap-x-2 gap-y-0.5 mb-3">
-                  <p className="font-medium text-muted-foreground">Origin Port:</p><p className="text-right">{route.originPort || 'N/A'}</p>
-                  <p className="font-medium text-muted-foreground">Sea Destination:</p><p className="text-right">{route.seaDestinationPort || 'N/A'}</p>
-                  {route.seaLineCompany && (
+                  <p className="font-medium text-muted-foreground">{route.mode === 'direct_rail' ? 'Departure City:' : 'Origin Port:'}</p><p className="text-right">{route.originPort || 'N/A'}</p>
+                  <p className="font-medium text-muted-foreground">{route.mode === 'direct_rail' ? 'Destination City:' : 'Sea Destination:'}</p><p className="text-right">{route.seaDestinationPort || 'N/A'}</p>
+                  
+                  {agentOrSeaLineValue && (
                     <>
-                      <p className="font-medium text-muted-foreground">Sea Line:</p><p className="text-right">{route.seaLineCompany}</p>
+                      <p className="font-medium text-muted-foreground">{agentOrSeaLineLabel}</p><p className="text-right">{agentOrSeaLineValue}</p>
                     </>
                   )}
-                  <p className="font-medium text-muted-foreground">Container Type:</p><p className="text-right">{route.containerType || 'N/A'}</p>
-                  {route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0])) && (
+                  <p className="font-medium text-muted-foreground">Container Type:</p><p className="text-right">{route.containerType && route.containerType !== 'N/A' ? route.containerType : '40HC'}</p>
+                  
+                  {route.mode === 'direct_rail' && (
                     <>
-                      <p className="font-medium text-muted-foreground">Destination City:</p><p className="text-right">{route.russianDestinationCity}</p>
+                      {route.directRailBorder && <><p className="font-medium text-muted-foreground">Border:</p><p className="text-right">{route.directRailBorder}</p></>}
+                      {route.directRailIncoterms && <><p className="font-medium text-muted-foreground">Incoterms:</p><p className="text-right">{route.directRailIncoterms}</p></>}
                     </>
                   )}
-                  {route.railDepartureStation && (
+
+                  {route.mode === 'sea_plus_rail' && route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0])) && (
+                    <>
+                      <p className="font-medium text-muted-foreground">Destination City (Rail):</p><p className="text-right">{route.russianDestinationCity}</p>
+                    </>
+                  )}
+                  {route.mode === 'sea_plus_rail' && route.railDepartureStation && (
                     <>
                       <p className="font-medium text-muted-foreground">Rail Dep. Station:</p><p className="text-right">{route.railDepartureStation}</p>
                     </>
                   )}
-                  {route.railArrivalStation && (
+                  {route.mode === 'sea_plus_rail' && route.railArrivalStation && (
                      <>
                       <p className="font-medium text-muted-foreground">Rail Arr. Station:</p><p className="text-right">{route.railArrivalStation}</p>
                     </>
@@ -241,74 +290,99 @@ export default function BestPricesPage() {
                     Cost Breakdown
                   </h4>
                   <div className="space-y-1">
-                    {route.seaCostUSD !== null && (
-                      <p className="flex justify-between">
-                        <span>Sea Freight Cost:</span>
-                        <span className="font-semibold text-primary">{formatDisplayCost(route.seaCostUSD, 'USD')}</span>
-                      </p>
-                    )}
-                    {route.seaComment && (
-                      <p className="flex justify-between items-start">
-                        <span>Sea Route Comment:</span>
-                        <span className="text-xs text-destructive text-right ml-2">{route.seaComment}</span>
-                      </p>
-                    )}
-                    {route.socComment && route.shipmentType === "SOC" && (
-                        <p className="flex justify-between items-start">
-                            <span>SOC Comment:</span>
-                            <span className="text-xs text-muted-foreground text-right ml-2">{route.socComment}</span>
-                        </p>
-                    )}
+                    {route.mode === 'sea_plus_rail' ? (
+                        <>
+                            {route.seaCostUSD !== null && (
+                            <p className="flex justify-between">
+                                <span>Sea Freight Cost:</span>
+                                <span className="font-semibold text-primary">{formatDisplayCost(route.seaCostUSD, 'USD')}</span>
+                            </p>
+                            )}
+                            {route.seaComment && (
+                            <p className="flex justify-between items-start">
+                                <span>Sea Route Comment:</span>
+                                <span className="text-xs text-destructive text-right ml-2">{route.seaComment}</span>
+                            </p>
+                            )}
+                            {route.socComment && route.shipmentType === "SOC" && (
+                                <p className="flex justify-between items-start">
+                                    <span>SOC Comment:</span>
+                                    <span className="text-xs text-muted-foreground text-right ml-2">{route.socComment}</span>
+                                </p>
+                            )}
 
-                    {route.containerType === "20DC" && (
-                      <>
-                        {route.railCost20DC_24t_RUB !== null && (
-                          <p className="flex justify-between">
-                            <span>Rail Freight Cost (20DC &lt;24t):</span>
-                            <span className="font-semibold text-primary">{formatDisplayCost(route.railCost20DC_24t_RUB, 'RUB')}</span>
-                          </p>
-                        )}
-                        {route.railCost20DC_28t_RUB !== null && (
-                          <p className="flex justify-between">
-                            <span>Rail Freight Cost (20DC &lt;28t):</span>
-                            <span className="font-semibold text-primary">{formatDisplayCost(route.railCost20DC_28t_RUB, 'RUB')}</span>
-                          </p>
-                        )}
-                        {route.railGuardCost20DC_RUB !== null && (
-                          <p className="flex justify-between">
-                            <span>Rail Guard Cost (20DC):</span>
-                            <span className="font-semibold text-primary">{formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB')}</span>
-                          </p>
-                        )}
-                      </>
-                    )}
-                    {route.containerType === "40HC" && (
-                      <>
-                        {route.railCost40HC_RUB !== null && (
-                          <p className="flex justify-between">
-                            <span>Rail Freight Cost (40HC):</span>
-                            <span className="font-semibold text-primary">{formatDisplayCost(route.railCost40HC_RUB, 'RUB')}</span>
-                          </p>
-                        )}
-                        {route.railGuardCost40HC_RUB !== null && (
-                          <p className="flex justify-between">
-                            <span>Rail Guard Cost (40HC):</span>
-                            <span className="font-semibold text-primary">{formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB')}</span>
-                          </p>
-                        )}
-                      </>
-                    )}
-                     {dropOffToDisplay && route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line') && (
-                        <p className="flex justify-between">
-                            <span>Drop Off Cost:</span>
-                            <span className="font-semibold text-primary">{dropOffToDisplay}</span>
-                        </p>
-                    )}
-                    {route.dropOffComment && route.shipmentType === "COC" && (
-                      <p className="flex justify-between items-start">
-                        <span>Drop Off Comment:</span>
-                        <span className="text-xs text-destructive text-right ml-2">{route.dropOffComment}</span>
-                      </p>
+                            {route.containerType === "20DC" && (
+                            <>
+                                {route.railCost20DC_24t_RUB !== null && (
+                                <p className="flex justify-between">
+                                    <span>Rail Freight Cost (20DC &lt;24t):</span>
+                                    <span className="font-semibold text-primary">{formatDisplayCost(route.railCost20DC_24t_RUB, 'RUB')}</span>
+                                </p>
+                                )}
+                                {route.railCost20DC_28t_RUB !== null && (
+                                <p className="flex justify-between">
+                                    <span>Rail Freight Cost (20DC &lt;28t):</span>
+                                    <span className="font-semibold text-primary">{formatDisplayCost(route.railCost20DC_28t_RUB, 'RUB')}</span>
+                                </p>
+                                )}
+                                {route.railGuardCost20DC_RUB !== null && (
+                                <p className="flex justify-between">
+                                    <span>Rail Guard Cost (20DC):</span>
+                                    <span className="font-semibold text-primary">{formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB')}</span>
+                                </p>
+                                )}
+                            </>
+                            )}
+                            {route.containerType === "40HC" && (
+                            <>
+                                {route.railCost40HC_RUB !== null && (
+                                <p className="flex justify-between">
+                                    <span>Rail Freight Cost (40HC):</span>
+                                    <span className="font-semibold text-primary">{formatDisplayCost(route.railCost40HC_RUB, 'RUB')}</span>
+                                </p>
+                                )}
+                                {route.railGuardCost40HC_RUB !== null && (
+                                <p className="flex justify-between">
+                                    <span>Rail Guard Cost (40HC):</span>
+                                    <span className="font-semibold text-primary">{formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB')}</span>
+                                </p>
+                                )}
+                            </>
+                            )}
+                            {dropOffToDisplay && route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line') && (
+                                <p className="flex justify-between">
+                                    <span>Drop Off Cost:</span>
+                                    <span className="font-semibold text-primary">{dropOffToDisplay}</span>
+                                </p>
+                            )}
+                            {route.dropOffComment && route.shipmentType === "COC" && (
+                            <p className="flex justify-between items-start">
+                                <span>Drop Off Comment:</span>
+                                <span className="text-xs text-destructive text-right ml-2">{route.dropOffComment}</span>
+                            </p>
+                            )}
+                        </>
+                    ) : ( // Direct Rail cost display
+                        <>
+                            {route.directRailPriceRUB !== null && (
+                            <p className="flex justify-between">
+                                <span>Direct Rail Cost:</span>
+                                <span className="font-semibold text-primary">{formatDisplayCost(route.directRailPriceRUB, 'RUB')}</span>
+                            </p>
+                            )}
+                             {route.directRailETD && (
+                            <p className="flex justify-between">
+                                <span>ETD:</span>
+                                <span className="text-primary">{route.directRailETD}</span>
+                            </p>
+                            )}
+                            {route.directRailExcelCommentary && (
+                            <p className="flex justify-between items-start">
+                                <span>Excel Commentary:</span>
+                                <span className="text-xs text-muted-foreground text-right ml-2">{route.directRailExcelCommentary}</span>
+                            </p>
+                            )}
+                        </>
                     )}
                   </div>
                 </div>
@@ -327,6 +401,7 @@ export default function BestPricesPage() {
                   variant="default"
                   className="w-full flex-1"
                   size="sm"
+                  disabled={route.mode === 'direct_rail'}
                 >
                   <Edit3 className="mr-2 h-4 w-4" /> Create Instructions
                 </Button>

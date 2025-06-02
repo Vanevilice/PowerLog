@@ -321,7 +321,9 @@ export async function processDirectRailCalculation({
       directRailCost: matchedDirectRailEntry.price, directRailETD: matchedDirectRailEntry.etd,
       directRailCommentary: matchedDirectRailEntry.commentary, directRailAgentName: matchedDirectRailEntry.agentName,
       directRailIncoterms: matchedDirectRailEntry.incoterms,
-      commentary: "Direct rail price from " + matchedDirectRailEntry.cityOfDeparture + " to " + matchedDirectRailEntry.destinationCity + " via " + matchedDirectRailEntry.border + " with agent " + matchedDirectRailEntry.agentName + " (Incoterms: " + matchedDirectRailEntry.incoterms + "). ETD: " + (matchedDirectRailEntry.etd || 'N/A') + ". " + (matchedDirectRailEntry.commentary || ""),
+      // For Direct Rail, "commentary" is the AI commentary if we decide to generate one.
+      // For now, we can use the Excel commentary or a constructed one.
+      commentary: `Direct rail price from ${matchedDirectRailEntry.cityOfDeparture} to ${matchedDirectRailEntry.destinationCity} via ${matchedDirectRailEntry.border} with agent ${matchedDirectRailEntry.agentName} (Incoterms: ${matchedDirectRailEntry.incoterms}). ETD: ${matchedDirectRailEntry.etd || 'N/A'}. ${matchedDirectRailEntry.commentary || ""}`,
     };
     setShippingInfo(result);
     setCachedShippingInfo(result);
@@ -354,7 +356,7 @@ export function calculateBestPrice({
   const {
     excelRouteData, excelSOCRouteData, excelRailData, excelDropOffData,
     excelDestinationPorts, excelRussianDestinationCitiesMasterList, excelDirectRailData,
-    calculationMode, // Get current calculation mode from context
+    calculationMode, 
   } = context;
 
   setIsCalculatingBestPrice(true);
@@ -529,26 +531,26 @@ export function calculateBestPrice({
         entry.cityOfDeparture.toLowerCase() === directRailCityOfDeparture.toLowerCase() &&
         entry.destinationCity.toLowerCase() === directRailDestinationCityDR.toLowerCase() &&
         entry.incoterms.toLowerCase() === directRailIncoterms.toLowerCase() &&
-        entry.price !== null // Ensure there's a price
+        entry.price !== null 
       ) {
         const routeEntry: BestPriceRoute = {
           id: "droute-" + routeIdCounter++,
           mode: 'direct_rail',
-          shipmentType: 'N/A', // Or a suitable default if Direct Rail implies FCL
-          originPort: entry.cityOfDeparture, // Using originPort for departure city
-          seaDestinationPort: entry.destinationCity, // Using seaDestinationPort for destination city
-          seaLineCompany: entry.agentName, // Using seaLineCompany for agent name
-          containerType: 'N/A', // Container type not specified for direct rail best price lookup
+          shipmentType: 'N/A', 
+          originPort: entry.cityOfDeparture, 
+          seaDestinationPort: entry.destinationCity, 
+          seaLineCompany: entry.agentName, 
+          containerType: '40HC', // Default to 40HC for Direct Rail best price
           russianDestinationCity: entry.destinationCity,
           railDepartureStation: entry.departureStation,
-          railArrivalStation: entry.destinationCity, // Assuming destination city is the arrival point
+          railArrivalStation: entry.destinationCity, 
           seaCostUSD: null,
-          totalComparisonCostRUB: entry.price,
-          // Direct Rail specific fields
+          totalComparisonCostRUB: entry.price, // This is the primary cost for sorting and comparison
+          
           directRailAgentName: entry.agentName,
           directRailIncoterms: entry.incoterms,
           directRailBorder: entry.border,
-          directRailPriceRUB: entry.price,
+          directRailPriceRUB: entry.price, 
           directRailETD: entry.etd,
           directRailExcelCommentary: entry.commentary,
         };
@@ -569,3 +571,6 @@ export function calculateBestPrice({
   }
   setIsCalculatingBestPrice(false);
 }
+
+
+    
