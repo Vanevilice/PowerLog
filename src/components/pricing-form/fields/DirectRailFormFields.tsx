@@ -13,9 +13,9 @@ interface DirectRailFormFieldsProps {
   // Master lists from context (for initial checks or if filtered list is empty)
   directRailDepartureCities: string[]; 
   directRailDestinationCitiesDR: string[];
-  masterAgentList: string[];
-  masterIncotermsList: string[];
-  masterBorderList: string[];
+  masterAgentList: string[]; // Master list of all agents from Excel
+  masterIncotermsList: string[]; // Master list of all incoterms from Excel
+  masterBorderList: string[]; // Master list of all borders from Excel
   // Filtered lists from context (for dropdown options)
   localAvailableDirectRailAgents: string[];
   localAvailableDirectRailIncoterms: string[];
@@ -26,14 +26,14 @@ export const DirectRailFormFields: React.FC<DirectRailFormFieldsProps> = ({
   form,
   isParsingDirectRailFile,
   isDirectRailExcelDataLoaded,
-  directRailDepartureCities, // Master list
-  directRailDestinationCitiesDR, // Master list
-  masterAgentList, // Master list
-  masterIncotermsList, // Master list
-  masterBorderList, // Master list
-  localAvailableDirectRailAgents, // Filtered list
-  localAvailableDirectRailIncoterms, // Filtered list
-  localAvailableDirectRailBorders, // Filtered list
+  directRailDepartureCities, 
+  directRailDestinationCitiesDR, 
+  masterAgentList, 
+  masterIncotermsList,
+  masterBorderList,
+  localAvailableDirectRailAgents, 
+  localAvailableDirectRailIncoterms, 
+  localAvailableDirectRailBorders, 
 }) => {
   const { control, watch } = form;
   const watchedDepCity = watch("directRailCityOfDeparture");
@@ -45,24 +45,25 @@ export const DirectRailFormFields: React.FC<DirectRailFormFieldsProps> = ({
     if (isParsingDirectRailFile) return "Processing...";
     if (!isDirectRailExcelDataLoaded) return "Upload Прямое ЖД Excel";
     if (!watchedDepCity || !watchedDestCity) return "Select Departure & Destination Cities";
-    if (localAvailableDirectRailAgents.length > 0) return "Select agent";
-    return masterAgentList.length > 0 ? "No agents for selected cities" : "No agents in Excel";
+    if (localAvailableDirectRailAgents.length > 0) return "Select agent (optional)";
+    return masterAgentList.length > 0 ? "No agents for current selection" : "No agents in Excel";
   };
 
   const getIncotermsPlaceholder = () => {
     if (isParsingDirectRailFile) return "Processing...";
     if (!isDirectRailExcelDataLoaded) return "Upload Прямое ЖД Excel";
-    if (!watchedDepCity || !watchedDestCity || !watchedAgent) return "Select Cities & Agent";
+    if (!watchedDepCity || !watchedDestCity) return "Select Departure & Destination Cities";
     if (localAvailableDirectRailIncoterms.length > 0) return "Select incoterms";
-    return masterIncotermsList.length > 0 ? "No incoterms for selection" : "No incoterms in Excel";
+    return masterIncotermsList.length > 0 ? "No incoterms for current selection" : "No incoterms in Excel";
   };
 
   const getBorderPlaceholder = () => {
     if (isParsingDirectRailFile) return "Processing...";
     if (!isDirectRailExcelDataLoaded) return "Upload Прямое ЖД Excel";
-    if (!watchedDepCity || !watchedDestCity || !watchedAgent || !watchedIncoterms) return "Select Cities, Agent & Incoterms";
+    if (!watchedDepCity || !watchedDestCity || !watchedIncoterms ) return "Select Cities & Incoterms";
+     // Agent is optional for border selection now if not chosen
     if (localAvailableDirectRailBorders.length > 0) return "Select border";
-    return masterBorderList.length > 0 ? "No borders for selection" : "No borders in Excel";
+    return masterBorderList.length > 0 ? "No borders for current selection" : "No borders in Excel";
   };
 
 
@@ -111,11 +112,11 @@ export const DirectRailFormFields: React.FC<DirectRailFormFieldsProps> = ({
         name="directRailAgentName"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="flex items-center"><Users className="mr-2 h-4 w-4 text-primary" /> Agent name</FormLabel>
+            <FormLabel className="flex items-center"><Users className="mr-2 h-4 w-4 text-primary" /> Agent name (optional)</FormLabel>
             <Select 
               onValueChange={field.onChange} 
               value={field.value || ""} 
-              disabled={isParsingDirectRailFile || !isDirectRailExcelDataLoaded || !watchedDepCity || !watchedDestCity || (localAvailableDirectRailAgents.length === 0 && masterAgentList.length === 0)}
+              disabled={isParsingDirectRailFile || !isDirectRailExcelDataLoaded || !watchedDepCity || !watchedDestCity || (localAvailableDirectRailAgents.length === 0 && masterAgentList.length === 0 && !watchedIncoterms)}
             >
               <FormControl><SelectTrigger><SelectValue placeholder={getAgentPlaceholder()} /></SelectTrigger></FormControl>
               <SelectContent>
@@ -123,7 +124,7 @@ export const DirectRailFormFields: React.FC<DirectRailFormFieldsProps> = ({
                 {isParsingDirectRailFile && <SelectItem value="parsing_agents" disabled>Loading agents...</SelectItem>}
                 {!isParsingDirectRailFile && !isDirectRailExcelDataLoaded && <SelectItem value="upload_excel_agents" disabled>Upload Прямое ЖД Excel</SelectItem>}
                 {!isParsingDirectRailFile && isDirectRailExcelDataLoaded && (!watchedDepCity || !watchedDestCity) && <SelectItem value="select_cities_agents" disabled>Select Departure & Destination Cities</SelectItem>}
-                {!isParsingDirectRailFile && isDirectRailExcelDataLoaded && watchedDepCity && watchedDestCity && localAvailableDirectRailAgents.length === 0 && masterAgentList.length > 0 && <SelectItem value="no_agents_for_cities" disabled>No agents for selected cities</SelectItem>}
+                {!isParsingDirectRailFile && isDirectRailExcelDataLoaded && watchedDepCity && watchedDestCity && localAvailableDirectRailAgents.length === 0 && masterAgentList.length > 0 && <SelectItem value="no_agents_for_cities_or_incoterm" disabled>No agents for current selection</SelectItem>}
                 {!isParsingDirectRailFile && isDirectRailExcelDataLoaded && masterAgentList.length === 0 && <SelectItem value="no_agents_in_excel" disabled>No agents in Excel</SelectItem>}
               </SelectContent>
             </Select>
@@ -140,15 +141,15 @@ export const DirectRailFormFields: React.FC<DirectRailFormFieldsProps> = ({
             <Select 
               onValueChange={field.onChange} 
               value={field.value || ""} 
-              disabled={isParsingDirectRailFile || !isDirectRailExcelDataLoaded || !watchedAgent || (localAvailableDirectRailIncoterms.length === 0 && masterIncotermsList.length === 0)}
+              disabled={isParsingDirectRailFile || !isDirectRailExcelDataLoaded || !watchedDepCity || !watchedDestCity || (localAvailableDirectRailIncoterms.length === 0 && masterIncotermsList.length === 0 && !watchedAgent)}
             >
               <FormControl><SelectTrigger><SelectValue placeholder={getIncotermsPlaceholder()} /></SelectTrigger></FormControl>
               <SelectContent>
                 {localAvailableDirectRailIncoterms.map(term => <SelectItem key={'dr-inco-' + term} value={term}>{term}</SelectItem>)}
                 {isParsingDirectRailFile && <SelectItem value="parsing_incoterms" disabled>Loading incoterms...</SelectItem>}
                 {!isParsingDirectRailFile && !isDirectRailExcelDataLoaded && <SelectItem value="upload_excel_incoterms" disabled>Upload Прямое ЖД Excel</SelectItem>}
-                {!isParsingDirectRailFile && isDirectRailExcelDataLoaded && !watchedAgent && <SelectItem value="select_agent_incoterms" disabled>Select Agent first</SelectItem>}
-                {!isParsingDirectRailFile && isDirectRailExcelDataLoaded && watchedAgent && localAvailableDirectRailIncoterms.length === 0 && masterIncotermsList.length > 0 && <SelectItem value="no_incoterms_for_selection" disabled>No incoterms for selection</SelectItem>}
+                {!isParsingDirectRailFile && isDirectRailExcelDataLoaded && (!watchedDepCity || !watchedDestCity) && <SelectItem value="select_cities_incoterms" disabled>Select Departure & Destination Cities</SelectItem>}
+                {!isParsingDirectRailFile && isDirectRailExcelDataLoaded && watchedDepCity && watchedDestCity && localAvailableDirectRailIncoterms.length === 0 && masterIncotermsList.length > 0 && <SelectItem value="no_incoterms_for_selection" disabled>No incoterms for current selection</SelectItem>}
                 {!isParsingDirectRailFile && isDirectRailExcelDataLoaded && masterIncotermsList.length === 0 && <SelectItem value="no_incoterms_in_excel" disabled>No incoterms in Excel</SelectItem>}
               </SelectContent>
             </Select>
@@ -173,7 +174,7 @@ export const DirectRailFormFields: React.FC<DirectRailFormFieldsProps> = ({
                 {isParsingDirectRailFile && <SelectItem value="parsing_borders" disabled>Loading borders...</SelectItem>}
                 {!isParsingDirectRailFile && !isDirectRailExcelDataLoaded && <SelectItem value="upload_excel_borders" disabled>Upload Прямое ЖД Excel</SelectItem>}
                 {!isParsingDirectRailFile && isDirectRailExcelDataLoaded && !watchedIncoterms && <SelectItem value="select_incoterms_borders" disabled>Select Incoterms first</SelectItem>}
-                {!isParsingDirectRailFile && isDirectRailExcelDataLoaded && watchedIncoterms && localAvailableDirectRailBorders.length === 0 && masterBorderList.length > 0 && <SelectItem value="no_borders_for_selection" disabled>No borders for selection</SelectItem>}
+                {!isParsingDirectRailFile && isDirectRailExcelDataLoaded && watchedIncoterms && localAvailableDirectRailBorders.length === 0 && masterBorderList.length > 0 && <SelectItem value="no_borders_for_selection" disabled>No borders for current selection</SelectItem>}
                 {!isParsingDirectRailFile && isDirectRailExcelDataLoaded && masterBorderList.length === 0 && <SelectItem value="no_borders_in_excel" disabled>No borders in Excel</SelectItem>}
               </SelectContent>
             </Select>
@@ -184,5 +185,3 @@ export const DirectRailFormFields: React.FC<DirectRailFormFieldsProps> = ({
     </>
   );
 };
-
-    
