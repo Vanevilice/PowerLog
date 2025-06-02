@@ -4,7 +4,7 @@ import type { DashboardServiceSection, DashboardServiceDataRow, RailwayLegData }
 import { formatDashboardRate, parseContainerInfoCell } from './utils';
 import { isFobOrFiRow, isCyRowByColD, isCyInColA, isPotentialServiceHeaderRow } from './row-identifier';
 
-// --- Helper functions to process individual row types (largely unchanged, but ensure initialization) ---
+// --- Helper functions to process individual row types ---
 
 function processFobOrFiRow(rowArray: any[], excelRowNum: number): DashboardServiceDataRow | null {
   const firstCell = String(rowArray[0] || '').trim();
@@ -56,13 +56,14 @@ function processRailwayLegRow(rowArray: any[], excelRowNum: number): RailwayLegD
   }
   const finalComment = legComment.trim();
 
-  const hasOrigin = originInfoRaw !== '';
+  // A railway leg is valid if any of its key fields have meaningful data.
+  const hasOrigin = originInfoRaw !== '' && originInfoRaw.toLowerCase() !== 'n/a';
   const hasCost = costFormatted !== 'N/A';
   const hasContainer = legContainerType !== 'N/A';
   const hasComment = finalComment !== '' && finalComment !== '-';
 
   if (!hasOrigin && !hasCost && !hasContainer && !hasComment) {
-    // console.log(`[processRailwayLegRow - Row ${excelRowNum}] Considered empty, returning null.`);
+    // console.log(`[processRailwayLegRow - Row ${excelRowNum}] Considered empty (all fields N/A or blank), returning null.`);
     return null;
   }
 
@@ -74,7 +75,7 @@ function processRailwayLegRow(rowArray: any[], excelRowNum: number): RailwayLegD
   };
 }
 
-// --- New Two-Pass Parsing Logic ---
+// --- Two-Pass Parsing Logic ---
 
 type ParsedRowItem =
   | { type: 'header'; serviceName: string; originalRowIndex: number }
@@ -119,7 +120,6 @@ function classifyAndParseAllRows(rawData: any[][]): ParsedRowItem[] {
         typedRows.push({ type: 'fobFi', data: fobFiData, originalRowIndex: index });
         // console.log(`[Pass 1 - Row ${excelRowNum}]: Classified as FOB/FI. Route: "${fobFiData.route}"`);
       } else {
-        // This case should ideally not happen if isFobFiType is true, but as a fallback:
         typedRows.push({ type: 'blankOrOther', originalRowIndex: index });
         // console.warn(`[Pass 1 - Row ${excelRowNum}]: Identified as FOB/FI type, but processFobOrFiRow returned null. Classifying as blankOrOther.`);
       }
@@ -129,7 +129,6 @@ function classifyAndParseAllRows(rawData: any[][]): ParsedRowItem[] {
         typedRows.push({ type: 'railwayLeg', data: railwayLegData, originalRowIndex: index });
         // console.log(`[Pass 1 - Row ${excelRowNum}]: Classified as RAILWAY_LEG. Origin: "${railwayLegData.originInfo}"`);
       } else {
-        // This row looked like a CY row but processed to null, treat as other.
         typedRows.push({ type: 'blankOrOther', originalRowIndex: index });
         // console.log(`[Pass 1 - Row ${excelRowNum}]: Identified as CY_TYPE, but processRailwayLegRow returned null. Classifying as blankOrOther.`);
       }
@@ -143,32 +142,38 @@ function classifyAndParseAllRows(rawData: any[][]): ParsedRowItem[] {
 
 export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardServiceSection[] {
   const rawData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
-  // console.log(`[parseDashboardSheet] Raw data rows from Excel: ${rawData.length}`);
+  // console.log(`[DashboardParser] Raw data rows from Excel: ${rawData.length}`);
 
   const typedRowItems = classifyAndParseAllRows(rawData);
-  // console.log(`[parseDashboardSheet] Typed row items from Pass 1: ${typedRowItems.length}`);
+  // console.log(`[DashboardParser] Typed row items from Pass 1: ${typedRowItems.length}`);
+  // typedRowItems.forEach((item, idx) => console.log(`[Pass 1 Item ${idx} - Original Row ${item.originalRowIndex + 1}]: Type: ${item.type}`, item.type === 'fobFi' || item.type === 'railwayLeg' ? JSON.stringify(item.data) : ''));
+
 
   const parsedSections: DashboardServiceSection[] = [];
   let currentSection: DashboardServiceSection | null = null;
   let currentFobFiParentForRow: DashboardServiceDataRow | null = null;
 
   function finalizeCurrentSection() {
-    if (currentSection && currentSection.dataRows.length > 0) {
-      // console.log(`[Pass 2] >>> Finalizing section: "${currentSection.serviceName}" with ${currentSection.dataRows.length} FOB/FI rows.`);
-      // currentSection.dataRows.forEach((row, idx) => {
-      //   console.log(`  [FOB Row ${idx} in final section "${currentSection.serviceName}"] Route: '${row.route}', Railway Legs count: ${row.railwayLegs.length}`);
-      //   if (row.railwayLegs.length > 0) {
-      //      console.log(`    First leg for '${row.route}':`, JSON.stringify(row.railwayLegs[0]));
+    if (currentSection) {
+      // console.log(`[DashboardParser] Finalizing section: "${currentSection.serviceName}" with ${currentSection.dataRows.length} FOB/FI rows.`);
+      // currentSection.dataRows.forEach((dataRow, idx) => {
+      //   console.log(`  [FOB Row ${idx} in final section "${currentSection.serviceName}"] Route: '${dataRow.route}', Railway Legs count: ${dataRow.railwayLegs.length}`);
+      //   if (dataRow.railwayLegs.length > 0) {
+      //     dataRow.railwayLegs.forEach((leg, legIdx) => {
+      //       console.log(`    Leg ${legIdx}: Origin: ${leg.originInfo}, Cost: ${leg.cost}`);
+      //     });
       //   }
       // });
-      parsedSections.push(currentSection);
+      if (currentSection.dataRows.length > 0) { // Only push if it has data
+        parsedSections.push(currentSection);
+      }
     }
     currentSection = null;
     currentFobFiParentForRow = null;
   }
 
   typedRowItems.forEach((item) => {
-    const excelRowNum = item.originalRowIndex + 1;
+    const excelRowNum = item.originalRowIndex + 1; // For logging/debugging
     switch (item.type) {
       case 'header':
         finalizeCurrentSection(); // Finalize previous before starting new
@@ -181,13 +186,16 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
           currentSection = { serviceName: `Service Section (Implicit at row ${excelRowNum})`, dataRows: [] };
           // console.log(`[Pass 2 - Row ${excelRowNum}]: FOB/FI encountered. Implicit new section: "${currentSection.serviceName}".`);
         }
+        // item.data is the DashboardServiceDataRow object, already has railwayLegs: []
         currentSection.dataRows.push(item.data);
-        // IMPORTANT: currentFobFiParentForRow must refer to the object *inside* currentSection.dataRows
+        // CRITICAL: Get the reference to the object *just added* to the array.
         currentFobFiParentForRow = currentSection.dataRows[currentSection.dataRows.length - 1];
-        // console.log(`[Pass 2 - Row ${excelRowNum}]: FOB/FI processed. Route: "${item.data.route}". Set as currentFobFiParentForRow. Legs attached so far to this parent: ${currentFobFiParentForRow.railwayLegs.length}`);
+        // console.log(`[Pass 2 - Row ${excelRowNum}]: FOB/FI processed. Route: "${currentFobFiParentForRow.route}". Set as currentFobFiParentForRow. Parent has ${currentFobFiParentForRow.railwayLegs.length} legs (should be 0).`);
         break;
       case 'railwayLeg':
         if (currentFobFiParentForRow) {
+          // currentFobFiParentForRow DIRECTLY references an object in currentSection.dataRows.
+          // So, pushing to its railwayLegs should modify it in place.
           currentFobFiParentForRow.railwayLegs.push(item.data);
           // console.log(`[Pass 2 - Row ${excelRowNum}]: RAILWAY_LEG processed. Origin: "${item.data.originInfo}". Attached to parent: "${currentFobFiParentForRow.route}". Parent now has ${currentFobFiParentForRow.railwayLegs.length} legs.`);
         } else {
@@ -195,15 +203,16 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
         }
         break;
       case 'blankOrOther':
-        // Generally, blank lines do not reset the currentFobFiParentForRow context.
-        // It remains active until a new header or a new FOB/FI row changes it.
+        // Blank lines generally do not reset the currentFobFiParentForRow context in this two-pass approach.
+        // It means the next CY row will still attach to the previously set currentFobFiParentForRow.
+        // This is usually desired if there are blank lines between an FOB/FI row and its CY rows.
         // console.log(`[Pass 2 - Row ${excelRowNum}]: BLANK_OR_OTHER encountered. currentFobFiParentForRow ("${currentFobFiParentForRow?.route || 'null'}") maintained.`);
         break;
     }
   });
 
   finalizeCurrentSection(); // Finalize the very last section
-  // console.log(`[parseDashboardSheet] Finished Pass 2. Total sections structured: ${parsedSections.length}`);
+  // console.log(`[DashboardParser] Finished Pass 2. Total sections structured: ${parsedSections.length}`);
   return parsedSections;
 }
 
