@@ -6,7 +6,7 @@ import { generatePricingCommentary, type PricingCommentaryInput } from "@/ai/flo
 import type {
   RouteFormValues, CombinedAiOutput, PricingDataContextType, ExcelRoute, ExcelSOCRoute,
   RailDataEntry, DirectRailEntry, BestPriceRoute, CalculationDetailsForInstructions,
-  ShipmentType, ContainerType,
+  ShipmentType, ContainerType, ExcelSOCDropOffEntry, // Added ExcelSOCDropOffEntry
 } from '@/types';
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, USD_RUB_CONVERSION_RATE, DROP_OFF_TRIGGER_PHRASES } from './constants';
 
@@ -17,9 +17,9 @@ interface CalculationArgsBase {
   toast: ReturnType<typeof useToast>['toast'];
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
   setShippingInfo: React.Dispatch<React.SetStateAction<CombinedAiOutput | null>>;
-  setLastSuccessfulCalculation?: React.Dispatch<React.SetStateAction<CalculationDetailsForInstructions | null>>; // Made optional for direct rail
+  setLastSuccessfulCalculation?: React.Dispatch<React.SetStateAction<CalculationDetailsForInstructions | null>>;
   setCachedShippingInfo: PricingDataContextType['setCachedShippingInfo'];
-  setCachedLastSuccessfulCalculation?: PricingDataContextType['setCachedLastSuccessfulCalculation']; // Made optional for direct rail
+  setCachedLastSuccessfulCalculation?: PricingDataContextType['setCachedLastSuccessfulCalculation'];
 }
 
 interface SeaPriceInfo {
@@ -42,13 +42,22 @@ interface RailLegInfo {
   commentaryReason: string;
 }
 
-interface DropOffInfo {
+interface DropOffInfo { // For COC Drop-off
   costNumeric: number | null;
   displayValue: string | null;
   comment: string | null;
   dropOffLegFailed: boolean;
   commentaryReason: string;
 }
+
+interface SOCDropOffInfo { // For SOC Drop-off
+  costNumeric: number | null;
+  displayValue: string | null;
+  comment: string | null;
+  socDropOffLegFailed: boolean;
+  commentaryReason: string;
+}
+
 
 // --- Helper Functions ---
 
@@ -89,22 +98,21 @@ function findSeaPriceAndDetails(
       const isSeaLineMatch = actualSeaLine ? (Array.isArray(route.seaLines) && route.seaLines.includes(actualSeaLine)) : true;
       if (isSeaLineMatch) {
         const priceForContainer = containerType === "20DC" ? route[price20DCKey] : route[price40HCKey];
-        if (priceForContainer !== null && priceForContainer !== undefined) { // Check for undefined as well
+        if (priceForContainer !== null && priceForContainer !== undefined) {
           foundSeaPrice = priceForContainer;
           matchedSeaRouteInfo = route;
           if (shipmentType === "SOC") foundSocComment = (route as ExcelSOCRoute).socComment || null;
           else if (shipmentType === "COC") foundSeaComment = (route as ExcelRoute).seaComment || null;
           commentaryReason = ""; break;
-        } else if (!foundSeaPrice && !matchedSeaRouteInfo) { // Condition for first potential match without price
+        } else if (!foundSeaPrice && !matchedSeaRouteInfo) {
           matchedSeaRouteInfo = route;
           if (shipmentType === "SOC") foundSocComment = (route as ExcelSOCRoute).socComment || null;
           else if (shipmentType === "COC") foundSeaComment = (route as ExcelRoute).seaComment || null;
           commentaryReason = `Sea pricing for ${containerType} on ${shipmentType} route ${originPort} to ${destinationPort}${actualSeaLine ? ` via ${actualSeaLine}` : ""} is not available in Excel.`;
         }
       } else if (!actualSeaLine && !foundSeaPrice && !matchedSeaRouteInfo && Array.isArray(route.seaLines) && route.seaLines.length > 0) {
-        // This condition is for when no specific sea line is chosen, and we're looking for any priced route
         const priceForContainer = containerType === "20DC" ? route[price20DCKey] : route[price40HCKey];
-        if (priceForContainer === null && !matchedSeaRouteInfo) { // If price is null, and we haven't found any match yet
+        if (priceForContainer === null && !matchedSeaRouteInfo) {
           matchedSeaRouteInfo = route;
           if (shipmentType === "SOC") foundSocComment = (route as ExcelSOCRoute).socComment || null;
           else if (shipmentType === "COC") foundSeaComment = (route as ExcelRoute).seaComment || null;
@@ -205,7 +213,7 @@ function findRailLegDetails(
   return railInfo;
 }
 
-function findDropOffDetails(
+function findDropOffDetails( // COC Drop-off
   values: RouteFormValues,
   context: PricingDataContextType,
   cityForDropOffLookup: string,
@@ -213,7 +221,7 @@ function findDropOffDetails(
   currentCommentary: string
 ): DropOffInfo {
   const { shipmentType, seaLineCompany, containerType } = values;
-  const { excelDropOffData } = context;
+  const { excelDropOffData } = context; // COC Drop-off data
   const actualSeaLine = seaLineCompany === NONE_SEALINE_VALUE ? undefined : seaLineCompany;
 
   let dropOffInfo: DropOffInfo = {
@@ -221,7 +229,7 @@ function findDropOffDetails(
     dropOffLegFailed: false, commentaryReason: currentCommentary
   };
 
-  if (shipmentType !== "COC" || !actualSeaLine) { // Drop-off only for COC and if sea line is specified
+  if (shipmentType !== "COC" || !actualSeaLine) {
     return dropOffInfo;
   }
 
@@ -251,7 +259,7 @@ function findDropOffDetails(
           dropOffInfo.costNumeric = parseFirstNumberFromString(dropOffPriceRaw);
           if (dropOffInfo.costNumeric === null && dropOffPriceRaw.trim() !== "" && dropOffPriceRaw.trim().toLowerCase() !== "n/a") { 
             dropOffInfo.dropOffLegFailed = true;
-            dropOffInfo.commentaryReason += (dropOffInfo.commentaryReason ? " " : "") + `Drop-off charges for ${actualSeaLine} to ${cityForDropOffLookup} has an unparsable string price for ${containerType}: ${dropOffPriceRaw}.`;
+            dropOffInfo.commentaryReason += (dropOffInfo.commentaryReason ? " " : "") + `COC Drop-off charges for ${actualSeaLine} to ${cityForDropOffLookup} has an unparsable string price for ${containerType}: ${dropOffPriceRaw}.`;
           }
         } else if (typeof dropOffPriceRaw === 'number') {
           dropOffInfo.costNumeric = dropOffPriceRaw;
@@ -261,7 +269,7 @@ function findDropOffDetails(
       }
     }
     if (!dropOffEntryMatched) {
-      dropOffInfo.commentaryReason += (dropOffInfo.commentaryReason ? " " : "") + `Drop-off charges triggered for ${actualSeaLine} to ${cityForDropOffLookup}, but no matching drop-off pricing entry found.`;
+      dropOffInfo.commentaryReason += (dropOffInfo.commentaryReason ? " " : "") + `COC Drop-off charges triggered for ${actualSeaLine} to ${cityForDropOffLookup}, but no matching COC drop-off pricing entry found.`;
       dropOffInfo.dropOffLegFailed = true;
     }
   } else if (shouldAttemptDropOffLookup && isPandaLine) {
@@ -271,6 +279,65 @@ function findDropOffDetails(
   }
   return dropOffInfo;
 }
+
+function findSOCDropOffDetails( // SOC Drop-off (New Function)
+  values: RouteFormValues,
+  context: PricingDataContextType,
+  cityForDropOffLookup: string,
+  currentCommentary: string
+): SOCDropOffInfo {
+  const { seaLineCompany, containerType } = values;
+  const { excelSOCDropOffData, isSOCDropOffExcelDataLoaded } = context;
+  const actualSeaLine = seaLineCompany === NONE_SEALINE_VALUE ? undefined : seaLineCompany;
+
+  let socDropOffInfo: SOCDropOffInfo = {
+    costNumeric: null, displayValue: null, comment: null,
+    socDropOffLegFailed: false, commentaryReason: currentCommentary
+  };
+
+  if (!isSOCDropOffExcelDataLoaded || !actualSeaLine || !containerType || !cityForDropOffLookup) {
+    if (isSOCDropOffExcelDataLoaded && actualSeaLine && containerType && cityForDropOffLookup) { // Only add specific message if some params were there
+        socDropOffInfo.commentaryReason += (socDropOffInfo.commentaryReason ? " " : "") + `SOC Drop-off data not fully available or missing parameters.`;
+    }
+    socDropOffInfo.socDropOffLegFailed = true;
+    return socDropOffInfo;
+  }
+
+  let entryMatched = false;
+  const normalizedLookupCity = (cityForDropOffLookup.toLowerCase().replace(/^г\.\s*/, '') || "").trim();
+
+  for (const entry of excelSOCDropOffData) {
+    const seaLineMatch = entry.seaLine.toLowerCase().trim() === actualSeaLine.toLowerCase().trim();
+    const cityMatch = entry.destination.toLowerCase().replace(/^г\.\s*/, '').trim() === normalizedLookupCity;
+    const containerMatch = entry.containerType === containerType;
+
+    if (seaLineMatch && cityMatch && containerMatch) {
+      socDropOffInfo.comment = entry.comment || null;
+      const priceRaw = entry.price;
+
+      if (typeof priceRaw === 'string') {
+        socDropOffInfo.displayValue = priceRaw;
+        socDropOffInfo.costNumeric = parseFirstNumberFromString(priceRaw);
+        if (socDropOffInfo.costNumeric === null && priceRaw.trim() !== "" && priceRaw.trim().toLowerCase() !== "n/a") {
+          socDropOffInfo.socDropOffLegFailed = true;
+          socDropOffInfo.commentaryReason += (socDropOffInfo.commentaryReason ? " " : "") + `SOC Drop-off charges for ${actualSeaLine} to ${cityForDropOffLookup} (${containerType}) has an unparsable string price: ${priceRaw}.`;
+        }
+      } else if (typeof priceRaw === 'number') {
+        socDropOffInfo.costNumeric = priceRaw;
+        socDropOffInfo.displayValue = String(priceRaw);
+      }
+      entryMatched = true;
+      break;
+    }
+  }
+
+  if (!entryMatched) {
+    socDropOffInfo.commentaryReason += (socDropOffInfo.commentaryReason ? " " : "") + `No matching SOC Drop-off pricing found for ${actualSeaLine} to ${cityForDropOffLookup} (${containerType}).`;
+    socDropOffInfo.socDropOffLegFailed = true;
+  }
+  return socDropOffInfo;
+}
+
 
 async function callAiAndSetState(
   aiInputData: CombinedAiOutput, 
@@ -288,38 +355,44 @@ async function callAiAndSetState(
 
   if (noPricedComponents && finalCommentaryReason && aiInputData.originCity && aiInputData.destinationCity) {
     toast({ title: "Pricing Not Available", description: finalCommentaryReason, variant: "destructive" });
-    const pricingCommentaryInput: PricingCommentaryInput = {
-        originCity: aiInputData.originCity,
-        destinationCity: aiInputData.destinationCity,
-        containerType: aiInputData.containerType,
-        russianDestinationCity: aiInputData.russianDestinationCity
-    };
-    try {
-        const commentaryRes = await generatePricingCommentary(pricingCommentaryInput);
-        displayOutput.commentary = commentaryRes.commentary;
-    } catch (e) {
-        displayOutput.commentary = finalCommentaryReason; // Fallback to Excel parsing notes
+    // Only call for commentary if it's a sea+rail scenario and essential details are present
+    if (aiInputData.shipmentType && aiInputData.originCity && aiInputData.destinationCity) {
+        const pricingCommentaryInput: PricingCommentaryInput = {
+            originCity: aiInputData.originCity,
+            destinationCity: aiInputData.destinationCity,
+            containerType: aiInputData.containerType,
+            russianDestinationCity: aiInputData.russianDestinationCity
+        };
+        try {
+            const commentaryRes = await generatePricingCommentary(pricingCommentaryInput);
+            displayOutput.commentary = commentaryRes.commentary;
+        } catch (e) {
+            displayOutput.commentary = finalCommentaryReason; // Fallback to Excel parsing notes
+        }
+    } else {
+        displayOutput.commentary = finalCommentaryReason;
     }
 
     setShippingInfo(displayOutput);
     setCachedShippingInfo(displayOutput);
     if (setLastSuccessfulCalculation) setLastSuccessfulCalculation(null);
     if (setCachedLastSuccessfulCalculation) setCachedLastSuccessfulCalculation(null);
-  } else if (aiInputData.originCity && aiInputData.destinationCity) {
+
+  } else if (aiInputData.originCity || (aiInputData.directRailCityOfDeparture && aiInputData.directRailDestinationCity)) {
+    // Use the finalCommentaryReason derived from Excel parsing directly.
     displayOutput.commentary = finalCommentaryReason; 
     setShippingInfo(displayOutput);
     setCachedShippingInfo(displayOutput);
+
     if (calcDetails && setLastSuccessfulCalculation && setCachedLastSuccessfulCalculation) {
       setLastSuccessfulCalculation(calcDetails);
       setCachedLastSuccessfulCalculation(calcDetails);
     }
+
     if (finalCommentaryReason) {
       if (partialPricing && !noPricedComponents) {
         toast({ title: "Partial Pricing Info", description: finalCommentaryReason });
-      } else if (!noPricedComponents) {
-        // Removed generic "Pricing Information" toast to avoid too many toasts
-        // toast({ title: "Pricing Information", description: finalCommentaryReason });
-      }
+      } // Removed else if to avoid too many toasts when pricing is fully successful.
     }
   } else {
     const fallbackCommentary = finalCommentaryReason || "Essential information missing for processing.";
@@ -361,7 +434,8 @@ export async function processSeaPlusRailCalculation({
   const seaInfo = findSeaPriceAndDetails(values, context);
   let finalCommentary = seaInfo.commentaryReason;
   let railDetails: RailLegInfo | null = null;
-  let dropOffDetails: DropOffInfo | null = null;
+  let cocDropOffDetails: DropOffInfo | null = null; // For COC
+  let socDropOffDetails: SOCDropOffInfo | null = null; // For SOC
   
   const isFurtherRailJourney = russianDestinationCity && destinationPort && VLADIVOSTOK_VARIANTS.some(v => destinationPort.startsWith(v.split(" ")[0])) && !VLADIVOSTOK_VARIANTS.some(v => v === russianDestinationCity && destinationPort.startsWith(v.split(" ")[0]));
 
@@ -379,9 +453,13 @@ export async function processSeaPlusRailCalculation({
 
   if (shipmentType === "COC" && seaInfo.matchedSeaRouteInfo && cityForDropOffLookup &&
       (seaInfo.seaPriceNumeric !== null || (isFurtherRailJourney && railDetails && !railDetails.railLegFailed) || (!isFurtherRailJourney && destinationPort && VLADIVOSTOK_VARIANTS.some(variant => destinationPort.startsWith(variant.split(" ")[0]))))) {
-    dropOffDetails = findDropOffDetails(values, context, cityForDropOffLookup, seaInfo.seaComment, finalCommentary);
-    finalCommentary = dropOffDetails.commentaryReason; 
+    cocDropOffDetails = findDropOffDetails(values, context, cityForDropOffLookup, seaInfo.seaComment, finalCommentary);
+    finalCommentary = cocDropOffDetails.commentaryReason; 
+  } else if (shipmentType === "SOC" && seaInfo.matchedSeaRouteInfo && cityForDropOffLookup && context.isSOCDropOffExcelDataLoaded && actualSeaLine && containerType) {
+    socDropOffDetails = findSOCDropOffDetails(values, context, cityForDropOffLookup, finalCommentary);
+    finalCommentary = socDropOffDetails.commentaryReason;
   }
+
 
   const finalSeaPriceWithMargin = seaInfo.seaPriceNumeric !== null ? seaInfo.seaPriceNumeric + seaMargin : null;
   const finalRailBaseCost24tWithMargin = railDetails?.baseCost24t !== null && railDetails?.baseCost24t !== undefined ? railDetails.baseCost24t + railMargin : null;
@@ -391,17 +469,26 @@ export async function processSeaPlusRailCalculation({
   try {
     const hasAnyPricedSeaLeg = finalSeaPriceWithMargin !== null;
     const hasAnyPricedRailLeg = (containerType === "20DC" && (finalRailBaseCost24tWithMargin !== null || finalRailBaseCost28tWithMargin !== null)) || (containerType === "40HC" && finalRailBaseCost40HCWithMargin !== null);
-    const isPandaLineForDropOff = actualSeaLine?.toLowerCase().includes('panda express line');
-    const hasPricedDropOff = shipmentType === "COC" && (dropOffDetails?.costNumeric !== null || (dropOffDetails?.displayValue !== null && dropOffDetails?.displayValue.trim() !== "" && dropOffDetails?.displayValue.toLowerCase() !== "n/a") ) && !isPandaLineForDropOff;
+    const isPandaLineForCOCDropOff = actualSeaLine?.toLowerCase().includes('panda express line');
+    
+    const hasPricedCOCDropOff = shipmentType === "COC" && (cocDropOffDetails?.costNumeric !== null || (cocDropOffDetails?.displayValue !== null && cocDropOffDetails?.displayValue.trim() !== "" && cocDropOffDetails?.displayValue.toLowerCase() !== "n/a") ) && !isPandaLineForCOCDropOff;
+    const hasPricedSOCDropOff = shipmentType === "SOC" && (socDropOffDetails?.costNumeric !== null || (socDropOffDetails?.displayValue !== null && socDropOffDetails?.displayValue.trim() !== "" && socDropOffDetails?.displayValue.toLowerCase() !== "n/a"));
 
-    const hasAnyPricedComponent = hasAnyPricedSeaLeg || (isFurtherRailJourney && hasAnyPricedRailLeg) || hasPricedDropOff;
+    const hasAnyPricedComponent = hasAnyPricedSeaLeg || (isFurtherRailJourney && hasAnyPricedRailLeg) || hasPricedCOCDropOff || hasPricedSOCDropOff;
     
     const aiInputData: CombinedAiOutput = { 
       shipmentType, originCity: originPort!, destinationCity: destinationPort!, seaLineCompany: actualSeaLine, containerType: containerType!, seaCost: finalSeaPriceWithMargin, seaComment: seaInfo.seaComment,
       railCost20DC_24t: containerType === "20DC" ? finalRailBaseCost24tWithMargin : null, railCost20DC_28t: containerType === "20DC" ? finalRailBaseCost28tWithMargin : null, railGuardCost20DC: containerType === "20DC" ? railDetails?.guardCost20DC : null,
       railCost40HC: containerType === "40HC" ? finalRailBaseCost40HCWithMargin : null, railGuardCost40HC: containerType === "40HC" ? railDetails?.guardCost40HC : null,
       railArrivalStation: railDetails?.arrivalStation, railDepartureStation: railDetails?.departureStation,
-      dropOffCost: shipmentType === "COC" ? dropOffDetails?.costNumeric : null, dropOffDisplayValue: shipmentType === "COC" ? dropOffDetails?.displayValue : null, dropOffComment: shipmentType === "COC" ? dropOffDetails?.comment : null,
+      
+      dropOffCost: shipmentType === "COC" ? cocDropOffDetails?.costNumeric : null, 
+      dropOffDisplayValue: shipmentType === "COC" ? cocDropOffDetails?.displayValue : null, 
+      dropOffComment: shipmentType === "COC" ? cocDropOffDetails?.comment : null,
+      
+      socDropOffCost: shipmentType === "SOC" ? socDropOffDetails?.costNumeric : null,
+      socDropOffComment: shipmentType === "SOC" ? socDropOffDetails?.comment : null,
+
       socComment: seaInfo.socComment, russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : undefined,
       commentary: '', 
     };
@@ -412,11 +499,21 @@ export async function processSeaPlusRailCalculation({
       railCostBase24t: containerType === "20DC" ? railDetails?.baseCost24t : null, railCostBase28t: containerType === "20DC" ? railDetails?.baseCost28t : null, railGuardCost20DC: containerType === "20DC" ? railDetails?.guardCost20DC : null,
       railCostBase40HC: containerType === "40HC" ? railDetails?.baseCost40HC : null, railGuardCost40HC: containerType === "40HC" ? railDetails?.guardCost40HC : null,
       railMarginApplied: railMargin, railCostFinal24t: containerType === "20DC" ? finalRailBaseCost24tWithMargin : null, railCostFinal28t: containerType === "20DC" ? finalRailBaseCost28tWithMargin : null, railCostFinal40HC: containerType === "40HC" ? finalRailBaseCost40HCWithMargin : null,
-      dropOffCost: shipmentType === "COC" ? dropOffDetails?.costNumeric : null, dropOffDisplayValue: shipmentType === "COC" ? dropOffDetails?.displayValue : null, dropOffComment: shipmentType === "COC" ? dropOffDetails?.comment : null,
+      
+      dropOffCost: shipmentType === "COC" ? cocDropOffDetails?.costNumeric : null, 
+      dropOffDisplayValue: shipmentType === "COC" ? cocDropOffDetails?.displayValue : null, 
+      dropOffComment: shipmentType === "COC" ? cocDropOffDetails?.comment : null,
+      
+      socDropOffCost: shipmentType === "SOC" ? socDropOffDetails?.costNumeric : null,
+      socDropOffComment: shipmentType === "SOC" ? socDropOffDetails?.comment : null,
       socComment: seaInfo.socComment,
     } : null;
 
-    const partialPricing = (railDetails?.railLegFailed || (dropOffDetails?.dropOffLegFailed && !isPandaLineForDropOff && shipmentType === "COC")) ?? false;
+    const partialPricing = (
+        railDetails?.railLegFailed || 
+        (shipmentType === "COC" && cocDropOffDetails?.dropOffLegFailed && !isPandaLineForCOCDropOff) ||
+        (shipmentType === "SOC" && socDropOffDetails?.socDropOffLegFailed)
+      ) ?? false;
 
     await callAiAndSetState(aiInputData, toast, setShippingInfo, setCachedShippingInfo, calcDetails, setLastSuccessfulCalculation, setCachedLastSuccessfulCalculation, finalCommentary, partialPricing, !hasAnyPricedComponent);
 
@@ -504,8 +601,8 @@ interface BestPriceArgs {
 }
 
 function generateSeaPlusRailCandidates(values: RouteFormValues, context: PricingDataContextType): BestPriceRoute[] {
-  const { shipmentType, originPort, containerType, russianDestinationCity, arrivalStationSelection } = values;
-  const { excelRouteData, excelSOCRouteData, excelRailData, excelDropOffData, excelDestinationPorts } = context;
+  const { shipmentType, originPort, containerType, russianDestinationCity, arrivalStationSelection, seaLineCompany } = values;
+  const { excelRouteData, excelSOCRouteData, excelRailData, excelDropOffData, excelDestinationPorts, excelSOCDropOffData, isSOCDropOffExcelDataLoaded } = context;
   
   const candidates: BestPriceRoute[] = [];
   let routeIdCounter = 0;
@@ -545,13 +642,20 @@ function generateSeaPlusRailCandidates(values: RouteFormValues, context: Pricing
           totalComparisonCostRUB += railCostForComparison;
         }
 
-        let dropOffDetails: DropOffInfo | null = null;
+        let cocDropOffDetails: DropOffInfo | null = null;
+        let socDropOffDetailsForBestPrice: SOCDropOffInfo | null = null;
         let cityForDropOffBestPrice = isFurtherRailJourneyBestPrice && !railLegDetails?.railLegFailed && russianDestinationCity ? russianDestinationCity : seaDestPort;
-        if (shipmentType === "COC" && seaLineCompanyIt) { // Drop-off is only for COC
-          dropOffDetails = findDropOffDetails({ ...values, seaLineCompany: seaLineCompanyIt } as RouteFormValues, context, cityForDropOffBestPrice, currentSeaComment, "");
-          if (dropOffDetails.costNumeric !== null) {
-            totalComparisonCostRUB += dropOffDetails.costNumeric * USD_RUB_CONVERSION_RATE;
+
+        if (shipmentType === "COC" && seaLineCompanyIt) {
+          cocDropOffDetails = findDropOffDetails({ ...values, seaLineCompany: seaLineCompanyIt } as RouteFormValues, context, cityForDropOffBestPrice, currentSeaComment, "");
+          if (cocDropOffDetails.costNumeric !== null) {
+            totalComparisonCostRUB += cocDropOffDetails.costNumeric * USD_RUB_CONVERSION_RATE;
           }
+        } else if (shipmentType === "SOC" && seaLineCompanyIt && isSOCDropOffExcelDataLoaded && containerType) {
+            socDropOffDetailsForBestPrice = findSOCDropOffDetails({ ...values, seaLineCompany: seaLineCompanyIt, containerType } as RouteFormValues, context, cityForDropOffBestPrice, "");
+            if (socDropOffDetailsForBestPrice.costNumeric !== null) {
+                 totalComparisonCostRUB += socDropOffDetailsForBestPrice.costNumeric * USD_RUB_CONVERSION_RATE; // Assuming SOC Drop-off is in USD
+            }
         }
         
         candidates.push({
@@ -561,7 +665,11 @@ function generateSeaPlusRailCandidates(values: RouteFormValues, context: Pricing
           seaCostUSD: seaPriceForContainerNumeric, seaComment: currentSeaComment, socComment: currentSocComment,
           railCost20DC_24t_RUB: railLegDetails?.baseCost24t ?? null, railCost20DC_28t_RUB: railLegDetails?.baseCost28t ?? null, railGuardCost20DC_RUB: railLegDetails?.guardCost20DC ?? null,
           railCost40HC_RUB: railLegDetails?.baseCost40HC ?? null, railGuardCost40HC_RUB: railLegDetails?.guardCost40HC ?? null,
-          dropOffCostUSD: dropOffDetails?.costNumeric ?? null, dropOffDisplayValue: dropOffDetails?.displayValue ?? null, dropOffComment: dropOffDetails?.comment ?? null,
+          dropOffCostUSD: shipmentType === "COC" ? (cocDropOffDetails?.costNumeric ?? null) : null, 
+          dropOffDisplayValue: shipmentType === "COC" ? (cocDropOffDetails?.displayValue ?? null) : null, 
+          dropOffComment: shipmentType === "COC" ? (cocDropOffDetails?.comment ?? null) : null,
+          socDropOffCostUSD: shipmentType === "SOC" ? (socDropOffDetailsForBestPrice?.costNumeric ?? null) : null,
+          socDropOffComment: shipmentType === "SOC" ? (socDropOffDetailsForBestPrice?.comment ?? null) : null,
           totalComparisonCostRUB,
         });
       });
@@ -610,7 +718,7 @@ export function calculateBestPrice({
   setBestPriceResults, setCachedFormValues, setIsNavigatingToBestPrices
 }: BestPriceArgs) {
   const values = form.getValues();
-  const { calculationMode, excelRussianDestinationCitiesMasterList, isSeaRailExcelDataLoaded, isDirectRailExcelDataLoaded } = context;
+  const { calculationMode, excelRussianDestinationCitiesMasterList, isSeaRailExcelDataLoaded, isDirectRailExcelDataLoaded, isSOCDropOffExcelDataLoaded } = context;
 
   setIsCalculatingBestPrice(true);
   setShippingInfo(null);
@@ -630,6 +738,10 @@ export function calculateBestPrice({
     if (!isSeaRailExcelDataLoaded) {
       toast({ title: "Data Not Loaded", description: "Please load the Море + Ж/Д Excel file first." });
       setIsCalculatingBestPrice(false); return;
+    }
+    if (values.shipmentType === "SOC" && !isSOCDropOffExcelDataLoaded) {
+        toast({ title: "Data Not Loaded", description: "Please load the SOC Drop-off Excel file for SOC Best Price calculation." });
+        setIsCalculatingBestPrice(false); return;
     }
     potentialRoutes = generateSeaPlusRailCandidates(values, context);
   } else if (calculationMode === "direct_rail") {
