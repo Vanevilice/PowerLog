@@ -87,7 +87,7 @@ export default function DashboardPage() {
         }
     }
     
-    textToCopy += `FOB (${row.containerInfo || 'N/A'}) ${originPart} - Владивосток - FOR ${forPartDisplay} :\n`;
+    textToCopy += `FOB ${row.containerInfo || 'N/A'} ${originPart} - Владивосток - FOR ${forPartDisplay} :\n`;
     textToCopy += `Фрахт: ${row.rate || 'N/A'}\n`;
 
     if (includeRailwayPart) {
