@@ -19,8 +19,9 @@ import {
   type PricingDataContextType,
 } from "@/contexts/PricingDataContext";
 import { RouteSchema } from '@/lib/schemas';
-import { handleSeaRailFileParse, handleDirectRailFileParse, handleSOCDropOffFileParse } from '@/lib/pricing/form-file-handlers'; // Added handleSOCDropOffFileParse
-import { processSeaPlusRailCalculation, processDirectRailCalculation, calculateBestPrice } from '@/lib/pricing/calculation-logic';
+import { handleSeaRailFileParse, handleDirectRailFileParse, handleSOCDropOffFileParse } from '@/lib/pricing/form-file-handlers';
+// Updated import path for calculation processors
+import { processSeaPlusRailCalculation, processDirectRailCalculation, calculateBestPrice } from '@/lib/pricing/calculation-processors';
 import { handleCopyOutput, handleCreateInstructionsNavigation, handleDirectRailCopy } from '@/lib/pricing/ui-helpers';
 import { usePricingFormEffects } from '@/hooks/usePricingFormEffects';
 import { DEFAULT_SEA_RAIL_FORM_VALUES, DEFAULT_DIRECT_RAIL_FORM_VALUES } from '@/lib/pricing/constants';
@@ -35,7 +36,7 @@ export default function PortPriceFinderForm(): JSX.Element {
   const [isCalculatingBestPrice, setIsCalculatingBestPrice] = React.useState(false);
   const [isParsingSeaRailFile, setIsParsingSeaRailFile] = React.useState(false);
   const [isParsingDirectRailFile, setIsParsingDirectRailFile] = React.useState(false);
-  const [isParsingSOCDropOffFile, setIsParsingSOCDropOffFile] = React.useState(false); // New state
+  const [isParsingSOCDropOffFile, setIsParsingSOCDropOffFile] = React.useState(false);
 
   const [shippingInfo, setShippingInfo] = React.useState<CombinedAiOutput | null>(null);
   const [lastSuccessfulCalculation, setLastSuccessfulCalculation] = React.useState<CalculationDetailsForInstructions | null>(null);
@@ -52,12 +53,12 @@ export default function PortPriceFinderForm(): JSX.Element {
   const router = useRouter();
   const seaRailFileInputRef = React.useRef<HTMLInputElement>(null);
   const directRailFileInputRef = React.useRef<HTMLInputElement>(null);
-  const socDropOffFileInputRef = React.useRef<HTMLInputElement>(null); // New ref
+  const socDropOffFileInputRef = React.useRef<HTMLInputElement>(null);
 
   const pricingContext = usePricingData();
   const {
     calculationMode,
-    isSeaRailExcelDataLoaded, isDirectRailExcelDataLoaded, isSOCDropOffExcelDataLoaded, // Added isSOCDropOffExcelDataLoaded
+    isSeaRailExcelDataLoaded, isDirectRailExcelDataLoaded, isSOCDropOffExcelDataLoaded,
     excelOriginPorts, excelRussianDestinationCitiesMasterList,
     directRailAgents, directRailDepartureCities, directRailDestinationCitiesDR,
     directRailIncotermsList, directRailBordersList,
@@ -114,7 +115,7 @@ export default function PortPriceFinderForm(): JSX.Element {
   React.useEffect(() => {
     const today = new Date();
     const formattedDate = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const mockRate = 78.62; // Updated rate
+    const mockRate = 78.62;
     setExchangeRate("USD/RUB as of " + formattedDate + ": " + mockRate.toFixed(2));
   }, []);
 
@@ -174,20 +175,20 @@ export default function PortPriceFinderForm(): JSX.Element {
     });
   };
 
-  const onSOCDropOffFileChangeWrapper = (event: React.ChangeEvent<HTMLInputElement>) => { // New handler
+  const onSOCDropOffFileChangeWrapper = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
       toast({ variant: "destructive", title: "File Error", description: "No file selected (SOC Drop-off)." });
       if (socDropOffFileInputRef.current) socDropOffFileInputRef.current.value = "";
       return;
     }
-    handleSOCDropOffFileParse({ // Calling new parsing function
+    handleSOCDropOffFileParse({
       file, form, contextSetters: pricingContext,
-      setShippingInfoState: setShippingInfo, // May not be needed here if this file only provides data
-      setHasRestoredFromCacheState: setHasRestoredFromCache, // May not be needed
+      setShippingInfoState: setShippingInfo, 
+      setHasRestoredFromCacheState: setHasRestoredFromCache, 
       toast, fileInputRef: socDropOffFileInputRef,
       setIsParsingState: setIsParsingSOCDropOffFile,
-      setBestPriceResults, // May not be needed
+      setBestPriceResults,
     });
   };
 
@@ -203,14 +204,14 @@ export default function PortPriceFinderForm(): JSX.Element {
   };
 
   const commonFormProps = {
-    form, isParsingSeaRailFile, isParsingDirectRailFile, isParsingSOCDropOffFile, // Pass new state
+    form, isParsingSeaRailFile, isParsingDirectRailFile, isParsingSOCDropOffFile,
     handleSeaRailFileUploadClick: () => seaRailFileInputRef.current?.click(),
     handleDirectRailFileUploadClick: () => directRailFileInputRef.current?.click(),
-    handleSOCDropOffFileUploadClick: () => socDropOffFileInputRef.current?.click(), // New handler
-    seaRailFileInputRef, directRailFileInputRef, socDropOffFileInputRef, // Pass new ref
+    handleSOCDropOffFileUploadClick: () => socDropOffFileInputRef.current?.click(),
+    seaRailFileInputRef, directRailFileInputRef, socDropOffFileInputRef,
     onSeaRailFileChange: onSeaRailFileChangeWrapper,
     onDirectRailFileChange: onDirectRailFileChangeWrapper,
-    onSOCDropOffFileChange: onSOCDropOffFileChangeWrapper, // New change handler
+    onSOCDropOffFileChange: onSOCDropOffFileChangeWrapper,
     calculationModeContext: calculationMode,
     setCalculationModeContext: pricingContext.setCalculationMode,
     exchangeRate,
@@ -257,7 +258,7 @@ export default function PortPriceFinderForm(): JSX.Element {
                     (calculationMode === "sea_plus_rail" && (
                       !isSeaRailExcelDataLoaded ||
                       !currentFormValuesForButton.originPort ||
-                      !currentFormValuesForButton.destinationPort ||
+                      (!currentFormValuesForButton.destinationPort && !currentFormValuesForButton.russianDestinationCity) || // Ensure either sea dest or rail dest is selected
                       !currentFormValuesForButton.containerType
                     )) ||
                     (calculationMode === "direct_rail" && (
@@ -358,3 +359,5 @@ export default function PortPriceFinderForm(): JSX.Element {
     </React.Fragment>
   );
 }
+
+    
