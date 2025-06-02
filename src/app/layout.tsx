@@ -3,7 +3,6 @@ import type { Metadata } from 'next';
 import { Inter } from '@next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import Link from 'next/link';
 import {
   SidebarProvider,
   Sidebar,
@@ -11,13 +10,12 @@ import {
   SidebarTrigger,
   SidebarContent,
   SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
   SidebarFooter,
   SidebarInset,
 } from '@/components/ui/sidebar';
-import { Home, Settings, Calculator, Repeat, Menu, LayoutDashboard } from 'lucide-react'; // Added LayoutDashboard
+import { Repeat, Menu } from 'lucide-react'; 
 import { PricingDataProvider } from '@/contexts/PricingDataContext';
+import { NavLinks } from '@/components/layout/NavLinks'; // Import the new NavLinks component
 
 const inter = Inter({
   subsets: ['latin'],
@@ -38,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} antialiased`}>
-        <PricingDataProvider> {/* Provider wraps the entire content including SidebarProvider */}
+        <PricingDataProvider>
           <SidebarProvider defaultOpen={true}>
             <Sidebar collapsible="icon" variant="sidebar" side="left">
               <SidebarHeader className="p-3 flex justify-between items-center">
@@ -49,28 +47,7 @@ export default function RootLayout({
               </SidebarHeader>
               <SidebarContent className="p-2">
                 <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip={{children: "Dashboard", side:"right", align:"center"}}>
-                      <Link href="/dashboard">
-                        <LayoutDashboard /> {/* Changed icon to LayoutDashboard for better fit */}
-                        <span>Dashboard</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={true} tooltip={{children: "Calculator", side:"right", align:"center"}}>
-                      <Link href="/">
-                        <Calculator />
-                        <span>Calculator</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton tooltip={{children: "Settings", side:"right", align:"center"}}>
-                      <Settings />
-                      <span>Settings</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  <NavLinks /> {/* Use the NavLinks component here */}
                 </SidebarMenu>
               </SidebarContent>
               <SidebarFooter className="p-2">
@@ -83,7 +60,7 @@ export default function RootLayout({
               </SidebarFooter>
             </Sidebar>
 
-            <SidebarInset> {/* This is where {children} will render */}
+            <SidebarInset>
               <div className="flex flex-col h-full">
                 <header className="flex h-14 items-center gap-4 border-b bg-background px-4 sticky top-0 z-30 lg:px-6">
                   <div className="md:hidden">
@@ -92,8 +69,6 @@ export default function RootLayout({
                     </SidebarTrigger>
                   </div>
                   <div className="flex-1">
-                    {/* The page title will likely be set by individual pages or a more dynamic header component */}
-                    {/* For now, removing the static "Logistics Calculator" to avoid confusion */}
                   </div>
                 </header>
                 <main className="flex-1 overflow-auto">
