@@ -278,56 +278,50 @@ function findDropOffDetails(
 }
 
 async function callAiAndSetState(
-  aiInput: CombinedAiOutput,
+  aiInputData: CombinedAiOutput, // Renamed to avoid conflict with SmartPricingOutput type's 'commentary'
   toast: ReturnType<typeof useToast>['toast'],
   setShippingInfo: React.Dispatch<React.SetStateAction<CombinedAiOutput | null>>,
   setCachedShippingInfo: PricingDataContextType['setCachedShippingInfo'],
   calcDetails: CalculationDetailsForInstructions | null,
   setLastSuccessfulCalculation: React.Dispatch<React.SetStateAction<CalculationDetailsForInstructions | null>> | undefined,
   setCachedLastSuccessfulCalculation: PricingDataContextType['setCachedLastSuccessfulCalculation'] | undefined,
-  finalCommentaryReason: string,
+  finalCommentaryReason: string, // This is the commentary from Excel parsing
   partialPricing: boolean,
   noPricedComponents: boolean
 ) {
-  if (noPricedComponents && finalCommentaryReason && aiInput.originCity && aiInput.destinationCity) {
+  let displayOutput: CombinedAiOutput = { ...aiInputData }; // Start with Excel data
+
+  if (noPricedComponents && finalCommentaryReason && aiInputData.originCity && aiInputData.destinationCity) {
     toast({ title: "Pricing Not Available", description: finalCommentaryReason, variant: "destructive" });
-    const commentaryInput: PricingCommentaryInput = {
-      originCity: aiInput.originCity!,
-      destinationCity: aiInput.destinationCity!,
-      containerType: aiInput.containerType as ContainerType,
-      russianDestinationCity: aiInput.russianDestinationCity,
-    };
-    const commentaryResult = await generatePricingCommentary(commentaryInput);
-    const displayOutput = { commentary: finalCommentaryReason + "\n\nAI Suggestions: " + commentaryResult.commentary };
-    setShippingInfo(displayOutput as CombinedAiOutput);
-    setCachedShippingInfo(displayOutput as CombinedAiOutput);
+    // Removed call to generatePricingCommentary as AI commentary is not needed
+    displayOutput.commentary = finalCommentaryReason; // Use Excel parsing notes
+    setShippingInfo(displayOutput);
+    setCachedShippingInfo(displayOutput);
     if (setLastSuccessfulCalculation) setLastSuccessfulCalculation(null);
     if (setCachedLastSuccessfulCalculation) setCachedLastSuccessfulCalculation(null);
-  } else if (aiInput.originCity && aiInput.destinationCity) { // Ensure basic info for AI call
-    const result = await calculateShippingCost(aiInput);
-    setShippingInfo(result);
-    setCachedShippingInfo(result);
+  } else if (aiInputData.originCity && aiInputData.destinationCity) {
+    displayOutput.commentary = finalCommentaryReason; // Populate commentary with Excel parsing notes
+    setShippingInfo(displayOutput);
+    setCachedShippingInfo(displayOutput);
     if (calcDetails && setLastSuccessfulCalculation && setCachedLastSuccessfulCalculation) {
       setLastSuccessfulCalculation(calcDetails);
       setCachedLastSuccessfulCalculation(calcDetails);
     }
-    // Consolidate toast messages
     if (finalCommentaryReason) {
-        if (partialPricing && !noPricedComponents) {
-            toast({ title: "Partial Pricing Info", description: finalCommentaryReason });
-        } else if (!noPricedComponents) {
-            toast({ title: "Pricing Information", description: finalCommentaryReason });
-        }
-        // If noPricedComponents, the toast is already handled above.
+      if (partialPricing && !noPricedComponents) {
+        toast({ title: "Partial Pricing Info", description: finalCommentaryReason });
+      } else if (!noPricedComponents) {
+        toast({ title: "Pricing Information", description: finalCommentaryReason });
+      }
     }
   } else {
-     // Handle case where essential data for AI call might be missing (should be caught earlier ideally)
-     const fallbackCommentary = finalCommentaryReason || "Essential information missing for AI processing.";
-     setShippingInfo({ commentary: fallbackCommentary } as CombinedAiOutput);
-     setCachedShippingInfo({ commentary: fallbackCommentary } as CombinedAiOutput);
-     if (setLastSuccessfulCalculation) setLastSuccessfulCalculation(null);
-     if (setCachedLastSuccessfulCalculation) setCachedLastSuccessfulCalculation(null);
-     toast({ title: "Processing Incomplete", description: fallbackCommentary, variant: "destructive" });
+    const fallbackCommentary = finalCommentaryReason || "Essential information missing for processing.";
+    displayOutput.commentary = fallbackCommentary;
+    setShippingInfo(displayOutput);
+    setCachedShippingInfo(displayOutput);
+    if (setLastSuccessfulCalculation) setLastSuccessfulCalculation(null);
+    if (setCachedLastSuccessfulCalculation) setCachedLastSuccessfulCalculation(null);
+    toast({ title: "Processing Incomplete", description: fallbackCommentary, variant: "destructive" });
   }
 }
 
@@ -395,13 +389,14 @@ export async function processSeaPlusRailCalculation({
 
     const hasAnyPricedComponent = hasAnyPricedSeaLeg || (isFurtherRailJourney && hasAnyPricedRailLeg) || hasPricedDropOff;
     
-    const aiInput: CombinedAiOutput = {
+    const aiInputData: CombinedAiOutput = { // Changed name from aiInput to aiInputData
       shipmentType, originCity: originPort!, destinationCity: destinationPort!, seaLineCompany: actualSeaLine, containerType: containerType!, seaCost: finalSeaPriceWithMargin, seaComment: seaInfo.seaComment,
       railCost20DC_24t: containerType === "20DC" ? finalRailBaseCost24tWithMargin : null, railCost20DC_28t: containerType === "20DC" ? finalRailBaseCost28tWithMargin : null, railGuardCost20DC: containerType === "20DC" ? railDetails?.guardCost20DC : null,
       railCost40HC: containerType === "40HC" ? finalRailBaseCost40HCWithMargin : null, railGuardCost40HC: containerType === "40HC" ? railDetails?.guardCost40HC : null,
       railArrivalStation: railDetails?.arrivalStation, railDepartureStation: railDetails?.departureStation,
       dropOffCost: shipmentType === "COC" ? dropOffDetails?.costNumeric : null, dropOffDisplayValue: shipmentType === "COC" ? dropOffDetails?.displayValue : null, dropOffComment: shipmentType === "COC" ? dropOffDetails?.comment : null,
       socComment: seaInfo.socComment, russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : undefined,
+      commentary: '', // Initialize commentary, will be set by callAiAndSetState
     };
 
     const calcDetails: CalculationDetailsForInstructions | null = hasAnyPricedComponent ? {
@@ -416,7 +411,7 @@ export async function processSeaPlusRailCalculation({
 
     const partialPricing = (railDetails?.railLegFailed || (dropOffDetails?.dropOffLegFailed && !isPandaLineForDropOff)) ?? false;
 
-    await callAiAndSetState(aiInput, toast, setShippingInfo, setCachedShippingInfo, calcDetails, setLastSuccessfulCalculation, setCachedLastSuccessfulCalculation, finalCommentary, partialPricing, !hasAnyPricedComponent);
+    await callAiAndSetState(aiInputData, toast, setShippingInfo, setCachedShippingInfo, calcDetails, setLastSuccessfulCalculation, setCachedLastSuccessfulCalculation, finalCommentary, partialPricing, !hasAnyPricedComponent);
 
   } catch (error) {
     console.error("Error processing Sea+Rail request:", error);
@@ -460,23 +455,33 @@ export async function processDirectRailCalculation({
   }
 
   const matchedEntry = findDirectRailEntry(values, context);
+  let displayOutput: CombinedAiOutput;
 
   if (matchedEntry) {
-    const result: CombinedAiOutput = {
+    displayOutput = {
       directRailCityOfDeparture: matchedEntry.cityOfDeparture, directRailDepartureStation: matchedEntry.departureStation,
       directRailDestinationCity: matchedEntry.destinationCity, directRailBorder: matchedEntry.border,
       directRailCost: matchedEntry.price, directRailETD: matchedEntry.etd,
-      directRailCommentary: matchedEntry.commentary, directRailAgentName: matchedEntry.agentName,
+      directRailCommentary: matchedEntry.commentary, // This is the Excel commentary
+      directRailAgentName: matchedEntry.agentName,
       directRailIncoterms: matchedEntry.incoterms,
-      commentary: `Direct rail price from ${matchedEntry.cityOfDeparture} to ${matchedEntry.destinationCity} via ${matchedEntry.border} with agent ${matchedEntry.agentName} (Incoterms: ${matchedEntry.incoterms}). ETD: ${matchedEntry.etd || 'N/A'}. ${matchedEntry.commentary || ""}`,
+      // No general AI commentary needed here
+      commentary: '' // Ensure commentary field exists even if empty
     };
-    setShippingInfo(result);
-    setCachedShippingInfo(result);
+    setShippingInfo(displayOutput);
+    setCachedShippingInfo(displayOutput);
     toast({ title: "Direct Rail Price Found", description: "Details displayed below." });
   } else {
-    const commentaryOutput = { commentary: "No matching direct rail route found." };
-    setShippingInfo(commentaryOutput as CombinedAiOutput);
-    setCachedShippingInfo(commentaryOutput as CombinedAiOutput);
+    displayOutput = { 
+        commentary: "No matching direct rail route found.",
+        directRailCityOfDeparture: directRailCityOfDeparture, // Echo back input for context if needed
+        directRailDestinationCity: directRailDestinationCityDR,
+        directRailAgentName: directRailAgentName,
+        directRailIncoterms: directRailIncoterms,
+        directRailBorder: directRailBorder,
+    };
+    setShippingInfo(displayOutput);
+    setCachedShippingInfo(displayOutput);
     toast({ variant: "destructive", title: "No Direct Rail Route Found", description: "No matching direct rail route." });
   }
   setIsLoading(false);
@@ -647,3 +652,6 @@ export function calculateBestPrice({
   }
   setIsCalculatingBestPrice(false);
 }
+
+
+    

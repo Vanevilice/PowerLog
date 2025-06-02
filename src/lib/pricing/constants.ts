@@ -5,7 +5,7 @@ export const SHIPMENT_TYPES_CONST = ["COC", "SOC"] as const;
 export const CALCULATION_MODES_CONST = ["sea_plus_rail", "direct_rail"] as const;
 
 export const VLADIVOSTOK_VARIANTS = ['Владивосток (ВМПП)', 'Владивосток (ПЛ)', 'Владивосток (ВМКТ)', 'Владивосток'];
-export const USD_RUB_CONVERSION_RATE = 80; // Consider making this dynamic or configurable
+export const USD_RUB_CONVERSION_RATE = 78.62; // Updated conversion rate
 
 export const DROP_OFF_TRIGGER_PHRASES = [
   "не вкл. дроп офф", "не включая дроп офф", "без учёта дроп офф", "не вкл. дропп офф"
@@ -28,3 +28,6 @@ export const DEFAULT_DIRECT_RAIL_FORM_VALUES = {
   directRailIncoterms: "",
   directRailBorder: "",
 };
+
+
+    

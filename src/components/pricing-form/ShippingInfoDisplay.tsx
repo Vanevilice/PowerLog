@@ -125,11 +125,7 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
                 <span className="text-xs text-destructive text-right ml-2">{shippingInfo.dropOffComment}</span>
               </p>
             ) : null}
-            {'commentary' in shippingInfo && shippingInfo.commentary && (
-              <p className="mt-4 pt-2 border-t text-xs text-muted-foreground">
-                <strong>AI Commentary:</strong> {shippingInfo.commentary}
-              </p>
-            )}
+            {/* AI Commentary removed for Sea+Rail */}
           </>
         )}
         {calculationMode === "direct_rail" && 'directRailCost' in shippingInfo && (
@@ -150,25 +146,30 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
             {'directRailCommentary' in shippingInfo && shippingInfo.directRailCommentary && (
               <p className="flex justify-between items-start">
                 <strong>Excel Commentary:</strong>
-                <span className="text-xs text-muted-foreground text-right ml-2">{shippingInfo.directRailCommentary}</span>
+                <span className="text-xs text-destructive text-right ml-2">{shippingInfo.directRailCommentary}</span>
               </p>
             )}
-            {'commentary' in shippingInfo && shippingInfo.commentary && (
-              <p className="mt-4 pt-2 border-t text-xs text-muted-foreground">
-                <strong>AI Commentary:</strong> {shippingInfo.commentary}
-              </p>
-            )}
+            {/* AI Commentary removed for Direct Rail */}
           </>
         )}
-        {/* Fallback for general commentary when specific pricing fields aren't present */}
+        {/* Fallback for general commentary when specific pricing fields aren't present - also removed as AI commentary is not desired */}
+        {/*
         {!('seaCost' in shippingInfo) && !('directRailCost' in shippingInfo) && 'commentary' in shippingInfo && shippingInfo.commentary && (
              <p className="mt-4 pt-2 border-t text-xs text-muted-foreground">
                 <strong>AI Commentary:</strong> {shippingInfo.commentary}
+              </p>
+        )}
+        */}
+         {/* Display Excel-parsing related commentary if present and no specific pricing shown */}
+         {!('seaCost' in shippingInfo) && !('directRailCost' in shippingInfo) && shippingInfo.commentary && (
+             <p className="mt-4 pt-2 border-t text-xs text-muted-foreground">
+                <strong>Note:</strong> {shippingInfo.commentary}
               </p>
         )}
       </div>
     </div>
   );
 }
+    
 
     
