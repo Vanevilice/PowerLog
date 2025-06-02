@@ -41,13 +41,19 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
             {currentFormValues.containerType && (
               <p className="flex justify-between"><strong>Container:</strong><span className="text-right text-primary">{currentFormValues.containerType}</span></p>
             )}
-            {'seaComment' in shippingInfo && shippingInfo.seaComment && (
+            {'seaComment' in shippingInfo && shippingInfo.seaComment && currentFormValues.shipmentType === "COC" && (
               <p className="flex justify-between items-start">
                 <strong>Sea Route Comment:</strong>
-                <span className={`text-xs text-right ml-2 ${currentFormValues.shipmentType === "COC" ? 'text-destructive' : 'text-muted-foreground'}`}>
+                <span className={`text-xs text-right ml-2 text-destructive`}>
                   {shippingInfo.seaComment}
                 </span>
               </p>
+            )}
+            {'socComment' in shippingInfo && shippingInfo.socComment && currentFormValues.shipmentType === "SOC" && (
+                <p className="flex justify-between items-start">
+                    <strong>SOC Comment:</strong>
+                    <span className="text-xs text-muted-foreground text-right ml-2">{shippingInfo.socComment}</span>
+                </p>
             )}
             {'seaCost' in shippingInfo && shippingInfo.seaCost !== null && shippingInfo.seaCost !== undefined ? (
               <p className="flex justify-between">
@@ -55,12 +61,7 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
                 <span className="font-bold text-lg text-primary">{formatDisplayCost(shippingInfo.seaCost, 'USD')}</span>
               </p>
             ) : null}
-            {'socComment' in shippingInfo && shippingInfo.socComment && currentFormValues.shipmentType === "SOC" ? (
-              <p className="flex justify-between items-start">
-                <strong>SOC Comment:</strong>
-                <span className="text-xs text-muted-foreground text-right ml-2">{shippingInfo.socComment}</span>
-              </p>
-            ) : null}
+
             {currentFormValues.russianDestinationCity && currentFormValues.destinationPort && VLADIVOSTOK_VARIANTS.some(variant => String(currentFormValues.destinationPort).startsWith(variant.split(" ")[0])) && !VLADIVOSTOK_VARIANTS.some(v => v === currentFormValues.russianDestinationCity && String(currentFormValues.destinationPort).startsWith(v.split(" ")[0])) && (
               <p className="flex justify-between"><strong>Destination City:</strong><span className="text-right text-primary">{currentFormValues.russianDestinationCity}</span></p>
             )}
@@ -125,7 +126,6 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
                 <span className="text-xs text-destructive text-right ml-2">{shippingInfo.dropOffComment}</span>
               </p>
             ) : null}
-            {/* AI Commentary removed for Sea+Rail */}
           </>
         )}
         {calculationMode === "direct_rail" && 'directRailCost' in shippingInfo && (
@@ -149,19 +149,9 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
                 <span className="text-xs text-destructive text-right ml-2">{shippingInfo.directRailCommentary}</span>
               </p>
             )}
-            {/* AI Commentary removed for Direct Rail */}
           </>
         )}
-        {/* Fallback for general commentary when specific pricing fields aren't present - also removed as AI commentary is not desired */}
-        {/*
-        {!('seaCost' in shippingInfo) && !('directRailCost' in shippingInfo) && 'commentary' in shippingInfo && shippingInfo.commentary && (
-             <p className="mt-4 pt-2 border-t text-xs text-muted-foreground">
-                <strong>AI Commentary:</strong> {shippingInfo.commentary}
-              </p>
-        )}
-        */}
-         {/* Display Excel-parsing related commentary if present and no specific pricing shown */}
-         {!('seaCost' in shippingInfo) && !('directRailCost' in shippingInfo) && shippingInfo.commentary && (
+         {shippingInfo.commentary && (
              <p className="mt-4 pt-2 border-t text-xs text-muted-foreground">
                 <strong>Note:</strong> {shippingInfo.commentary}
               </p>
@@ -170,6 +160,3 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
     </div>
   );
 }
-    
-
-    

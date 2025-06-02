@@ -114,7 +114,7 @@ export function usePricingFormEffects({
 
     if (currentOriginPort) {
       dataset.forEach(route => {
-        const routeOrigins = route[originFieldKey as keyof typeof route] as string[] | undefined;
+        const routeOrigins = route[originFieldKey as keyof ExcelRoute | keyof ExcelSOCRoute] as string[] | undefined;
         const hasSeaLines = Array.isArray(route.seaLines) && route.seaLines.length > 0;
         if (hasSeaLines && Array.isArray(routeOrigins) && routeOrigins.includes(currentOriginPort)) {
           if (Array.isArray(route.destinationPorts)) route.destinationPorts.forEach(dp => newAvailableDestinations.add(dp));
@@ -158,7 +158,7 @@ export function usePricingFormEffects({
     const originFieldKey = watchedShipmentType === "COC" ? "originPorts" : "departurePorts";
     const filteredSeaLines = new Set<string>();
     currentDataset.forEach(route => {
-      const routeOrigins = route[originFieldKey as keyof route] as string[] | undefined;
+      const routeOrigins = route[originFieldKey as keyof ExcelRoute | keyof ExcelSOCRoute] as string[] | undefined;
       if (Array.isArray(routeOrigins) && routeOrigins.includes(watchedOriginPort) &&
           Array.isArray(route.destinationPorts) && route.destinationPorts.includes(watchedDestinationPort)) {
         if (Array.isArray(route.seaLines)) route.seaLines.forEach(sl => filteredSeaLines.add(sl));
@@ -225,8 +225,7 @@ export function usePricingFormEffects({
             const pStationLower = depStation.toLowerCase().trim();
             if (seaPortLower.includes("пл") && pStationLower.includes("пасифик лоджистик")) return true;
             if (specificSeaHubKeywords.length > 0 && specificSeaHubKeywords.some(kw => pStationLower.includes(kw))) return true;
-            if (pStationLower.includes(seaPortBaseName)) return true;
-            return false;
+            return pStationLower.includes(seaPortBaseName) || seaPortLower.includes(pStationLower);
           });
           if (isDepartureStationCompatible) {
             railEntry.arrivalStations.forEach(arrStation => stationsForCity.add(arrStation));

@@ -109,7 +109,9 @@ export default function BestPricesPage() {
     if (route.seaDestinationPort) queryParams.set('destinationPort', route.seaDestinationPort);
     if (route.seaLineCompany) queryParams.set('seaLineCompany', route.seaLineCompany);
     if (route.containerType && route.containerType !== 'N/A') queryParams.set('containerType', route.containerType);
-    if (route.seaComment) queryParams.set('seaComment', route.seaComment);
+    if (route.seaComment && route.shipmentType === "COC") queryParams.set('seaComment', route.seaComment);
+    if (route.socComment && route.shipmentType === "SOC") queryParams.set('socComment', route.socComment);
+
 
     if (route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0]))) {
         queryParams.set('russianDestinationCity', route.russianDestinationCity);
@@ -119,11 +121,11 @@ export default function BestPricesPage() {
 
     if (route.seaCostUSD !== null && route.seaCostUSD !== undefined) {
       queryParams.set('seaCostBase', route.seaCostUSD.toString());
-      queryParams.set('seaCostFinal', route.seaCostUSD.toString()); 
+      queryParams.set('seaCostFinal', route.seaCostUSD.toString());
     }
 
-    queryParams.set('seaMarginApplied', '0'); 
-    queryParams.set('railMarginApplied', '0'); 
+    queryParams.set('seaMarginApplied', '0');
+    queryParams.set('railMarginApplied', '0');
 
     if (route.containerType === "20DC") {
         if (route.railCost20DC_24t_RUB !== null) queryParams.set('railCostBase24t', route.railCost20DC_24t_RUB.toString());
@@ -140,18 +142,18 @@ export default function BestPricesPage() {
     }
 
     if (route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line')) {
-        if (route.dropOffDisplayValue) { 
-             queryParams.set('dropOffCost', route.dropOffDisplayValue); 
+        if (route.dropOffDisplayValue) {
+             queryParams.set('dropOffCost', route.dropOffDisplayValue);
         } else if (route.dropOffCostUSD !== null && route.dropOffCostUSD !== undefined) {
             queryParams.set('dropOffCost', route.dropOffCostUSD.toString());
         }
     }
-    
+
     if (route.dropOffComment && route.shipmentType === "COC") {
       queryParams.set('dropOffComment', route.dropOffComment);
     }
     if (route.shipmentType && route.shipmentType !== 'N/A') queryParams.set('shipmentType', route.shipmentType);
-    if (route.socComment) queryParams.set('socComment', route.socComment);
+
 
     router.push("/instructions?" + queryParams.toString());
   };
@@ -196,7 +198,7 @@ export default function BestPricesPage() {
              <p className="text-muted-foreground mt-1">
               Based on: {isDirectRailMode ? (
                 <>
-                 Departure <strong>{cachedFormValues.directRailCityOfDeparture || 'N/A'}</strong>, 
+                 Departure <strong>{cachedFormValues.directRailCityOfDeparture || 'N/A'}</strong>,
                  Destination <strong>{cachedFormValues.directRailDestinationCityDR || 'N/A'}</strong>,
                  Incoterms <strong>{cachedFormValues.directRailIncoterms || 'N/A'}</strong>
                 </>
@@ -225,7 +227,7 @@ export default function BestPricesPage() {
             const dropOffToDisplay = route.dropOffDisplayValue || (route.dropOffCostUSD !== null && route.dropOffCostUSD !== undefined ? formatDisplayCost(route.dropOffCostUSD, 'USD') : null);
             const agentOrSeaLineLabel = route.mode === 'direct_rail' ? 'Agent:' : 'Sea Line:';
             const agentOrSeaLineValue = route.mode === 'direct_rail' ? route.directRailAgentName : route.seaLineCompany;
-            
+
             return (
           <Card key={route.id} className="shadow-xl rounded-xl overflow-hidden flex flex-col bg-card border border-border hover:shadow-2xl transition-shadow duration-300">
             <CardHeader className="pb-4 bg-muted/30 border-b">
@@ -252,14 +254,16 @@ export default function BestPricesPage() {
                 <div className="grid grid-cols-[max-content_1fr] gap-x-2 gap-y-0.5 mb-3">
                   <p className="font-medium text-muted-foreground">{route.mode === 'direct_rail' ? 'Departure City:' : 'Origin Port:'}</p><p className="text-right">{route.originPort || 'N/A'}</p>
                   <p className="font-medium text-muted-foreground">{route.mode === 'direct_rail' ? 'Destination City:' : 'Sea Destination:'}</p><p className="text-right">{route.seaDestinationPort || 'N/A'}</p>
-                  
+
                   {agentOrSeaLineValue && (
                     <>
                       <p className="font-medium text-muted-foreground">{agentOrSeaLineLabel}</p><p className="text-right">{agentOrSeaLineValue}</p>
                     </>
                   )}
                   <p className="font-medium text-muted-foreground">Container Type:</p><p className="text-right">{route.containerType && route.containerType !== 'N/A' ? route.containerType : '40HC'}</p>
-                  
+                  <p className="font-medium text-muted-foreground">Shipment Type:</p><p className="text-right">{route.shipmentType || 'N/A'}</p>
+
+
                   {route.mode === 'direct_rail' && (
                     <>
                       {route.directRailBorder && <><p className="font-medium text-muted-foreground">Border:</p><p className="text-right">{route.directRailBorder}</p></>}
@@ -298,7 +302,7 @@ export default function BestPricesPage() {
                                 <span className="font-semibold text-primary">{formatDisplayCost(route.seaCostUSD, 'USD')}</span>
                             </p>
                             )}
-                            {route.seaComment && (
+                            {route.seaComment && route.shipmentType === "COC" && (
                             <p className="flex justify-between items-start">
                                 <span>Sea Route Comment:</span>
                                 <span className="text-xs text-destructive text-right ml-2">{route.seaComment}</span>
@@ -420,5 +424,3 @@ export default function BestPricesPage() {
     </div>
   );
 }
-
-    
