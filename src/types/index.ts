@@ -39,11 +39,19 @@ export interface RailDataEntry {
   guardCost40HC: number | null;
 }
 
-export interface DropOffEntry {
+export interface DropOffEntry { // COC Drop-off data
   seaLine: string;
   cities: string[];
   price20DC: string | number | null;
   price40HC: string | number | null;
+  comment?: string;
+}
+
+export interface ExcelSOCDropOffEntry { // SOC Drop-off data from new separate file
+  seaLine: string;
+  destination: string; // Could be a port or a city where drop-off occurs
+  containerType: ContainerType; // Should be specific like '20DC' or '40HC'
+  price: string | number | null;
   comment?: string;
 }
 
@@ -120,7 +128,9 @@ export interface CombinedAiOutput extends SmartPricingOutputBase, PricingComment
   russianDestinationCity?: string; // The final Russian city for rail
   railArrivalStation?: string | null;
   railDepartureStation?: string | null; // Departure station for the rail leg (e.g., from Vladivostok)
-  dropOffCost?: number | null;
+  
+  // Drop-off related fields - distinguish between COC and SOC drop-off if needed
+  dropOffCost?: number | null; // Generic drop-off cost, source might differ
   dropOffDisplayValue?: string | null;
   dropOffComment?: string | null;
 
@@ -159,6 +169,7 @@ export interface CalculationDetailsForInstructions {
   railCostFinal24t?: number | null;
   railCostFinal28t?: number | null;
   railCostFinal40HC?: number | null;
+  // Drop-off related fields
   dropOffCost?: number | null;
   dropOffDisplayValue?: string | null;
   dropOffComment?: string | null;
@@ -185,6 +196,7 @@ export interface BestPriceRoute {
   railGuardCost20DC_RUB?: number | null;
   railCost40HC_RUB?: number | null;
   railGuardCost40HC_RUB?: number | null;
+  // Drop-off related fields
   dropOffCostUSD?: number | null;
   dropOffDisplayValue?: string | null;
   dropOffComment?: string | null;
@@ -214,6 +226,8 @@ export interface PricingDataContextType {
   setExcelRailData: React.Dispatch<React.SetStateAction<RailDataEntry[]>>;
   excelDropOffData: DropOffEntry[]; // COC Drop-off
   setExcelDropOffData: React.Dispatch<React.SetStateAction<DropOffEntry[]>>;
+  excelSOCDropOffData: ExcelSOCDropOffEntry[]; // SOC Drop-off from separate file
+  setExcelSOCDropOffData: React.Dispatch<React.SetStateAction<ExcelSOCDropOffEntry[]>>;
   excelDirectRailData: DirectRailEntry[];
   setExcelDirectRailData: React.Dispatch<React.SetStateAction<DirectRailEntry[]>>;
 
@@ -221,6 +235,9 @@ export interface PricingDataContextType {
   setIsSeaRailExcelDataLoaded: React.Dispatch<React.SetStateAction<boolean>>;
   isDirectRailExcelDataLoaded: boolean;
   setIsDirectRailExcelDataLoaded: React.Dispatch<React.SetStateAction<boolean>>;
+  isSOCDropOffExcelDataLoaded: boolean; // Flag for the new SOC drop-off file
+  setIsSOCDropOffExcelDataLoaded: React.Dispatch<React.SetStateAction<boolean>>;
+
 
   excelOriginPorts: string[];
   setExcelOriginPorts: React.Dispatch<React.SetStateAction<string[]>>;
@@ -334,5 +351,3 @@ export interface RateData {
     thcRail: number;
   };
 }
-
-    
