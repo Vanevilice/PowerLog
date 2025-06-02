@@ -38,15 +38,37 @@ export default function DashboardPage() {
     // --- Start Detailed Logging ---
     console.log(`[DashboardCopyRate] >>> BUTTON CLICKED for Section ${sectionIndex}, Row ${rowIndex}, Route: '${row.route}'`);
     console.log(`[DashboardCopyRate] Current 'row' object being processed:`, JSON.parse(JSON.stringify(row)));
-    if (row.railwayLegs && row.railwayLegs.length > 0) {
-      console.log(`[DashboardCopyRate] 'row.railwayLegs' (length ${row.railwayLegs.length}):`, JSON.parse(JSON.stringify(row.railwayLegs)));
-    } else {
-      console.log(`[DashboardCopyRate] 'row.railwayLegs' is empty or undefined.`);
-    }
+    
     const selectionKey = `${sectionIndex}-${rowIndex}`;
     const selectedLegIndex = railwaySelection[selectionKey];
     console.log(`[DashboardCopyRate] selectionKey: '${selectionKey}', selectedLegIndex from state: ${selectedLegIndex}`);
-    // --- End Detailed Logging ---
+
+    let selectedLeg: RailwayLegData | null | undefined = null;
+
+    if (selectedLegIndex !== null && selectedLegIndex !== undefined) {
+      if (row.railwayLegs && row.railwayLegs.length > selectedLegIndex) {
+        selectedLeg = row.railwayLegs[selectedLegIndex];
+        console.log(`[DashboardCopyRate] Selected Leg (index ${selectedLegIndex}) from CURRENT row:`, JSON.parse(JSON.stringify(selectedLeg)));
+      } else {
+        console.log(`[DashboardCopyRate] Current row has no/insufficient railwayLegs. Attempting to use last row in section.`);
+        const currentSection = dashboardServiceSections[sectionIndex];
+        if (currentSection && currentSection.dataRows.length > 0) {
+          const lastFobFiRowInSection = currentSection.dataRows[currentSection.dataRows.length - 1];
+          if (lastFobFiRowInSection && lastFobFiRowInSection.railwayLegs && lastFobFiRowInSection.railwayLegs.length > selectedLegIndex) {
+            selectedLeg = lastFobFiRowInSection.railwayLegs[selectedLegIndex];
+            console.log(`[DashboardCopyRate] Selected Leg (index ${selectedLegIndex}) from LAST row in section:`, JSON.parse(JSON.stringify(selectedLeg)));
+          } else {
+            console.log(`[DashboardCopyRate] Last row in section also has no/insufficient railwayLegs for index ${selectedLegIndex}.`);
+          }
+        } else {
+          console.log(`[DashboardCopyRate] Could not find current section or it has no data rows.`);
+        }
+      }
+    }
+     if (selectedLegIndex !== undefined && selectedLeg === null) {
+        console.warn(`[DashboardCopyRate] A railway leg was selected (index: ${selectedLegIndex}), but no valid leg data could be retrieved for copying.`);
+    }
+
 
     let textToCopy = "";
     const routeParts = row.route.split(' - ');
@@ -57,22 +79,20 @@ export default function DashboardPage() {
     let railwayCostDisplay = 'N/A';
     let includeRailwayPart = false;
 
-    if (selectedLegIndex !== null && selectedLegIndex !== undefined && row.railwayLegs && row.railwayLegs[selectedLegIndex]) {
-        const selectedLeg = row.railwayLegs[selectedLegIndex];
-        console.log(`[DashboardCopyRate] USING Selected Leg (index ${selectedLegIndex}):`, JSON.parse(JSON.stringify(selectedLeg)));
+    if (selectedLeg) { // Check if selectedLeg was successfully populated
+        console.log(`[DashboardCopyRate] USING Selected Leg (source: ${row.railwayLegs && row.railwayLegs[selectedLegIndex!] === selectedLeg ? 'current_row' : 'last_row_in_section_or_undefined'}) :`, JSON.parse(JSON.stringify(selectedLeg)));
         if (selectedLeg.originInfo && selectedLeg.originInfo !== 'N/A') {
-            // Remove leading "CY ", "FOB ", or "FI " from the selected leg's originInfo for the "FOR" part
             forPartDisplay = selectedLeg.originInfo.replace(/^(FOB|FI|CY)\s*/i, '').trim();
         }
         if (selectedLeg.cost && selectedLeg.cost !== 'N/A') {
             railwayCostDisplay = selectedLeg.cost;
             includeRailwayPart = true;
         } else {
-             console.log(`[DashboardCopyRate] Selected leg (index ${selectedLegIndex}) has no valid cost ('${selectedLeg.cost}'). Railway part will NOT be included.`);
+             console.log(`[DashboardCopyRate] Selected leg (from either current or last row) has no valid cost ('${selectedLeg.cost}'). Railway part will NOT be included.`);
         }
     } else {
-        console.log(`[DashboardCopyRate] NO specific railway leg selected (selectedLegIndex: ${selectedLegIndex}). Falling back to main route destination for 'FOR' part.`);
-        if (routeParts.length > 1) { // Fallback if no railway leg selected: use destination from main route
+        console.log(`[DashboardCopyRate] NO specific railway leg selected or data found (selectedLegIndex: ${selectedLegIndex}). Falling back to main route destination for 'FOR' part.`);
+        if (routeParts.length > 1) { 
             const destinationPartRaw = routeParts.slice(1).join(' - ');
             forPartDisplay = destinationPartRaw.replace(/^(FOB|FI|CY)\s*/i, '').trim();
         }
@@ -241,3 +261,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
