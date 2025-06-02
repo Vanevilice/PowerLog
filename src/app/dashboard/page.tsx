@@ -15,7 +15,6 @@ import { useToast } from '@/hooks/use-toast';
 export default function DashboardPage() {
   const { dashboardServiceSections, isSeaRailExcelDataLoaded } = usePricingData();
   const { toast } = useToast();
-  // railwaySelection now stores the selected leg index per section
   const [railwaySelection, setRailwaySelection] = React.useState<Record<number, number | null>>({});
 
   React.useEffect(() => {
@@ -27,9 +26,9 @@ export default function DashboardPage() {
     setRailwaySelection(prev => {
       const currentSelectedLegIndexForSection = prev[sectionIndex];
       if (currentSelectedLegIndexForSection === legIndex) {
-        return { ...prev, [sectionIndex]: null }; // Deselect if already selected
+        return { ...prev, [sectionIndex]: null }; 
       } else {
-        return { ...prev, [sectionIndex]: legIndex }; // Select the new leg for the section
+        return { ...prev, [sectionIndex]: legIndex }; 
       }
     });
   };
@@ -44,13 +43,16 @@ export default function DashboardPage() {
     let selectedLeg: RailwayLegData | null = null;
 
     if (selectedLegIndexForSection !== null && selectedLegIndexForSection !== undefined) {
-      // Get railway legs from the first row of the section, as they are common
-      const sectionFirstRow = dashboardServiceSections[sectionIndex]?.dataRows[0];
-      if (sectionFirstRow && sectionFirstRow.railwayLegs && sectionFirstRow.railwayLegs.length > selectedLegIndexForSection) {
-        selectedLeg = sectionFirstRow.railwayLegs[selectedLegIndexForSection];
-        console.log(`[DashboardCopyRate] Selected Leg (index ${selectedLegIndexForSection}) from COMMON section legs:`, JSON.parse(JSON.stringify(selectedLeg)));
-      } else {
-        console.log(`[DashboardCopyRate] Could not retrieve common railway legs for section ${sectionIndex} or leg index ${selectedLegIndexForSection} is out of bounds.`);
+      const sectionData = dashboardServiceSections[sectionIndex];
+      if (sectionData && sectionData.dataRows && sectionData.dataRows.length > 0) {
+        // Railway legs are common for the section, so take from the first row.
+        const commonLegs = sectionData.dataRows[0]?.railwayLegs;
+        if (commonLegs && commonLegs.length > selectedLegIndexForSection) {
+          selectedLeg = commonLegs[selectedLegIndexForSection];
+          console.log(`[DashboardCopyRate] Selected Leg (index ${selectedLegIndexForSection}) from COMMON section legs:`, JSON.parse(JSON.stringify(selectedLeg)));
+        } else {
+          console.log(`[DashboardCopyRate] Could not retrieve common railway legs for section ${sectionIndex} or leg index ${selectedLegIndexForSection} is out of bounds.`);
+        }
       }
     }
      if (selectedLegIndexForSection !== undefined && selectedLeg === null) {
@@ -85,7 +87,7 @@ export default function DashboardPage() {
         }
     }
     
-    textToCopy += `FOB ${originPart} - Владивосток - FOR ${forPartDisplay} :\n`;
+    textToCopy += `FOB ${originPart} (${row.containerInfo || 'N/A'}) - Владивосток - FOR ${forPartDisplay} :\n`;
     textToCopy += `Фрахт: ${row.rate || 'N/A'}\n`;
 
     if (includeRailwayPart) {
@@ -266,4 +268,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
