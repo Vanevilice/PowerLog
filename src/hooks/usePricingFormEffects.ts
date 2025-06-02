@@ -50,6 +50,7 @@ export function usePricingFormEffects({
   const watchedOriginPort = watch("originPort");
   const watchedDestinationPort = watch("destinationPort");
   const watchedRussianDestinationCity = watch("russianDestinationCity");
+  const watchedContainerType = watch("containerType"); // Watch containerType
 
   // Effect for resetting form parts on calculationMode change
   React.useEffect(() => {
@@ -163,65 +164,130 @@ export function usePricingFormEffects({
     }
   }, [watchedShipmentType, watchedOriginPort, watchedDestinationPort, excelRouteData, excelSOCRouteData, isSeaRailExcelDataLoaded, setValue, getValues, hasRestoredFromCache, localAvailableSeaLines, setLocalAvailableSeaLines]);
 
-  // Effect for populating/filtering Russian Destination Cities
+  // Effect for populating/filtering Russian Destination Cities (Rail Destinations)
   React.useEffect(() => {
-    let newAvailableRussianCitiesSet = new Set<string>();
-    const currentSeaDest = getValues("destinationPort");
-    if (isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length > 0) {
-      if (!currentSeaDest || currentSeaDest === "" || VLADIVOSTOK_VARIANTS.some(v => currentSeaDest.startsWith(v.split(" ")[0]))) {
-        excelRussianDestinationCitiesMasterList.forEach(city => newAvailableRussianCitiesSet.add(city));
-      }
+    const newAvailableRussianCitiesSet = new Set<string>();
+    const selectedSeaPort = getValues("destinationPort");
+    const selectedContainerType = getValues("containerType");
+
+    if (isSeaRailExcelDataLoaded &&
+        excelRussianDestinationCitiesMasterList.length > 0 &&
+        selectedSeaPort &&
+        VLADIVOSTOK_VARIANTS.some(v => selectedSeaPort.startsWith(v.split(" ")[0])) && // Sea port must be a Vladivostok variant
+        selectedContainerType && excelRailData.length > 0) {
+
+      const seaPortLower = selectedSeaPort.toLowerCase();
+      const seaPortBaseName = selectedSeaPort.split(" ")[0].toLowerCase();
+      const specificSeaHubKeywordMatch = selectedSeaPort.match(/\(([^)]+)\)/);
+      const specificSeaHubKeywords = specificSeaHubKeywordMatch ? specificSeaHubKeywordMatch[1].toLowerCase().split('/').map(s => s.trim()) : [];
+
+      excelRussianDestinationCitiesMasterList.forEach(candidateCity => {
+        let hasValidRailRouteForCity = false;
+        for (const railEntry of excelRailData) {
+          if (railEntry.cityOfArrival.toLowerCase() === candidateCity.toLowerCase()) {
+            let hasPriceForContainerInEntry = false;
+            if (selectedContainerType === "20DC") {
+              if (railEntry.price20DC_24t !== null || railEntry.price20DC_28t !== null) {
+                hasPriceForContainerInEntry = true;
+              }
+            } else if (selectedContainerType === "40HC") {
+              if (railEntry.price40HC !== null) {
+                hasPriceForContainerInEntry = true;
+              }
+            }
+
+            if (!hasPriceForContainerInEntry) continue;
+
+            const isCompatibleDepartureStation = railEntry.departureStations.some(depStation => {
+              const pStationLower = depStation.toLowerCase().trim();
+              if (seaPortLower.includes("пл") && pStationLower.includes("пасифик лоджистик")) return true;
+              if (specificSeaHubKeywords.length > 0 && specificSeaHubKeywords.some(kw => pStationLower.includes(kw))) return true;
+              if (pStationLower.includes(seaPortBaseName)) return true;
+              // Consider if seaPortLower.includes(pStationLower) is needed or too broad
+              return false;
+            });
+
+            if (isCompatibleDepartureStation) {
+              hasValidRailRouteForCity = true;
+              break; 
+            }
+          }
+        }
+        if (hasValidRailRouteForCity) {
+          newAvailableRussianCitiesSet.add(candidateCity);
+        }
+      });
     }
+
     const newAvailableArray = Array.from(newAvailableRussianCitiesSet).sort();
     if (JSON.stringify(localAvailableRussianDestinationCities) !== JSON.stringify(newAvailableArray)) {
       setLocalAvailableRussianDestinationCities(newAvailableArray);
     }
+
     if (hasRestoredFromCache) {
       const currentRussianDestCity = getValues("russianDestinationCity");
-      if (currentSeaDest && !VLADIVOSTOK_VARIANTS.some(variant => currentSeaDest.startsWith(variant.split(" ")[0]))) {
-        if (currentRussianDestCity !== "" && getValues("russianDestinationCity") !== "") {
-          setValue("russianDestinationCity", "", { shouldValidate: true });
-          if (getValues("arrivalStationSelection") !== "") setValue("arrivalStationSelection", "", { shouldValidate: true });
+      // If the sea port is not a Vladivostok variant, or if no valid rail routes exist, clear Russian Dest City
+      if (selectedSeaPort && !VLADIVOSTOK_VARIANTS.some(v => selectedSeaPort.startsWith(v.split(" ")[0]))) {
+         if (currentRussianDestCity !== "" && getValues("russianDestinationCity") !== "") {
+            setValue("russianDestinationCity", "", { shouldValidate: true });
+            if (getValues("arrivalStationSelection") !== "") setValue("arrivalStationSelection", "", { shouldValidate: true });
         }
       } else if (currentRussianDestCity && !newAvailableArray.includes(currentRussianDestCity) && getValues("russianDestinationCity") !== "") {
-        setValue("russianDestinationCity", "", { shouldValidate: true });
+         setValue("russianDestinationCity", "", { shouldValidate: true });
+         // arrivalStationSelection will be cleared by its own effect if russianDestinationCity is cleared
       }
     }
-  }, [watchedDestinationPort, isSeaRailExcelDataLoaded, excelRussianDestinationCitiesMasterList, setValue, getValues, hasRestoredFromCache, localAvailableRussianDestinationCities, setLocalAvailableRussianDestinationCities]);
+  }, [
+    watchedDestinationPort, 
+    watchedContainerType, // Added dependency
+    isSeaRailExcelDataLoaded, 
+    excelRussianDestinationCitiesMasterList, 
+    excelRailData, // Added dependency
+    setValue, 
+    getValues, 
+    hasRestoredFromCache, 
+    localAvailableRussianDestinationCities, 
+    setLocalAvailableRussianDestinationCities
+  ]);
 
   // Effect for populating Arrival Stations
   React.useEffect(() => {
     let newAvailableStationsArray: string[] = [];
     const selectedRussianCity = getValues("russianDestinationCity");
-    const selectedSeaPort = getValues("destinationPort");
-    if (isSeaRailExcelDataLoaded && selectedRussianCity && excelRailData.length > 0) {
+    const selectedSeaPort = getValues("destinationPort"); // Sea Destination Port
+    // Ensure selectedRussianCity is not empty and sea port is a Vladivostok variant for rail journey
+    if (isSeaRailExcelDataLoaded && selectedRussianCity && 
+        selectedSeaPort && VLADIVOSTOK_VARIANTS.some(v => selectedSeaPort.startsWith(v.split(" ")[0])) &&
+        excelRailData.length > 0) {
+          
       const stationsForCity = new Set<string>();
-      const baseSeaHubNameForRail = selectedSeaPort ? selectedSeaPort.split(" ")[0].toLowerCase() : "";
-      const specificSeaHubKeywordMatch = selectedSeaPort ? selectedSeaPort.match(/\(([^)]+)\)/) : null;
+      const seaPortLower = selectedSeaPort.toLowerCase();
+      const seaPortBaseName = selectedSeaPort.split(" ")[0].toLowerCase();
+      const specificSeaHubKeywordMatch = selectedSeaPort.match(/\(([^)]+)\)/);
       const specificSeaHubKeywords = specificSeaHubKeywordMatch ? specificSeaHubKeywordMatch[1].toLowerCase().split('/').map(s => s.trim()) : [];
 
       excelRailData.forEach(railEntry => {
         if (railEntry.cityOfArrival.toLowerCase() === selectedRussianCity.toLowerCase()) {
           const isDepartureStationCompatible = railEntry.departureStations.some(depStation => {
             const pStationLower = depStation.toLowerCase().trim();
-            if (selectedSeaPort && selectedSeaPort.toLowerCase().includes("пл")) return pStationLower.includes("пасифик лоджистик");
-            if (!selectedSeaPort || VLADIVOSTOK_VARIANTS.some(v => selectedSeaPort.startsWith(v.split(" ")[0]))) {
-              if (specificSeaHubKeywords.length > 0 && specificSeaHubKeywords.some(kw => pStationLower.includes(kw))) return true;
-              if (baseSeaHubNameForRail && pStationLower.includes(baseSeaHubNameForRail)) return true;
-              if (selectedSeaPort && String(selectedSeaPort).toLowerCase().includes(pStationLower)) return true;
-              if (!selectedSeaPort) return true;
-              return VLADIVOSTOK_VARIANTS.some(v => pStationLower.includes(v.split(" ")[0].toLowerCase()));
-            }
+            if (seaPortLower.includes("пл") && pStationLower.includes("пасифик лоджистик")) return true;
+            if (specificSeaHubKeywords.length > 0 && specificSeaHubKeywords.some(kw => pStationLower.includes(kw))) return true;
+            if (pStationLower.includes(seaPortBaseName)) return true;
             return false;
           });
-          if (isDepartureStationCompatible) railEntry.arrivalStations.forEach(arrStation => stationsForCity.add(arrStation));
+
+          if (isDepartureStationCompatible) {
+            railEntry.arrivalStations.forEach(arrStation => stationsForCity.add(arrStation));
+          }
         }
       });
       newAvailableStationsArray = Array.from(stationsForCity).sort();
     }
+    
     if (JSON.stringify(localAvailableArrivalStations) !== JSON.stringify(newAvailableStationsArray)) {
       setLocalAvailableArrivalStations(newAvailableStationsArray);
     }
+
     if (hasRestoredFromCache) {
       const currentArrivalStationSelection = getValues("arrivalStationSelection");
       if ((currentArrivalStationSelection && !newAvailableStationsArray.includes(currentArrivalStationSelection)) ||
@@ -234,24 +300,22 @@ export function usePricingFormEffects({
 
   // Effect for auto-clearing dependent fields on higher-level changes (Shipment Type, Origin, Sea Dest)
   React.useEffect(() => {
-    if (hasRestoredFromCache) { // Only apply these auto-clears after initial setup/cache restoration.
+    if (hasRestoredFromCache) { 
       const currentOrigin = getValues("originPort");
       const currentSeaDest = getValues("destinationPort");
       const currentSeaLine = getValues("seaLineCompany");
-      // If origin is cleared, clear its dependents
+      
       if (!currentOrigin) {
         if (currentSeaDest !== "") setValue("destinationPort", "", { shouldValidate: true });
-        // SeaLine depends on both origin and seaDest
       }
-      // If origin or seaDest is cleared (or not set), clear SeaLine
+      
       if (!currentOrigin || !currentSeaDest) {
         if (currentSeaLine !== NONE_SEALINE_VALUE) setValue("seaLineCompany", NONE_SEALINE_VALUE, { shouldValidate: true });
       }
-      // If Sea Destination is cleared, or if it's not a Vladivostok variant, clear Russian City and Arrival Station.
-      // This is slightly more aggressive to ensure consistency.
+      
       if (!currentSeaDest || (currentSeaDest && !VLADIVOSTOK_VARIANTS.some(variant => currentSeaDest.startsWith(variant.split(" ")[0])))) {
           if (getValues("russianDestinationCity") !== "") setValue("russianDestinationCity", "", { shouldValidate: true });
-          if (getValues("arrivalStationSelection") !== "") setValue("arrivalStationSelection", "", { shouldValidate: true });
+          // arrivalStationSelection will be cleared by its own effect if russianDestinationCity is cleared
       }
     }
   }, [watchedShipmentType, watchedOriginPort, watchedDestinationPort, setValue, getValues, hasRestoredFromCache]);
@@ -261,7 +325,7 @@ export function usePricingFormEffects({
   const currentFormValues = watch();
   const watchedFormValuesString = React.useMemo(() => JSON.stringify(currentFormValues), [currentFormValues]);
   React.useEffect(() => {
-    if (isSeaRailExcelDataLoaded || context.isDirectRailExcelDataLoaded) { // Only cache if some data is loaded
+    if (isSeaRailExcelDataLoaded || context.isDirectRailExcelDataLoaded) { 
       setCachedFormValues(JSON.parse(watchedFormValuesString));
     }
   }, [watchedFormValuesString, setCachedFormValues, isSeaRailExcelDataLoaded, context.isDirectRailExcelDataLoaded]);
