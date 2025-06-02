@@ -74,7 +74,9 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
         const firstSheetName = workbook.SheetNames[0];
         if (firstSheetName) {
           const newDashboardData = parseDashboardSheet(workbook.Sheets[firstSheetName]);
-          contextSetters.setDashboardServiceSections(newDashboardData);
+          // Force a deep copy to ensure React sees a new object structure for state update
+          const trulyNewDashboardData = JSON.parse(JSON.stringify(newDashboardData));
+          contextSetters.setDashboardServiceSections(trulyNewDashboardData);
           if (newDashboardData.length > 0) {
             toast({ title: "Dashboard Data Parsed (Sheet 1)", description: `Found ${newDashboardData.length} service sections.`});
           } else {
@@ -338,3 +340,6 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
   }
   if (fileInputRef.current) fileInputRef.current.value = "";
 }
+
+
+    
