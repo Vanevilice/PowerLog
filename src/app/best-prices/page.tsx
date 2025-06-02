@@ -379,7 +379,7 @@ export default function BestPricesPage() {
                             {route.directRailExcelCommentary && (
                             <p className="flex justify-between items-start">
                                 <span>Excel Commentary:</span>
-                                <span className="text-xs text-muted-foreground text-right ml-2">{route.directRailExcelCommentary}</span>
+                                <span className="text-xs text-destructive text-right ml-2">{route.directRailExcelCommentary}</span>
                             </p>
                             )}
                         </>
