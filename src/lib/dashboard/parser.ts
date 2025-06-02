@@ -85,13 +85,13 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
   const rawData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: null });
   const parsedSections: DashboardServiceSection[] = [];
   let currentSection: DashboardServiceSection | null = null;
+  let currentFobRowForLegs: DashboardServiceDataRow | null = null; // Tracks the current FOB/FI parent
 
   console.log(`[DashboardParser] Starting to parse ${rawData.length} raw rows.`);
 
   rawData.forEach((rowArray, index) => {
-    const excelRowNum = index + 1; // 1-based for easier Excel correlation
+    const excelRowNum = index + 1;
     if (!Array.isArray(rowArray) || rowArray.every(cell => cell === null || cell === undefined || String(cell).trim() === "")) {
-      // console.log(`[DashboardParser] Row ${excelRowNum} is blank, skipping.`);
       return;
     }
 
@@ -102,22 +102,20 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
 
     const isFobFiType = isFobOrFiRow(firstCell, rowArray[1]);
     const isCyColDType = isCyRowByColD(colD);
-    const isCyColAType = !isFobFiType && isCyInColA(firstCell); // CY determined by Col A only if not FOB/FI
+    const isCyColAType = !isFobFiType && isCyInColA(firstCell);
     const isCyType = isCyColDType || isCyColAType;
-
     const isHeaderType = isPotentialServiceHeaderRow(rowArray, firstCell, isFobFiType, isCyColDType, isCyColAType);
-
-    // console.log(`[DashboardParser] Row ${excelRowNum}: Raw: [${rowArray.join('|')}], isHeader: ${isHeaderType}, isFobFi: ${isFobFiType}, isCy: ${isCyType}`);
 
     if (isHeaderType) {
       finalizeCurrentSection(currentSection, parsedSections);
+      currentFobRowForLegs = null; // Reset FOB/FI context for new section
       let newServiceName = "";
       if (colB && colC) newServiceName = `${colB} ${colC}`;
       else if (colB) newServiceName = colB;
       else if (colC) newServiceName = colC;
       else if (firstCell) newServiceName = firstCell;
       currentSection = { serviceName: newServiceName || `Service Section (Row ${excelRowNum})`, dataRows: [] };
-      console.log(`[DashboardParser] Row ${excelRowNum}: New Header identified: "${currentSection.serviceName}".`);
+      console.log(`[DashboardParser] Row ${excelRowNum}: New Header identified: "${currentSection.serviceName}". Reset currentFobRowForLegs.`);
     } else if (isFobFiType) {
       if (!currentSection) {
         currentSection = { serviceName: `Service Section (Implicit at row ${excelRowNum})`, dataRows: [] };
@@ -126,30 +124,32 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
       const newFobRow = processFobOrFiRow(rowArray);
       if (newFobRow) {
         currentSection.dataRows.push(newFobRow);
-        console.log(`[DashboardParser] Row ${excelRowNum}: Processed FOB/FI row, added to section "${currentSection.serviceName}". Route: '${newFobRow.route}'. Initial railway legs: ${newFobRow.railwayLegs.length}. Current dataRows in section: ${currentSection.dataRows.length}`);
+        currentFobRowForLegs = newFobRow; // Set this new FOB/FI row as the current parent for legs
+        console.log(`[DashboardParser] Row ${excelRowNum}: Processed FOB/FI row, added to section "${currentSection.serviceName}". Route: '${newFobRow.route}'. Set as currentFobRowForLegs. Legs count: ${newFobRow.railwayLegs.length}.`);
       } else {
-         console.warn(`[DashboardParser] Row ${excelRowNum}: Identified as FOB/FI type, but processFobOrFiRow returned null.`);
+        currentFobRowForLegs = null; // Invalid FOB/FI row, so clear current parent context
+        console.warn(`[DashboardParser] Row ${excelRowNum}: Identified as FOB/FI type, but processFobOrFiRow returned null. Cleared currentFobRowForLegs.`);
       }
     } else if (isCyType) {
-      if (currentSection && currentSection.dataRows.length > 0) {
-        const parentFobRow = currentSection.dataRows[currentSection.dataRows.length - 1];
-        console.log(`[DashboardParser] Row ${excelRowNum}: Identified as CY. Attempting to attach to parent FOB/FI row '${parentFobRow.route}' (Index ${currentSection.dataRows.length - 1} in current section). Parent railwayLegs before: ${parentFobRow.railwayLegs?.length || 'undefined/null'}`);
+      if (currentFobRowForLegs) { // Check if there's an active FOB/FI parent
+        console.log(`[DashboardParser] Row ${excelRowNum}: Identified as CY. Attempting to attach to currentFobRowForLegs: '${currentFobRowForLegs.route}'. Legs before: ${currentFobRowForLegs.railwayLegs.length}`);
         const railwayLegData = processRailwayLegRow(rowArray);
         if (railwayLegData) {
-          if (!parentFobRow.railwayLegs) { // Should be initialized, but defensive check
-            parentFobRow.railwayLegs = [];
-            console.warn(`[DashboardParser] Row ${excelRowNum}: Parent FOB/FI row '${parentFobRow.route}' railwayLegs was unexpectedly not initialized. Initialized now.`);
-          }
-          parentFobRow.railwayLegs.push(railwayLegData);
-          console.log(`[DashboardParser] Row ${excelRowNum}: Attached Railway Leg ('${railwayLegData.originInfo}') to parent '${parentFobRow.route}'. Total legs on parent now: ${parentFobRow.railwayLegs.length}.`);
+          currentFobRowForLegs.railwayLegs.push(railwayLegData);
+          console.log(`[DashboardParser] Row ${excelRowNum}: Attached Railway Leg ('${railwayLegData.originInfo}') to '${currentFobRowForLegs.route}'. Total legs on parent now: ${currentFobRowForLegs.railwayLegs.length}.`);
         } else {
-           console.log(`[DashboardParser] Row ${excelRowNum}: Identified as CY, but processRailwayLegRow returned null. Not attached. Raw CY data: [${rowArray.join('|')}]`);
+           console.log(`[DashboardParser] Row ${excelRowNum}: Identified as CY for '${currentFobRowForLegs.route}', but processRailwayLegRow returned null. Not attached. Raw CY data: [${rowArray.join('|')}]`);
         }
       } else {
-        console.warn(`[DashboardParser] Row ${excelRowNum}: Identified as CY, but no current section or no FOB/FI rows in current section to attach it to. Raw CY data: [${rowArray.join('|')}] Skipping.`);
+        console.warn(`[DashboardParser] Row ${excelRowNum}: Identified as CY, but no currentFobRowForLegs (no active FOB/FI parent). Raw CY data: [${rowArray.join('|')}] Skipping.`);
       }
     } else {
-      // console.log(`[DashboardParser] Row ${excelRowNum}: Not Header, FOB/FI, or CY. Skipping main logic. Content: ${firstCell}`);
+      // This row is not a header, not FOB/FI, and not CY.
+      // Decide if this should reset currentFobRowForLegs. For now, it does not,
+      // allowing CY rows to appear after minor non-data spacer rows.
+      // If such rows should definitively break the FOB/FI context, then uncomment:
+      // currentFobRowForLegs = null;
+      // console.log(`[DashboardParser] Row ${excelRowNum}: Not Header, FOB/FI, or CY. currentFobRowForLegs ('${currentFobRowForLegs?.route || 'null'}') maintained.`);
     }
   });
 
@@ -157,4 +157,3 @@ export function parseDashboardSheet(worksheet: XLSX.WorkSheet): DashboardService
   console.log(`[DashboardParser] Finished parsing all rows. Total sections parsed: ${parsedSections.length}`);
   return parsedSections;
 }
-
