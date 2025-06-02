@@ -1,4 +1,3 @@
-
 // src/lib/pricing/finders.ts
 import type {
   RouteFormValues,
@@ -13,6 +12,7 @@ import type {
   ShipmentType,
 } from '@/types';
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, DROP_OFF_TRIGGER_PHRASES } from './constants';
+import { appendCommentary } from './utils'; // Import the new utility
 
 // --- Helper Interfaces (can be moved to types if they become more widely used) ---
 export interface SeaPriceInfo {
@@ -143,7 +143,7 @@ export function findRailLegDetails(
 
   if (!russianDestinationCity) { 
       railInfo.railLegFailed = true;
-      railInfo.commentaryReason = (currentCommentary ? currentCommentary + " " : "") + "Russian Destination City not specified for rail leg calculation.";
+      railInfo.commentaryReason = appendCommentary(currentCommentary, "Russian Destination City not specified for rail leg calculation.");
       return railInfo;
   }
 
@@ -187,22 +187,22 @@ export function findRailLegDetails(
         }
       }
       if (railCostFound) {
-        railInfo.commentaryReason = ""; // Clear commentary if successful
-        break; // Found a suitable and priced rail leg
+        // Clear previous commentary only if successful, to avoid overwriting specific component failure messages
+        if (!railInfo.commentaryReason.includes("Rail pricing components")) {
+             railInfo.commentaryReason = currentCommentary; // Revert to original commentary before this leg if fully successful
+        }
+        break; 
       } else if (!railInfo.commentaryReason.includes("Rail pricing components")) {
-         // If no cost found for THIS compatible station, set reason
-         railInfo.commentaryReason = (currentCommentary ? currentCommentary + " " : "") + `Rail pricing components for ${containerType} from a ${seaDestinationPort}-compatible station to ${russianDestinationCity}${arrivalStationSelection ? ` (station: ${arrivalStationSelection})` : ""} are missing for station ${compatibleDepartureStation}.`;
+         railInfo.commentaryReason = appendCommentary(currentCommentary, `Rail pricing components for ${containerType} from a ${seaDestinationPort}-compatible station to ${russianDestinationCity}${arrivalStationSelection ? ` (station: ${arrivalStationSelection})` : ""} are missing for station ${compatibleDepartureStation}.`);
       }
     }
-    // Don't break loop if only some components found; try next departure station
     if (railCostFound) break;
   }
 
   if (!railCostFound) {
     railInfo.railLegFailed = true;
-    // If loop finishes and no cost found, update commentary if it wasn't already set for missing components
     if (!railInfo.commentaryReason.includes("missing components") && !railInfo.commentaryReason.includes("No compatible and fully priced rail route")) {
-       railInfo.commentaryReason = (currentCommentary ? currentCommentary + " " : "") + `No compatible and fully priced rail route found from a ${seaDestinationPort}-related station to ${russianDestinationCity}${arrivalStationSelection ? ` (station: ${arrivalStationSelection})` : ""}.`;
+       railInfo.commentaryReason = appendCommentary(currentCommentary, `No compatible and fully priced rail route found from a ${seaDestinationPort}-related station to ${russianDestinationCity}${arrivalStationSelection ? ` (station: ${arrivalStationSelection})` : ""}.`);
     }
   }
   return railInfo;
@@ -224,19 +224,15 @@ export function findDropOffDetails( // COC Drop-off
     dropOffLegFailed: false, commentaryReason: currentCommentary
   };
 
-  // Drop-off is only for COC and if a sea line is specified
   if (shipmentType !== "COC" || !actualSeaLine) {
     return dropOffInfo;
   }
 
-  // Check if drop-off is explicitly mentioned in sea route comment or if it's CK Line
   const isCKLine = actualSeaLine.toLowerCase().includes('ck line');
   const seaCommentLower = String(seaCommentFromRoute || '').toLowerCase().trim();
   const needsDropOffLookupFromComment = DROP_OFF_TRIGGER_PHRASES.some(phrase => seaCommentLower.includes(phrase));
-
   const shouldAttemptDropOffLookup = isCKLine || needsDropOffLookupFromComment;
   const isPandaLine = actualSeaLine.toLowerCase().includes('panda express line');
-
 
   if (shouldAttemptDropOffLookup && !isPandaLine) {
     let dropOffEntryMatched = false;
@@ -245,7 +241,6 @@ export function findDropOffDetails( // COC Drop-off
     for (const dropOffEntry of excelDropOffData) {
       const seaLineFromMainRouteLower = actualSeaLine.toLowerCase().trim();
       const seaLineFromDropOffSheetLower = dropOffEntry.seaLine.toLowerCase().trim();
-      // More robust sea line matching (e.g., "SINOKOR" vs "SINOKOR MERCHANT MARINE")
       const seaLineMatch = seaLineFromMainRouteLower.includes(seaLineFromDropOffSheetLower) || seaLineFromDropOffSheetLower.includes(seaLineFromMainRouteLower);
       if (!seaLineMatch) continue;
 
@@ -257,27 +252,24 @@ export function findDropOffDetails( // COC Drop-off
         if (typeof dropOffPriceRaw === 'string') {
           dropOffInfo.displayValue = dropOffPriceRaw;
           dropOffInfo.costNumeric = parseFirstNumberFromString(dropOffPriceRaw);
-          // If parsing failed but string is not empty/N/A, it's a problematic price string.
           if (dropOffInfo.costNumeric === null && dropOffPriceRaw.trim() !== "" && dropOffPriceRaw.trim().toLowerCase() !== "n/a") { 
             dropOffInfo.dropOffLegFailed = true;
-            dropOffInfo.commentaryReason += (dropOffInfo.commentaryReason ? " " : "") + `COC Drop-off charges for ${actualSeaLine} to ${cityForDropOffLookup} has an unparsable string price for ${containerType}: ${dropOffPriceRaw}.`;
+            dropOffInfo.commentaryReason = appendCommentary(dropOffInfo.commentaryReason, `COC Drop-off charges for ${actualSeaLine} to ${cityForDropOffLookup} has an unparsable string price for ${containerType}: ${dropOffPriceRaw}.`);
           }
         } else if (typeof dropOffPriceRaw === 'number') {
           dropOffInfo.costNumeric = dropOffPriceRaw;
-          dropOffInfo.displayValue = String(dropOffPriceRaw); // Store as string for consistency
+          dropOffInfo.displayValue = String(dropOffPriceRaw); 
         }
-        // If cost is explicitly null from Excel but was matched, it's a valid "no price" entry
         dropOffEntryMatched = true; break;
       }
     }
     if (!dropOffEntryMatched) {
-      dropOffInfo.commentaryReason += (dropOffInfo.commentaryReason ? " " : "") + `COC Drop-off charges triggered for ${actualSeaLine} to ${cityForDropOffLookup}, but no matching COC drop-off pricing entry found.`;
-      dropOffInfo.dropOffLegFailed = true; // Mark as failed if lookup was expected but no entry found
+      dropOffInfo.commentaryReason = appendCommentary(dropOffInfo.commentaryReason, `COC Drop-off charges triggered for ${actualSeaLine} to ${cityForDropOffLookup}, but no matching COC drop-off pricing entry found.`);
+      dropOffInfo.dropOffLegFailed = true; 
     }
   } else if (shouldAttemptDropOffLookup && isPandaLine) {
-    // Special handling for Panda Express Line - no drop-off cost
     dropOffInfo.costNumeric = null;
-    dropOffInfo.displayValue = null; // Explicitly no display value
+    dropOffInfo.displayValue = null; 
     dropOffInfo.comment = "Drop-off N/A for Panda Express Line";
   }
   return dropOffInfo;
@@ -298,10 +290,9 @@ export function findSOCDropOffDetails( // SOC Drop-off (New Function)
     socDropOffLegFailed: false, commentaryReason: currentCommentary
   };
 
-  // SOC Drop-off requires the specific Excel to be loaded, sea line, container type, and city.
   if (!isSOCDropOffExcelDataLoaded || !actualSeaLine || !containerType || !cityForDropOffLookup) {
-    if (isSOCDropOffExcelDataLoaded && actualSeaLine && containerType && cityForDropOffLookup) { // Only add specific message if some params were there
-        socDropOffInfo.commentaryReason += (socDropOffInfo.commentaryReason ? " " : "") + `SOC Drop-off data not fully available or missing parameters.`;
+    if (isSOCDropOffExcelDataLoaded && actualSeaLine && containerType && cityForDropOffLookup) { 
+        socDropOffInfo.commentaryReason = appendCommentary(socDropOffInfo.commentaryReason, `SOC Drop-off data not fully available or missing parameters.`);
     }
     socDropOffInfo.socDropOffLegFailed = true;
     return socDropOffInfo;
@@ -324,7 +315,7 @@ export function findSOCDropOffDetails( // SOC Drop-off (New Function)
         socDropOffInfo.costNumeric = parseFirstNumberFromString(priceRaw);
         if (socDropOffInfo.costNumeric === null && priceRaw.trim() !== "" && priceRaw.trim().toLowerCase() !== "n/a") {
           socDropOffInfo.socDropOffLegFailed = true;
-          socDropOffInfo.commentaryReason += (socDropOffInfo.commentaryReason ? " " : "") + `SOC Drop-off charges for ${actualSeaLine} to ${cityForDropOffLookup} (${containerType}) has an unparsable string price: ${priceRaw}.`;
+          socDropOffInfo.commentaryReason = appendCommentary(socDropOffInfo.commentaryReason, `SOC Drop-off charges for ${actualSeaLine} to ${cityForDropOffLookup} (${containerType}) has an unparsable string price: ${priceRaw}.`);
         }
       } else if (typeof priceRaw === 'number') {
         socDropOffInfo.costNumeric = priceRaw;
@@ -336,7 +327,7 @@ export function findSOCDropOffDetails( // SOC Drop-off (New Function)
   }
 
   if (!entryMatched) {
-    socDropOffInfo.commentaryReason += (socDropOffInfo.commentaryReason ? " " : "") + `No matching SOC Drop-off pricing found for ${actualSeaLine} to ${cityForDropOffLookup} (${containerType}).`;
+    socDropOffInfo.commentaryReason = appendCommentary(socDropOffInfo.commentaryReason, `No matching SOC Drop-off pricing found for ${actualSeaLine} to ${cityForDropOffLookup} (${containerType}).`);
     socDropOffInfo.socDropOffLegFailed = true;
   }
   return socDropOffInfo;
@@ -346,7 +337,6 @@ export function findDirectRailEntry(values: RouteFormValues, context: PricingDat
   const { excelDirectRailData } = context;
   const { directRailAgentName, directRailCityOfDeparture, directRailDestinationCityDR, directRailIncoterms, directRailBorder } = values;
   
-  // All fields are required for a specific direct rail entry lookup
   if (!directRailAgentName || !directRailCityOfDeparture || !directRailDestinationCityDR || !directRailIncoterms || !directRailBorder) {
     return undefined;
   }
@@ -359,5 +349,3 @@ export function findDirectRailEntry(values: RouteFormValues, context: PricingDat
     entry.border.toLowerCase() === directRailBorder.toLowerCase()
   );
 }
-
-    
