@@ -3,11 +3,11 @@
 import * as XLSX from 'xlsx';
 import type { UseFormReturn } from 'react-hook-form';
 import type {
-  ExcelRoute, ExcelSOCRoute, RailDataEntry as ContextRailDataEntry, DropOffEntry, DirectRailEntry,
-  RouteFormValues, PricingDataContextType, CombinedAiOutput
+  ExcelRoute, ExcelSOCRoute, RailDataEntry as ContextRailDataEntry, DropOffEntry, DirectRailEntry, ExcelSOCDropOffEntry,
+  RouteFormValues, PricingDataContextType, CombinedAiOutput, ContainerType
 } from '@/types';
 import type { useToast } from '@/hooks/use-toast';
-import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS } from './constants';
+import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, CONTAINER_TYPES_CONST } from './constants';
 import { parseDashboardSheet } from '@/lib/dashboard/parser';
 import {
   parsePortsCell, parseSeaLinesCell, parseRailStationsCell,
@@ -31,15 +31,13 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
 
   setIsParsingState(true);
   setShippingInfoState(null);
-  setBestPriceResults(null); // Clear previous best price results
+  setBestPriceResults(null); 
 
-  // Clear cached values related to previous calculations or file loads
   contextSetters.setCachedShippingInfo(null);
   contextSetters.setCachedFormValues(null);
   contextSetters.setCachedLastSuccessfulCalculation(null);
-  setHasRestoredFromCacheState(false); // Reset cache restoration flag
+  setHasRestoredFromCacheState(false); 
 
-  // Reset context data related to Excel sheets
   contextSetters.setExcelRouteData([]);
   contextSetters.setExcelSOCRouteData([]);
   contextSetters.setExcelRailData([]);
@@ -50,15 +48,14 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
   contextSetters.setDashboardServiceSections([]);
   contextSetters.setIsSeaRailExcelDataLoaded(false);
 
-  // Reset form fields specific to Sea+Rail mode
   const currentValues = form.getValues();
   form.reset({
-    ...currentValues, // Preserve common fields like margins, direct rail values
+    ...currentValues, 
     shipmentType: "COC", originPort: "", destinationPort: "", seaLineCompany: NONE_SEALINE_VALUE,
     containerType: undefined, russianDestinationCity: "", arrivalStationSelection: "",
-    calculationModeToggle: "sea_plus_rail", // Explicitly set mode after Sea+Rail file load
+    calculationModeToggle: "sea_plus_rail", 
   });
-  contextSetters.setCalculationMode("sea_plus_rail"); // Also update context mode
+  contextSetters.setCalculationMode("sea_plus_rail"); 
 
 
   const reader = new FileReader();
@@ -70,11 +67,9 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
         const allUniqueOrigins = new Set<string>();
         const allUniqueSeaDestinationsMaster = new Set<string>();
 
-        // Dashboard Data (Sheet 1)
         const firstSheetName = workbook.SheetNames[0];
         if (firstSheetName) {
           const newDashboardData = parseDashboardSheet(workbook.Sheets[firstSheetName]);
-          // Force a deep copy to ensure React sees a new object structure for state update
           const trulyNewDashboardData = JSON.parse(JSON.stringify(newDashboardData));
           contextSetters.setDashboardServiceSections(trulyNewDashboardData);
           if (newDashboardData.length > 0) {
@@ -87,7 +82,6 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
           toast({ variant: "default", title: "File Info", description: "First sheet (for dashboard data) not found or not parsable." });
         }
 
-        // COC Data (Sheet 3, index 2)
         const thirdSheetName = workbook.SheetNames[2];
         const newRouteDataLocal: ExcelRoute[] = [];
         if (thirdSheetName) {
@@ -115,7 +109,6 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
             toast({ variant: "destructive", title: "File Error", description: "Third sheet (COC sea routes) not found." });
         }
 
-        // SOC Data (Sheet 2, index 1)
         const secondSheetName = workbook.SheetNames[1];
         const newSOCRouteDataLocal: ExcelSOCRoute[] = [];
         if (secondSheetName) {
@@ -123,16 +116,17 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
             const secondSheetDataToParse = (secondSheetRawData.length > 0 && Array.isArray(secondSheetRawData[0]) && secondSheetRawData[0].some(cell => typeof cell === 'string' && String(cell).trim().length > 0)) ? secondSheetRawData.slice(1) : secondSheetRawData;
             secondSheetDataToParse.forEach(row => {
               if (!Array.isArray(row) || row.every(cell => cell === null || cell === undefined || String(cell).trim() === "")) return;
-              const currentDeparturePorts = parsePortsCell(row[1] as string | undefined, false);
-              const currentDestinations = parsePortsCell(row[2] as string | undefined, true);
+              const currentDeparturePorts = parsePortsCell(row[1] as string | undefined, false); // Column B for SOC origins
+              const currentDestinations = parsePortsCell(row[2] as string | undefined, true); // Column C for SOC destinations
               currentDeparturePorts.forEach(p => allUniqueOrigins.add(p));
               currentDestinations.forEach(p => allUniqueSeaDestinationsMaster.add(p));
               if (currentDeparturePorts.length > 0 && currentDestinations.length > 0) {
                 newSOCRouteDataLocal.push({
                   departurePorts: currentDeparturePorts, destinationPorts: currentDestinations,
-                  seaLines: parseSeaLinesCell(row[3] as string | undefined),
-                  price20DC: parsePriceCell(row[4]), price40HC: parsePriceCell(row[5]),
-                  socComment: String(row[8] || '').trim(),
+                  seaLines: parseSeaLinesCell(row[3] as string | undefined), // Column D for Sea Lines
+                  price20DC: parsePriceCell(row[4]), // Column E for 20' price
+                  price40HC: parsePriceCell(row[5]), // Column F for 40' price
+                  socComment: String(row[8] || '').trim(), // Column I for SOC comment
                 });
               }
             });
@@ -150,7 +144,6 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
             return a.localeCompare(b);
         }));
 
-        // Drop Off Data (Sheet 4, index 3)
         const fourthSheetName = workbook.SheetNames[3];
         const newDropOffDataLocal: DropOffEntry[] = [];
         if (fourthSheetName) {
@@ -171,7 +164,6 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
             toast({ variant: "default", title: "File Info", description: "Fourth sheet (drop-off) not found." });
         }
 
-        // Rail Data (Sheet 5, index 4)
         const fifthSheetName = workbook.SheetNames[4];
         const newRailDataLocal: ContextRailDataEntry[] = [];
         const uniqueRussianCitiesFromSheet = new Set<string>();
@@ -239,7 +231,7 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
 
   setIsParsingState(true);
   setShippingInfoState(null);
-  setBestPriceResults(null); // Clear previous best price results
+  setBestPriceResults(null); 
 
   contextSetters.setCachedShippingInfo(null);
   contextSetters.setCachedFormValues(null);
@@ -256,10 +248,10 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
 
   const currentValues = form.getValues();
   form.reset({
-    ...currentValues, // Preserve common fields and sea+rail fields
+    ...currentValues, 
     directRailAgentName: "", directRailCityOfDeparture: "", directRailDestinationCityDR: "",
     directRailIncoterms: "", directRailBorder: "",
-    calculationModeToggle: "direct_rail", // Explicitly set mode
+    calculationModeToggle: "direct_rail", 
   });
   contextSetters.setCalculationMode("direct_rail");
 
@@ -295,7 +287,6 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
             if (entry.destinationCity) uniqueDestCitiesDR.add(entry.destinationCity);
             if (entry.incoterms) uniqueIncoterms.add(entry.incoterms);
             if (entry.border) uniqueBorders.add(entry.border);
-            // Only add if essential fields are present
             if (entry.agentName && entry.cityOfDeparture && entry.destinationCity && entry.incoterms && entry.border) {
               newDirectRailDataLocal.push(entry);
             }
@@ -341,5 +332,91 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
   if (fileInputRef.current) fileInputRef.current.value = "";
 }
 
+export async function handleSOCDropOffFileParse(args: ExcelParserArgsBase) {
+  const { file, contextSetters, toast, fileInputRef, setIsParsingState } = args;
 
-    
+  setIsParsingState(true);
+  // Do not clear other states like shippingInfo or bestPriceResults here,
+  // as this file only supplements existing data.
+  
+  contextSetters.setExcelSOCDropOffData([]);
+  contextSetters.setIsSOCDropOffExcelDataLoaded(false);
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const arrayBuffer = e.target?.result;
+    if (arrayBuffer && typeof XLSX !== 'undefined') {
+      try {
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const newSOCDropOffDataLocal: ExcelSOCDropOffEntry[] = [];
+
+        if (firstSheetName) {
+          const sheetRawData = XLSX.utils.sheet_to_json<any[]>(workbook.Sheets[firstSheetName], { header: 1 });
+          // Assume header row is present and skip it. Adjust if no header.
+          const sheetDataToParse = (sheetRawData.length > 0 && Array.isArray(sheetRawData[0]) && sheetRawData[0].some(cell => typeof cell === 'string' && String(cell).trim().length > 0)) ? sheetRawData.slice(1) : sheetRawData;
+          
+          sheetDataToParse.forEach(row => {
+            if (!Array.isArray(row) || row.every(cell => cell === null || cell === undefined || String(cell).trim() === "")) return;
+            
+            const seaLine = String(row[0] || '').trim(); // Column A: Sea Line
+            const destination = String(row[1] || '').trim(); // Column B: Destination
+            const containerTypeRaw = String(row[2] || '').trim(); // Column C: Container Type
+            const price = parsePriceCell(row[3]); // Column D: Price
+            const comment = String(row[4] || '').trim(); // Column E: Comment
+
+            // Validate containerType
+            let containerType: ContainerType | undefined;
+            if (CONTAINER_TYPES_CONST.includes(containerTypeRaw as ContainerType)) {
+                containerType = containerTypeRaw as ContainerType;
+            } else {
+                // Try to infer or default if not a direct match, or log a warning
+                if (containerTypeRaw.includes("20")) containerType = "20DC";
+                else if (containerTypeRaw.includes("40")) containerType = "40HC";
+                // else console.warn(`Invalid container type in SOC Drop-off Excel: ${containerTypeRaw}`);
+            }
+
+            if (seaLine && destination && containerType && price !== null) {
+              newSOCDropOffDataLocal.push({
+                seaLine,
+                destination,
+                containerType,
+                price,
+                comment: comment || undefined,
+              });
+            }
+          });
+          contextSetters.setExcelSOCDropOffData(newSOCDropOffDataLocal);
+          contextSetters.setIsSOCDropOffExcelDataLoaded(true);
+          toast({ title: "SOC Drop-off Excel Processed", description: `Found ${newSOCDropOffDataLocal.length} entries.` });
+        } else {
+          contextSetters.setIsSOCDropOffExcelDataLoaded(false);
+          toast({ variant: "destructive", title: "File Error", description: "First sheet (SOC Drop-off) not found." });
+        }
+      } catch (parseError) {
+        console.error("Error parsing SOC Drop-off Excel:", parseError);
+        contextSetters.setIsSOCDropOffExcelDataLoaded(false);
+        toast({ variant: "destructive", title: "Parsing Error", description: "Could not parse SOC Drop-off Excel."});
+      } finally {
+        setIsParsingState(false);
+      }
+    } else if (typeof XLSX === 'undefined') {
+        toast({ variant: "destructive", title: "Setup Incomplete", description: "XLSX library not available."});
+        setIsParsingState(false);
+        contextSetters.setIsSOCDropOffExcelDataLoaded(false);
+    }
+  };
+  reader.onerror = () => {
+    toast({ variant: "destructive", title: "File Error", description: "Could not read SOC Drop-off file." });
+    setIsParsingState(false);
+    contextSetters.setIsSOCDropOffExcelDataLoaded(false);
+  };
+  if (file) {
+    reader.readAsArrayBuffer(file);
+  } else {
+    toast({ variant: "destructive", title: "File Error", description: "No file provided to SOC Drop-off parser." });
+    setIsParsingState(false);
+    contextSetters.setIsSOCDropOffExcelDataLoaded(false);
+  }
+  if (fileInputRef.current) fileInputRef.current.value = "";
+}

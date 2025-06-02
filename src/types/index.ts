@@ -133,6 +133,8 @@ export interface CombinedAiOutput extends SmartPricingOutputBase, PricingComment
   dropOffCost?: number | null; // Generic drop-off cost, source might differ
   dropOffDisplayValue?: string | null;
   dropOffComment?: string | null;
+  socDropOffCost?: number | null; // Specific for SOC drop-off
+  socDropOffComment?: string | null; // Specific for SOC drop-off comment
 
   // Direct Rail specific fields
   directRailCityOfDeparture?: string;
@@ -170,9 +172,11 @@ export interface CalculationDetailsForInstructions {
   railCostFinal28t?: number | null;
   railCostFinal40HC?: number | null;
   // Drop-off related fields
-  dropOffCost?: number | null;
+  dropOffCost?: number | null; // COC Drop-off
   dropOffDisplayValue?: string | null;
   dropOffComment?: string | null;
+  socDropOffCost?: number | null; // SOC Drop-off
+  socDropOffComment?: string | null;
 }
 
 export interface BestPriceRoute {
@@ -197,9 +201,11 @@ export interface BestPriceRoute {
   railCost40HC_RUB?: number | null;
   railGuardCost40HC_RUB?: number | null;
   // Drop-off related fields
-  dropOffCostUSD?: number | null;
+  dropOffCostUSD?: number | null; // COC Drop-off
   dropOffDisplayValue?: string | null;
   dropOffComment?: string | null;
+  socDropOffCostUSD?: number | null; // SOC Drop-off
+  socDropOffComment?: string | null;
   
   totalComparisonCostRUB: number; // Universal sorting key (Sea+Rail total or Direct Rail price)
 

@@ -12,12 +12,16 @@ interface CommonFormFieldsProps {
   form: UseFormReturn<RouteFormValues>; // Use consolidated RouteFormValues
   isParsingSeaRailFile: boolean;
   isParsingDirectRailFile: boolean;
+  isParsingSOCDropOffFile: boolean; // New state for SOC drop-off parsing
   handleSeaRailFileUploadClick: () => void;
   handleDirectRailFileUploadClick: () => void;
+  handleSOCDropOffFileUploadClick: () => void; // New handler for SOC drop-off button
   seaRailFileInputRef: React.RefObject<HTMLInputElement>;
   directRailFileInputRef: React.RefObject<HTMLInputElement>;
+  socDropOffFileInputRef: React.RefObject<HTMLInputElement>; // New ref for SOC drop-off input
   onSeaRailFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onDirectRailFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onSOCDropOffFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void; // New change handler
   calculationModeContext: CalculationMode;
   setCalculationModeContext: PricingDataContextType['setCalculationMode'];
   exchangeRate: string | null;
@@ -27,33 +31,31 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
   form,
   isParsingSeaRailFile,
   isParsingDirectRailFile,
+  isParsingSOCDropOffFile, // Consuming new state
   handleSeaRailFileUploadClick,
   handleDirectRailFileUploadClick,
+  handleSOCDropOffFileUploadClick, // Consuming new handler
   seaRailFileInputRef,
   directRailFileInputRef,
+  socDropOffFileInputRef, // Consuming new ref
   onSeaRailFileChange,
   onDirectRailFileChange,
+  onSOCDropOffFileChange, // Consuming new change handler
   calculationModeContext,
   setCalculationModeContext,
   exchangeRate,
 }) => {
   const { control, getValues, setValue } = form;
 
-  // For diagnostics: Log if the onSeaRailFileChange prop changes or is initially set
-  React.useEffect(() => {
-    console.log("CommonFormFields: onSeaRailFileChange prop function:", onSeaRailFileChange);
-    console.log("CommonFormFields: onDirectRailFileChange prop function:", onDirectRailFileChange);
-  }, [onSeaRailFileChange, onDirectRailFileChange]);
-
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Button
           type="button"
           variant="outline"
           onClick={handleSeaRailFileUploadClick}
           className="w-full"
-          disabled={isParsingSeaRailFile || isParsingDirectRailFile}
+          disabled={isParsingSeaRailFile || isParsingDirectRailFile || isParsingSOCDropOffFile}
         >
           {isParsingSeaRailFile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
           {isParsingSeaRailFile ? "Processing..." : "Море + Ж/Д"}
@@ -61,25 +63,18 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
         <input
           type="file"
           ref={seaRailFileInputRef}
-          onChange={(e) => {
-            console.log("CommonFormFields: SeaRail input onChange triggered.", e);
-            if (onSeaRailFileChange) {
-              onSeaRailFileChange(e);
-            } else {
-              console.error("CommonFormFields: onSeaRailFileChange prop is undefined!");
-            }
-          }}
+          onChange={onSeaRailFileChange}
           accept=".xlsx, .xls"
           className="hidden"
           aria-hidden="true"
-          disabled={isParsingSeaRailFile}
+          disabled={isParsingSeaRailFile || isParsingDirectRailFile || isParsingSOCDropOffFile}
         />
         <Button
           type="button"
           variant="outline"
           onClick={handleDirectRailFileUploadClick}
           className="w-full"
-          disabled={isParsingDirectRailFile || isParsingSeaRailFile}
+          disabled={isParsingDirectRailFile || isParsingSeaRailFile || isParsingSOCDropOffFile}
         >
           {isParsingDirectRailFile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
           {isParsingDirectRailFile ? "Processing..." : "Прямое ЖД"}
@@ -87,18 +82,30 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
         <input
           type="file"
           ref={directRailFileInputRef}
-          onChange={(e) => {
-            console.log("CommonFormFields: DirectRail input onChange triggered.", e);
-            if (onDirectRailFileChange) {
-              onDirectRailFileChange(e);
-            } else {
-              console.error("CommonFormFields: onDirectRailFileChange prop is undefined!");
-            }
-          }}
+          onChange={onDirectRailFileChange}
           accept=".xlsx, .xls"
           className="hidden"
           aria-hidden="true"
-          disabled={isParsingDirectRailFile}
+          disabled={isParsingDirectRailFile || isParsingSeaRailFile || isParsingSOCDropOffFile}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleSOCDropOffFileUploadClick} // Using new handler
+          className="w-full"
+          disabled={isParsingSOCDropOffFile || isParsingSeaRailFile || isParsingDirectRailFile} // Disable if any parsing is active
+        >
+          {isParsingSOCDropOffFile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+          {isParsingSOCDropOffFile ? "Processing..." : "SOC Drop-off"}
+        </Button>
+        <input
+          type="file"
+          ref={socDropOffFileInputRef} // Using new ref
+          onChange={onSOCDropOffFileChange} // Using new change handler
+          accept=".xlsx, .xls"
+          className="hidden"
+          aria-hidden="true"
+          disabled={isParsingSOCDropOffFile || isParsingSeaRailFile || isParsingDirectRailFile}
         />
       </div>
 
@@ -112,7 +119,6 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
               <RadioGroup
                 onValueChange={(value: string) => {
                   const newMode = value as CalculationMode;
-                  // field.onChange(newMode); // This was removed in previous steps as context drives it.
                   setCalculationModeContext(newMode);
                 }}
                 value={calculationModeContext} // Controlled by context
