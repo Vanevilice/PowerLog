@@ -40,8 +40,9 @@ export default function BestPricesPage() {
       const totalFreightCost = seaCostBaseForSum + dropOffCostForSum;
       textToCopy += "Фрахт: " + formatDisplayCost(totalFreightCost > 0 ? totalFreightCost : null, 'USD') + "\n";
 
+      // For SOC, socDropOffCostUSD is now assumed to be USD
       if (route.shipmentType === "SOC" && route.socDropOffCostUSD !== null) {
-        textToCopy += `Вывоз контейнера (SOC Drop-off): ${formatDisplayCost(route.socDropOffCostUSD, 'RUB')}\n`;
+        textToCopy += `Вывоз контейнера (SOC Drop-off): ${formatDisplayCost(route.socDropOffCostUSD, 'USD')}\n`;
       }
 
       let jdLine = "";
@@ -162,6 +163,7 @@ export default function BestPricesPage() {
         if (route.dropOffComment) queryParams.set('dropOffComment', route.dropOffComment);
     }
     
+    // For SOC, socDropOffCostUSD is now USD
     if (route.shipmentType === "SOC") {
         if (route.socDropOffCostUSD !== null && route.socDropOffCostUSD !== undefined) queryParams.set('socDropOffCost', route.socDropOffCostUSD.toString());
         if (route.socDropOffComment) queryParams.set('socDropOffComment', route.socDropOffComment);
@@ -386,12 +388,12 @@ export default function BestPricesPage() {
                                 <span className="text-xs text-destructive text-right ml-2">{route.dropOffComment}</span>
                             </p>
                             )}
-                            {/* SOC Drop-off Cost Display */}
+                            {/* SOC Drop-off Cost Display - now formatted as USD */}
                             {route.shipmentType === "SOC" && route.socDropOffCostUSD !== null && (
                               <p className="flex justify-between">
-                                <span>SOC Drop Off Cost:</span>
+                                <span>SOC Drop Off Cost ({route.containerType}):</span>
                                 <span className="font-semibold text-primary">
-                                  {formatDisplayCost(route.socDropOffCostUSD, 'RUB')}
+                                  {formatDisplayCost(route.socDropOffCostUSD, 'USD')}
                                 </span>
                               </p>
                             )}

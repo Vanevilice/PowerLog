@@ -22,8 +22,8 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
 
   if (!shippingInfo) return null;
 
-  // Determine which drop-off value to display
-  const dropOffToDisplay = shippingInfo.dropOffDisplayValue || (shippingInfo.dropOffCost !== null && shippingInfo.dropOffCost !== undefined ? formatDisplayCost(shippingInfo.dropOffCost, 'USD') : null);
+  // Determine which drop-off value to display for COC
+  const cocDropOffToDisplay = shippingInfo.dropOffDisplayValue || (shippingInfo.dropOffCost !== null && shippingInfo.dropOffCost !== undefined ? formatDisplayCost(shippingInfo.dropOffCost, 'USD') : null);
 
 
   return (
@@ -114,16 +114,30 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
                 ) : null}
               </>
             )}
-            {dropOffToDisplay && currentFormValues.shipmentType === "COC" && !currentFormValues.seaLineCompany?.toLowerCase().includes('panda express line') ? (
+            {cocDropOffToDisplay && currentFormValues.shipmentType === "COC" && !currentFormValues.seaLineCompany?.toLowerCase().includes('panda express line') ? (
               <p className="flex justify-between">
                 <strong>Drop Off Cost:</strong>
-                <span className="font-bold text-lg text-primary">{dropOffToDisplay}</span>
+                <span className="font-bold text-lg text-primary">{cocDropOffToDisplay}</span>
               </p>
             ) : null}
             {'dropOffComment' in shippingInfo && shippingInfo.dropOffComment && currentFormValues.shipmentType === "COC" ? (
               <p className="flex justify-between items-start">
                 <strong>Drop Off Comment:</strong>
                 <span className="text-xs text-destructive text-right ml-2">{shippingInfo.dropOffComment}</span>
+              </p>
+            ) : null}
+
+            {/* SOC Drop-off Information - Displaying as USD */}
+            {currentFormValues.shipmentType === "SOC" && 'socDropOffCost' in shippingInfo && shippingInfo.socDropOffCost !== null && shippingInfo.socDropOffCost !== undefined ? (
+              <p className="flex justify-between">
+                <strong>SOC Drop Off Cost ({currentFormValues.containerType}):</strong>
+                <span className="font-bold text-lg text-primary">{formatDisplayCost(shippingInfo.socDropOffCost, 'USD')}</span>
+              </p>
+            ) : null}
+            {currentFormValues.shipmentType === "SOC" && 'socDropOffComment' in shippingInfo && shippingInfo.socDropOffComment ? (
+              <p className="flex justify-between items-start">
+                <strong>SOC Drop Off Comment:</strong>
+                <span className="text-xs text-muted-foreground text-right ml-2">{shippingInfo.socDropOffComment}</span>
               </p>
             ) : null}
           </>
@@ -160,3 +174,4 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
     </div>
   );
 }
+

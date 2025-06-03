@@ -24,7 +24,7 @@ interface RailAndDropOffCandidateDetails {
   cocDropOffDetails: DropOffInfo | null;
   socDropOffDetails: SOCDropOffInfo | null;
   costToAddForRailRUB: number;
-  costToAddForDropOffRUB: number;
+  costToAddForDropOffRUB: number; // This will represent the RUB equivalent of the drop-off cost
   derivedRussianDestinationCityForCandidate: string;
 }
 
@@ -88,12 +88,12 @@ function _getRailAndDropOffDetailsForCandidate(
         currentSeaComment,
         ""
       );
-      if (cocDropOffDetails.costNumeric !== null) {
+      if (cocDropOffDetails.costNumeric !== null) { // COC Drop-off cost is in USD
         costToAddForDropOffRUB = cocDropOffDetails.costNumeric * USD_RUB_CONVERSION_RATE;
       }
     }
   } else if (shipmentType === "SOC") {
-    costToAddForRailRUB = 0;
+    costToAddForRailRUB = 0; // No separate rail leg calculation for SOC in this context, it's part of drop-off if applicable
     railLegDetails = null;
 
     if (context.isSOCDropOffExcelDataLoaded && russianDestinationCity && originPortForSeaRoute && containerType) {
@@ -104,9 +104,9 @@ function _getRailAndDropOffDetailsForCandidate(
         originPortForSeaRoute,        // socDepartureCityForDropOff (e.g., Qingdao, the sea leg's origin)
         currentSeaComment || ""
       );
+      // Assuming socDropOffDetails.costNumeric is now USD
       if (socDropOffDetails.costNumeric !== null) {
-        // SOC Drop-off Excel prices are in RUB.
-        costToAddForDropOffRUB = socDropOffDetails.costNumeric;
+        costToAddForDropOffRUB = (socDropOffDetails.costNumeric ?? 0) * USD_RUB_CONVERSION_RATE;
       }
       derivedRussianDestinationCityForCandidate = russianDestinationCity;
     } else {
@@ -156,26 +156,22 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
   const seaDestinationPortCandidatesToIterate = destinationPort ? [destinationPort] : excelDestinationPorts;
 
   seaDestinationPortCandidatesToIterate.forEach(seaDestPortCandidate => {
-    // For SOC, if the final russianDestinationCity is inland, the sea leg must go to a Vladivostok-like port.
     if (shipmentType === "SOC" && russianDestinationCity &&
-        !VLADIVOSTOK_VARIANTS.some(v => russianDestinationCity.startsWith(v.split(" ")[0])) && // If final destination is NOT Vladivostok-like (i.e., it's inland)
-        !VLADIVOSTOK_VARIANTS.some(v => seaDestPortCandidate.startsWith(v.split(" ")[0]))     // AND current sea port candidate is NOT Vladivostok-like
+        !VLADIVOSTOK_VARIANTS.some(v => russianDestinationCity.startsWith(v.split(" ")[0])) && 
+        !VLADIVOSTOK_VARIANTS.some(v => seaDestPortCandidate.startsWith(v.split(" ")[0]))     
        ) {
-      return; // Skip this seaDestPortCandidate as it's not a valid transit port for this SOC inland destination
+      return; 
     }
 
-    // For COC, similar logic: if a specific Russian destination city is targeted (and it's inland),
-    // the seaDestPortCandidate also needs to be Vladivostok-like.
     if (shipmentType === "COC" && russianDestinationCity &&
-        !VLADIVOSTOK_VARIANTS.some(v => russianDestinationCity.startsWith(v.split(" ")[0])) && // final dest is inland
-        !VLADIVOSTOK_VARIANTS.some(v => seaDestPortCandidate.startsWith(v.split(" ")[0])) // current sea port is NOT Vlad-like
+        !VLADIVOSTOK_VARIANTS.some(v => russianDestinationCity.startsWith(v.split(" ")[0])) && 
+        !VLADIVOSTOK_VARIANTS.some(v => seaDestPortCandidate.startsWith(v.split(" ")[0])) 
         ) {
-        return; // Skip if COC to inland city and sea port isn't Vlad-like
+        return; 
     }
 
     seaDataset.forEach(seaRoute => {
       const routeOrigins = seaRoute[originFieldKey as keyof typeof seaRoute] as string[] | undefined;
-      // Match the user's selected originPort with potentially multiple origins in the seaRoute cell
       if (!Array.isArray(routeOrigins) || !routeOrigins.includes(originPort)) return;
       if (!Array.isArray(seaRoute.destinationPorts) || !seaRoute.destinationPorts.includes(seaDestPortCandidate)) return;
 
@@ -194,7 +190,7 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
           seaDestPortCandidate,
           seaLineCompanyIt,
           currentSeaComment,
-          originPort // Use the user's selected originPort for SOC drop-off context
+          originPort 
         );
 
         const isFurtherRailJourneyForCandidate = shipmentType === "COC" && russianDestinationCity &&
@@ -202,7 +198,7 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
                                !VLADIVOSTOK_VARIANTS.some(v => v === russianDestinationCity && seaDestPortCandidate.startsWith(v.split(" ")[0]));
 
         if (shipmentType === "SOC" && details.socDropOffDetails?.socDropOffLegFailed) {
-            return; // CRITICAL: Skip this candidate if SOC drop-off failed
+            return; 
         }
         if (shipmentType === "COC" && details.cocDropOffDetails?.dropOffLegFailed && !seaLineCompanyIt?.toLowerCase().includes('panda express line')) {
             return;
@@ -211,7 +207,7 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
             return;
         }
 
-        totalComparisonCostRUB += details.costToAddForDropOffRUB;
+        totalComparisonCostRUB += details.costToAddForDropOffRUB; // This is now the RUB equivalent
         if (shipmentType === "COC") {
              totalComparisonCostRUB += details.costToAddForRailRUB;
         }
@@ -240,7 +236,7 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
           dropOffDisplayValue: shipmentType === "COC" ? (details.cocDropOffDetails?.displayValue ?? null) : null,
           dropOffComment: shipmentType === "COC" ? (details.cocDropOffDetails?.comment ?? null) : null,
 
-          // Store SOC drop-off cost (which is in RUB) in socDropOffCostUSD for consistency in type, will be labeled correctly in UI
+          // Store SOC drop-off cost as USD
           socDropOffCostUSD: shipmentType === "SOC" ? (details.socDropOffDetails?.costNumeric ?? null) : null,
           socDropOffComment: shipmentType === "SOC" ? (details.socDropOffDetails?.comment ?? null) : null,
 
@@ -274,7 +270,7 @@ export function generateDirectRailCandidates(values: RouteFormValues, context: P
         shipmentType: 'N/A',
         originPort: entry.cityOfDeparture,
         seaDestinationPort: entry.destinationCity,
-        containerType: '40HC', // Default or assume based on Direct Rail common types
+        containerType: '40HC', 
         russianDestinationCity: entry.destinationCity,
         totalComparisonCostRUB: entry.price,
 
