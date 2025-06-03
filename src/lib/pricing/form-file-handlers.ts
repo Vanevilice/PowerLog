@@ -336,9 +336,6 @@ export async function handleSOCDropOffFileParse(args: ExcelParserArgsBase) {
   const { file, contextSetters, toast, fileInputRef, setIsParsingState } = args;
 
   setIsParsingState(true);
-  // Do not clear other states like shippingInfo or bestPriceResults here,
-  // as this file only supplements existing data.
-  
   contextSetters.setExcelSOCDropOffData([]);
   contextSetters.setIsSOCDropOffExcelDataLoaded(false);
 
@@ -352,43 +349,114 @@ export async function handleSOCDropOffFileParse(args: ExcelParserArgsBase) {
         const newSOCDropOffDataLocal: ExcelSOCDropOffEntry[] = [];
 
         if (firstSheetName) {
-          const sheetRawData = XLSX.utils.sheet_to_json<any[]>(workbook.Sheets[firstSheetName], { header: 1 });
-          // Assume header row is present and skip it. Adjust if no header.
-          const sheetDataToParse = (sheetRawData.length > 0 && Array.isArray(sheetRawData[0]) && sheetRawData[0].some(cell => typeof cell === 'string' && String(cell).trim().length > 0)) ? sheetRawData.slice(1) : sheetRawData;
+          const excelData = XLSX.utils.sheet_to_json<any[]>(workbook.Sheets[firstSheetName], { header: 1, defval: null });
+
+          // Skip first 2 rows for actual data processing
+          const sheetRawData = excelData.slice(2);
+
+          if (sheetRawData.length === 0) {
+            toast({ title: "SOC Drop-off File Info", description: "No data rows found after skipping header rows." });
+            setIsParsingState(false);
+            contextSetters.setIsSOCDropOffExcelDataLoaded(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            return;
+          }
+
+          // --- Parse Header Row for Drop-off Cities (Original 3rd Excel Row) ---
+          const headerRowRaw = sheetRawData[0]; // This is the 3rd row from original Excel
+          if (!headerRowRaw || headerRowRaw.every(cell => cell === null || String(cell).trim() === "")) {
+            toast({ variant: "destructive", title: "SOC Drop-off File Error", description: "Header row (3rd Excel row) is empty or missing." });
+            setIsParsingState(false);
+            contextSetters.setIsSOCDropOffExcelDataLoaded(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            return;
+          }
           
-          sheetDataToParse.forEach(row => {
-            if (!Array.isArray(row) || row.every(cell => cell === null || cell === undefined || String(cell).trim() === "")) return;
-            
-            const seaLine = String(row[0] || '').trim(); // Column A: Sea Line
-            const destination = String(row[1] || '').trim(); // Column B: Destination
-            const containerTypeRaw = String(row[2] || '').trim(); // Column C: Container Type
-            const price = parsePriceCell(row[3]); // Column D: Price
-            const comment = String(row[4] || '').trim(); // Column E: Comment
+          const processedHeaderRow = headerRowRaw.slice(2); // Skip first 2 cells of this header row (original Col A, B)
+          const dropOffCityMap: { [cityName: string]: number } = {}; // Maps city name to its 20DC price column index in processedHeaderRow
 
-            // Validate containerType
-            let containerType: ContainerType | undefined;
-            if (CONTAINER_TYPES_CONST.includes(containerTypeRaw as ContainerType)) {
-                containerType = containerTypeRaw as ContainerType;
-            } else {
-                // Try to infer or default if not a direct match, or log a warning
-                if (containerTypeRaw.includes("20")) containerType = "20DC";
-                else if (containerTypeRaw.includes("40")) containerType = "40HC";
-                // else console.warn(`Invalid container type in SOC Drop-off Excel: ${containerTypeRaw}`);
+          for (let i = 0; i < processedHeaderRow.length; i += 2) {
+            const cityCell = String(processedHeaderRow[i] || '').trim();
+            if (cityCell) {
+              dropOffCityMap[cityCell] = i; // Store the starting column index for this city's prices
             }
+          }
 
-            if (seaLine && destination && containerType && price !== null) {
-              newSOCDropOffDataLocal.push({
-                seaLine,
-                destination,
-                containerType,
-                price,
-                comment: comment || undefined,
-              });
+          if (Object.keys(dropOffCityMap).length === 0) {
+            toast({ title: "SOC Drop-off File Info", description: "No drop-off cities found in the header row (3rd Excel row, starting 3rd col)." });
+            setIsParsingState(false);
+            contextSetters.setIsSOCDropOffExcelDataLoaded(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            return;
+          }
+
+          // --- Parse Data Rows (Original 4th Excel Row onwards) ---
+          const dataRowsRaw = sheetRawData.slice(1); // Skip the header row we just processed
+
+          dataRowsRaw.forEach((rawRowDataArray, rowIndex) => {
+            if (!rawRowDataArray || rawRowDataArray.every(cell => cell === null || String(cell).trim() === "")) return; // Skip empty rows
+
+            // Departure City is from the original 2nd column of the current data row
+            const departureCity = String(rawRowDataArray[1] || '').trim();
+
+            if (!departureCity) {
+              // console.warn(`SOC Drop-off: Skipping row ${rowIndex + 4} due to missing departure city (original col 2).`);
+              return;
+            }
+            
+            // Price data starts from the original 3rd column of the current data row
+            const processedPriceDataRow = rawRowDataArray.slice(2);
+
+            for (const dropOffCity in dropOffCityMap) {
+              const priceColIndex20DC_in_processedHeader = dropOffCityMap[dropOffCity];
+              
+              // Ensure indices are within bounds of processedPriceDataRow
+              if (priceColIndex20DC_in_processedHeader >= processedPriceDataRow.length) {
+                // console.warn(`SOC Drop-off: Column index out of bounds for ${dropOffCity} (20DC) in row for ${departureCity}. Skipping price.`);
+                continue;
+              }
+              const price20DC_raw = processedPriceDataRow[priceColIndex20DC_in_processedHeader];
+              const price20DC = typeof price20DC_raw === 'string' ? parsePriceCell(price20DC_raw) as number | null : (typeof price20DC_raw === 'number' ? price20DC_raw : null);
+
+
+              if (priceColIndex20DC_in_processedHeader + 1 >= processedPriceDataRow.length) {
+                // console.warn(`SOC Drop-off: Column index out of bounds for ${dropOffCity} (40HC) in row for ${departureCity}. Skipping 40HC price.`);
+                 if (price20DC !== null) {
+                    newSOCDropOffDataLocal.push({
+                        departureCity,
+                        dropOffCity,
+                        containerType: "20DC",
+                        price: price20DC,
+                    });
+                 }
+                continue; 
+              }
+              const price40HC_raw = processedPriceDataRow[priceColIndex20DC_in_processedHeader + 1];
+              const price40HC = typeof price40HC_raw === 'string' ? parsePriceCell(price40HC_raw) as number | null : (typeof price40HC_raw === 'number' ? price40HC_raw : null);
+
+              if (price20DC !== null) {
+                newSOCDropOffDataLocal.push({
+                  departureCity,
+                  dropOffCity,
+                  containerType: "20DC",
+                  price: price20DC,
+                });
+              }
+              if (price40HC !== null) {
+                newSOCDropOffDataLocal.push({
+                  departureCity,
+                  dropOffCity,
+                  containerType: "40HC",
+                  price: price40HC,
+                });
+              }
             }
           });
+
           contextSetters.setExcelSOCDropOffData(newSOCDropOffDataLocal);
           contextSetters.setIsSOCDropOffExcelDataLoaded(true);
           toast({ title: "SOC Drop-off Excel Processed", description: `Found ${newSOCDropOffDataLocal.length} entries.` });
+
         } else {
           contextSetters.setIsSOCDropOffExcelDataLoaded(false);
           toast({ variant: "destructive", title: "File Error", description: "First sheet (SOC Drop-off) not found." });
