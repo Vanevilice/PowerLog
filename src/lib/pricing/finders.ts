@@ -46,7 +46,7 @@ export interface DropOffInfo { // For COC Drop-off
 
 export interface SOCDropOffInfo { // For SOC Drop-off
   costNumeric: number | null;
-  displayValue: string | null;
+  displayValue: string | null; // Can hold original string representation if numeric parsing is tricky
   comment: string | null;
   socDropOffLegFailed: boolean;
   commentaryReason: string;
@@ -278,8 +278,8 @@ export function findDropOffDetails(
 export function findSOCDropOffDetails(
   values: RouteFormValues,
   context: PricingDataContextType,
-  cityForDropOffLookup: string,
-  socDepartureCityForDropOff: string, // This is the originPort for the SOC drop-off leg
+  cityForDropOffLookup: string, // Final Russian drop-off city
+  socDepartureCityForDropOff: string, // Origin Port from the form, used as departure for this drop-off leg
   currentCommentary: string
 ): SOCDropOffInfo {
   const { excelSOCDropOffData, isSOCDropOffExcelDataLoaded } = context;
@@ -299,13 +299,18 @@ export function findSOCDropOffDetails(
   }
 
   let entryMatched = false;
-  // Normalize inputs for matching with already normalized stored data
   const normalizedLookupDropOffCity = (cityForDropOffLookup.toLowerCase().replace(/^г\.\s*/, '') || "").trim();
-  const normalizedLookupDepartureCity = (socDepartureCityForDropOff.toLowerCase() || "").trim();
+  const normalizedLookupDepartureCity = (socDepartureCityForDropOff.toLowerCase().replace(/^г\.\s*/, '') || "").trim();
+
 
   for (const entry of excelSOCDropOffData) {
     // entry.departureCity and entry.dropOffCity are already normalized during parsing
-    const departureMatch = entry.departureCity === normalizedLookupDepartureCity;
+    
+    // Flexible matching for departureCity (which is the form's originPort)
+    const departureMatch = entry.departureCity === normalizedLookupDepartureCity ||
+                           (entry.departureCity.includes(normalizedLookupDepartureCity) && normalizedLookupDepartureCity.length > 2) ||
+                           (normalizedLookupDepartureCity.includes(entry.departureCity) && entry.departureCity.length > 2);
+                           
     const dropOffCityMatch = entry.dropOffCity === normalizedLookupDropOffCity;
     const containerMatch = entry.containerType === containerType;
 
@@ -318,16 +323,16 @@ export function findSOCDropOffDetails(
         socDropOffInfo.socDropOffLegFailed = true;
         socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, `SOC Drop-off price for ${containerType} from ${socDepartureCityForDropOff} to ${cityForDropOffLookup} is not available in Excel.`);
       } else {
-        socDropOffInfo.socDropOffLegFailed = false; // Explicitly set to false on success
-        socDropOffInfo.commentaryReason = currentCommentary; // Reset commentary to current (effectively clearing previous failure messages for this leg)
+        socDropOffInfo.socDropOffLegFailed = false; 
+        socDropOffInfo.commentaryReason = currentCommentary; 
       }
-      break;
+      break; 
     }
   }
 
   if (!entryMatched) {
     socDropOffInfo.socDropOffLegFailed = true;
-    socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, `No matching SOC Drop-off pricing found for ${containerType} from ${socDepartureCityForDropOff} to ${cityForDropOffLookup}. Stored entries: ${excelSOCDropOffData.length}`);
+    socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, `No matching SOC Drop-off pricing found for ${containerType} from ${socDepartureCityForDropOff} to ${cityForDropOffLookup}.`);
   }
   return socDropOffInfo;
 }
