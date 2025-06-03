@@ -334,7 +334,7 @@ export default function BestPricesPage() {
                             {route.socComment && route.shipmentType === "SOC" && (
                                 <p className="flex justify-between items-start">
                                     <span>SOC Comment:</span>
-                                    <span className="text-xs text-muted-foreground text-right ml-2">{route.socComment}</span>
+                                    <span className="text-xs text-destructive text-right ml-2">{route.socComment}</span>
                                 </p>
                             )}
 

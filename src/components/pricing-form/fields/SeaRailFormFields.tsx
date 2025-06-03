@@ -37,7 +37,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
   const { control, watch, setValue, getValues } = form;
   const watchedOriginPort = watch("originPort");
   const watchedDestinationPort = watch("destinationPort"); // Sea port
-  const watchedRussianDestinationCity = watch("russianDestinationCity"); // Rail destination
+  const watchedRussianDestinationCity = watch("russianDestinationCity");
 
   const placeholderGetterArgsForSeaLine = {
     isParsingSeaRailFile,
@@ -66,11 +66,12 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
   const getRussianCityPlaceholderDynamic = (): string => {
     if (isParsingSeaRailFile) return "Processing...";
     if (!isSeaRailExcelDataLoaded) return "Upload Море + Ж/Д Excel";
+    if (excelRussianDestinationCitiesMasterList.length === 0) return "No rail destinations loaded";
     // If origin port is not selected, it implies the user might not be ready or targeting a general best price
-    if (!watchedOriginPort && excelRussianDestinationCitiesMasterList.length > 0) return "Select Origin Port first or proceed";
+    if (!watchedOriginPort && localAvailableRussianDestinationCities.length > 0) return "Select city (or Origin Port first)";
     if (localAvailableRussianDestinationCities.length > 0) return "Select city";
-    if (excelRussianDestinationCitiesMasterList.length > 0 && localAvailableRussianDestinationCities.length === 0) return "No rail hubs for current Sea Port (if selected)";
-    return "No rail destinations loaded";
+    if (localAvailableRussianDestinationCities.length === 0 && watchedOriginPort) return "No rail hubs for current Sea Port";
+    return "Select Origin Port first";
   };
 
 
@@ -241,13 +242,14 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
                 if (hasRestoredFromCache) setValue("arrivalStationSelection", "", { shouldValidate: true });
               }}
               value={field.value || ""}
-              disabled={isParsingSeaRailFile || !isSeaRailExcelDataLoaded || localAvailableRussianDestinationCities.length === 0 }
+              disabled={isParsingSeaRailFile || !isSeaRailExcelDataLoaded || excelRussianDestinationCitiesMasterList.length === 0 || localAvailableRussianDestinationCities.length === 0}
             >
               <FormControl><SelectTrigger><SelectValue placeholder={getRussianCityPlaceholderDynamic()} /></SelectTrigger></FormControl>
               <SelectContent>
                 {isParsingSeaRailFile && (<SelectItem value="parsing_rus_dest_disabled" disabled>Loading cities...</SelectItem>)}
                 {!isSeaRailExcelDataLoaded && !isParsingSeaRailFile && (<SelectItem value="upload_excel_rus_dest_disabled" disabled>Upload Море + Ж/Д Excel</SelectItem>)}
-                {isSeaRailExcelDataLoaded && localAvailableRussianDestinationCities.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_rail_cities_master_disabled" disabled>No rail cities in Excel</SelectItem>)}
+                {isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_rail_cities_master_disabled" disabled>No rail cities in Excel</SelectItem>)}
+                {isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length > 0 && localAvailableRussianDestinationCities.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_rail_cities_for_selection_disabled" disabled>No rail hubs for Sea Port (if selected)</SelectItem>)}
                 {isSeaRailExcelDataLoaded && localAvailableRussianDestinationCities.map((city) => (<SelectItem key={"rus-city-" + city} value={city}>{city}</SelectItem>))}
               </SelectContent>
             </Select>
@@ -283,3 +285,4 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
     </>
   );
 };
+

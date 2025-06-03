@@ -52,7 +52,7 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
             {'socComment' in shippingInfo && shippingInfo.socComment && currentFormValues.shipmentType === "SOC" && (
                 <p className="flex justify-between items-start">
                     <strong>SOC Comment:</strong>
-                    <span className="text-xs text-muted-foreground text-right ml-2">{shippingInfo.socComment}</span>
+                    <span className="text-xs text-destructive text-right ml-2">{shippingInfo.socComment}</span>
                 </p>
             )}
             {'seaCost' in shippingInfo && shippingInfo.seaCost !== null && shippingInfo.seaCost !== undefined ? (
