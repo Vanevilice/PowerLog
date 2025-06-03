@@ -83,7 +83,7 @@ export default function PortPriceFinderForm(): JSX.Element {
 
   React.useEffect(() => {
     if ((isSeaRailExcelDataLoaded || isDirectRailExcelDataLoaded || isSOCDropOffExcelDataLoaded) && !hasRestoredFromCache && cachedFormValues) {
-      form.reset(cachedFormValues as RouteFormValues); 
+      form.reset(cachedFormValues as RouteFormValues);
       if (cachedFormValues.calculationModeToggle && pricingContext.calculationMode !== cachedFormValues.calculationModeToggle) {
           pricingContext.setCalculationMode(cachedFormValues.calculationModeToggle);
       }
@@ -184,8 +184,8 @@ export default function PortPriceFinderForm(): JSX.Element {
     }
     handleSOCDropOffFileParse({
       file, form, contextSetters: pricingContext,
-      setShippingInfoState: setShippingInfo, 
-      setHasRestoredFromCacheState: setHasRestoredFromCache, 
+      setShippingInfoState: setShippingInfo,
+      setHasRestoredFromCacheState: setHasRestoredFromCache,
       toast, fileInputRef: socDropOffFileInputRef,
       setIsParsingState: setIsParsingSOCDropOffFile,
       setBestPriceResults,
@@ -259,9 +259,9 @@ export default function PortPriceFinderForm(): JSX.Element {
                     (calculationMode === "sea_plus_rail" && (
                       !isSeaRailExcelDataLoaded ||
                       !currentFormValuesForButton.originPort ||
-                      (!currentFormValuesForButton.destinationPort && !currentFormValuesForButton.russianDestinationCity) || 
+                      (!currentFormValuesForButton.destinationPort && !currentFormValuesForButton.russianDestinationCity) ||
                       !currentFormValuesForButton.containerType ||
-                      (shipmentType === "SOC" && (!isSOCDropOffExcelDataLoaded || !currentFormValuesForButton.russianDestinationCity)) 
+                      (shipmentType === "SOC" && (!isSOCDropOffExcelDataLoaded || !currentFormValuesForButton.russianDestinationCity))
                     )) ||
                     (calculationMode === "direct_rail" && (
                       !isDirectRailExcelDataLoaded ||
@@ -288,14 +288,15 @@ export default function PortPriceFinderForm(): JSX.Element {
                         !currentFormValuesForButton.containerType ||
                         ( // COC specific "Best Price" requirements
                             shipmentType === "COC" &&
-                            excelRussianDestinationCitiesMasterList.length > 0 && // If rail hubs exist in general
-                            !currentFormValuesForButton.russianDestinationCity   // Then a Russian city must be selected
+                            excelRussianDestinationCitiesMasterList.length > 0 &&
+                            !currentFormValuesForButton.russianDestinationCity
                         ) ||
                         ( // SOC specific "Best Price" requirements
                             shipmentType === "SOC" &&
                             (
-                                !isSOCDropOffExcelDataLoaded ||         // SOC Drop-off file must be loaded
-                                !currentFormValuesForButton.russianDestinationCity // Russian Dest City (for drop-off) must be selected
+                                !isSOCDropOffExcelDataLoaded ||
+                                !currentFormValuesForButton.russianDestinationCity // Russian Dest City (for drop-off) must be selected for SOC
+                                // Origin Port and Container Type are covered by the outer conditions for sea_plus_rail
                             )
                         )
                     )) ||
@@ -304,7 +305,6 @@ export default function PortPriceFinderForm(): JSX.Element {
                       !currentFormValuesForButton.directRailCityOfDeparture ||
                       !currentFormValuesForButton.directRailDestinationCityDR ||
                       !currentFormValuesForButton.directRailIncoterms
-                      // Border is optional for direct rail "best price" initial search if multiple borders are possible for an incoterm
                     ))
                   }
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -334,7 +334,7 @@ export default function PortPriceFinderForm(): JSX.Element {
             />
           )}
 
-          {(shippingInfo || (lastSuccessfulCalculation && calculationMode === 'sea_plus_rail')) && 
+          {(shippingInfo || (lastSuccessfulCalculation && calculationMode === 'sea_plus_rail')) &&
            !isLoading && !isParsingSeaRailFile && !isParsingDirectRailFile && !isParsingSOCDropOffFile && (
             <div className="mt-6 space-y-4 animate-in fade-in-50 duration-700">
               {calculationMode === 'sea_plus_rail' && (
@@ -373,5 +373,4 @@ export default function PortPriceFinderForm(): JSX.Element {
     </React.Fragment>
   );
 }
-
     
