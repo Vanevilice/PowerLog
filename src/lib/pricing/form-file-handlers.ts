@@ -70,7 +70,6 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
         const firstSheetName = workbook.SheetNames[0];
         if (firstSheetName && workbook.Sheets[firstSheetName]) {
           const newDashboardData = parseDashboardSheet(workbook.Sheets[firstSheetName]);
-          // Ensure a deep copy if parseDashboardSheet returns a mutable object
           const trulyNewDashboardData = JSON.parse(JSON.stringify(newDashboardData)); 
           contextSetters.setDashboardServiceSections(trulyNewDashboardData);
           if (newDashboardData.length > 0) {
@@ -352,74 +351,79 @@ export async function handleSOCDropOffFileParse(args: ExcelParserArgsBase) {
         if (firstSheetName && workbook.Sheets[firstSheetName]) {
           const excelData = XLSX.utils.sheet_to_json<any[]>(workbook.Sheets[firstSheetName], { header: 1, defval: null });
 
-          if (excelData.length < 3) {
+          // Assuming Excel Row 1 and 2 (indices 0, 1) are junk/header
+          // Row 3 (index 2) contains: Col B (index 1) = first Departure City, Col C (index 2) onwards = Drop-off City headers
+          if (excelData.length < 3) { // Need at least Excel row 3
             toast({ title: "SOC Drop-off File Error", description: "File has fewer than 3 rows. Cannot parse header and data." });
-            setIsParsingState(false);
-            contextSetters.setIsSOCDropOffExcelDataLoaded(false);
-            if (fileInputRef.current) fileInputRef.current.value = "";
-            return;
+            setIsParsingState(false); contextSetters.setIsSOCDropOffExcelDataLoaded(false);
+            if (fileInputRef.current) fileInputRef.current.value = ""; return;
           }
 
-          const headerRowForDropOffCitiesRaw = excelData[2]; // 3rd row of original Excel (0-indexed)
-          if (!headerRowForDropOffCitiesRaw || !Array.isArray(headerRowForDropOffCitiesRaw) || headerRowForDropOffCitiesRaw.slice(2).every(cell => cell === null || String(cell).trim() === "")) {
-            toast({ variant: "destructive", title: "SOC Drop-off File Error", description: "Drop-off city header row (3rd Excel row, from 3rd column) is empty or missing." });
-            setIsParsingState(false);
-            contextSetters.setIsSOCDropOffExcelDataLoaded(false);
-            if (fileInputRef.current) fileInputRef.current.value = "";
-            return;
+          const dropOffCityHeaderRowRaw = excelData[2]; // This is Excel Row 3
+          if (!dropOffCityHeaderRowRaw || !Array.isArray(dropOffCityHeaderRowRaw)) {
+            toast({ variant: "destructive", title: "SOC Drop-off File Error", description: "Drop-off city header row (Excel Row 3) is missing or invalid." });
+            setIsParsingState(false); contextSetters.setIsSOCDropOffExcelDataLoaded(false);
+            if (fileInputRef.current) fileInputRef.current.value = ""; return;
           }
+          
+          // Drop-off city names start from original Col C (index 2) of this header row
+          const dropOffCityHeaders = dropOffCityHeaderRowRaw.slice(2);
+          const dropOffCityMap: { [normalizedCityName: string]: { "20DC_ColIndex": number, "40HC_ColIndex": number } } = {};
 
-          const processedHeaderRowForDropOffCities = headerRowForDropOffCitiesRaw.slice(2);
-          const dropOffCityMap: { [cityName: string]: number } = {};
-
-          for (let i = 0; i < processedHeaderRowForDropOffCities.length; i += 2) {
-            const cityCell = String(processedHeaderRowForDropOffCities[i] || '').trim();
+          for (let i = 0; i < dropOffCityHeaders.length; i += 2) { // Each city spans 2 columns
+            const cityCell = String(dropOffCityHeaders[i] || '').trim();
             if (cityCell) {
               const normalizedCityName = cityCell.toLowerCase().replace(/^г\.\s*/, '').trim();
-              dropOffCityMap[normalizedCityName] = i; // Store index relative to processedHeaderRowForDropOffCities
+              // Store the original column index from dropOffCityHeaderRowRaw (which is excelData[2])
+              // These indices are relative to the start of dropOffCityHeaders (i.e., original Col C)
+              dropOffCityMap[normalizedCityName] = { 
+                "20DC_ColIndex": i, // Index for 20DC price relative to start of dropOffCityHeaders
+                "40HC_ColIndex": i + 1 // Index for 40HC price relative to start of dropOffCityHeaders
+              };
             }
           }
-
+          
           if (Object.keys(dropOffCityMap).length === 0) {
-            toast({ title: "SOC Drop-off File Info", description: "No drop-off cities found in the header (3rd Excel row, from 3rd col)." });
-            setIsParsingState(false);
-            contextSetters.setIsSOCDropOffExcelDataLoaded(false);
-            if (fileInputRef.current) fileInputRef.current.value = "";
-            return;
+            toast({ title: "SOC Drop-off File Info", description: "No drop-off cities found in header (Excel Row 3, Col C onwards)." });
+            setIsParsingState(false); contextSetters.setIsSOCDropOffExcelDataLoaded(false);
+            if (fileInputRef.current) fileInputRef.current.value = ""; return;
           }
 
-          const dataRowsRaw = excelData.slice(3); // Data starts from 4th row of original Excel
+          // Data rows start from Excel Row 3 (index 2) as well, according to new understanding
+          const dataRowsToProcess = excelData.slice(2); 
 
-          dataRowsRaw.forEach((rawRowDataArray) => {
-            if (!rawRowDataArray || !Array.isArray(rawRowDataArray) || rawRowDataArray.every(cell => cell === null || String(cell).trim() === "")) return;
+          dataRowsToProcess.forEach((fullDataRowArray) => {
+            if (!fullDataRowArray || !Array.isArray(fullDataRowArray) || fullDataRowArray.every(cell => cell === null || String(cell).trim() === "")) return;
 
-            const departureCityRaw = String(rawRowDataArray[1] || '').trim(); // Departure City from original Col B
-            if (!departureCityRaw) return;
+            // Departure City for Drop-off is from original Col B (index 1) of the current data row
+            const departureCityRaw = String(fullDataRowArray[1] || '').trim();
+            if (!departureCityRaw) return; // Skip if no departure city in this row
 
             const normalizedDepartureForStorage = departureCityRaw.toLowerCase().trim();
-            const pricesDataForRow = rawRowDataArray.slice(2); // Prices start from original Col C for this row
+            
+            // Prices for this departure city start from original Col C (index 2) of this row
+            const pricesDataForThisRow = fullDataRowArray.slice(2);
 
             for (const normalizedDropOffCityKeyInMap in dropOffCityMap) {
-              const priceColIndex20DC_in_pricesDataForRow = dropOffCityMap[normalizedDropOffCityKeyInMap];
+              const cityColIndices = dropOffCityMap[normalizedDropOffCityKeyInMap];
 
-              if (priceColIndex20DC_in_pricesDataForRow >= pricesDataForRow.length) continue; // City was in header, but row is too short
-
-              const price20DC_raw = pricesDataForRow[priceColIndex20DC_in_pricesDataForRow];
-              const price20DC = parsePriceCell(price20DC_raw) as number | null;
-
-              if (price20DC !== null) {
-                newSOCDropOffDataLocal.push({
-                  departureCity: normalizedDepartureForStorage,
-                  dropOffCity: normalizedDropOffCityKeyInMap,
-                  containerType: "20DC",
-                  price: price20DC,
-                });
+              // Get 20DC price
+              if (cityColIndices["20DC_ColIndex"] < pricesDataForThisRow.length) {
+                const price20DC_raw = pricesDataForThisRow[cityColIndices["20DC_ColIndex"]];
+                const price20DC = parsePriceCell(price20DC_raw) as number | null;
+                if (price20DC !== null) {
+                  newSOCDropOffDataLocal.push({
+                    departureCity: normalizedDepartureForStorage,
+                    dropOffCity: normalizedDropOffCityKeyInMap,
+                    containerType: "20DC",
+                    price: price20DC,
+                  });
+                }
               }
               
-              // Check if there's a 40HC column for this city
-              const priceColIndex40HC_in_pricesDataForRow = priceColIndex20DC_in_pricesDataForRow + 1;
-              if (priceColIndex40HC_in_pricesDataForRow < pricesDataForRow.length) {
-                const price40HC_raw = pricesDataForRow[priceColIndex40HC_in_pricesDataForRow];
+              // Get 40HC price
+              if (cityColIndices["40HC_ColIndex"] < pricesDataForThisRow.length) {
+                const price40HC_raw = pricesDataForThisRow[cityColIndices["40HC_ColIndex"]];
                 const price40HC = parsePriceCell(price40HC_raw) as number | null;
                 if (price40HC !== null) {
                   newSOCDropOffDataLocal.push({
