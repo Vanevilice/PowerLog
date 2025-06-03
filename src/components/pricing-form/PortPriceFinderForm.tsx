@@ -232,6 +232,7 @@ export default function PortPriceFinderForm(): JSX.Element {
   };
 
   const currentFormValuesForButton = getValues();
+  const { shipmentType } = currentFormValuesForButton;
 
   return (
     <React.Fragment>
@@ -258,8 +259,9 @@ export default function PortPriceFinderForm(): JSX.Element {
                     (calculationMode === "sea_plus_rail" && (
                       !isSeaRailExcelDataLoaded ||
                       !currentFormValuesForButton.originPort ||
-                      (!currentFormValuesForButton.destinationPort && !currentFormValuesForButton.russianDestinationCity) || // Ensure either sea dest or rail dest is selected
-                      !currentFormValuesForButton.containerType
+                      (!currentFormValuesForButton.destinationPort && !currentFormValuesForButton.russianDestinationCity) || 
+                      !currentFormValuesForButton.containerType ||
+                      (shipmentType === "SOC" && !isSOCDropOffExcelDataLoaded) // Disabled if SOC and SOC drop-off file not loaded
                     )) ||
                     (calculationMode === "direct_rail" && (
                       !isDirectRailExcelDataLoaded ||
@@ -284,7 +286,8 @@ export default function PortPriceFinderForm(): JSX.Element {
                       !isSeaRailExcelDataLoaded ||
                       !currentFormValuesForButton.originPort ||
                       !currentFormValuesForButton.containerType ||
-                      (excelRussianDestinationCitiesMasterList.length > 0 && !currentFormValuesForButton.russianDestinationCity)
+                      (excelRussianDestinationCitiesMasterList.length > 0 && !currentFormValuesForButton.russianDestinationCity) ||
+                      (shipmentType === "SOC" && !isSOCDropOffExcelDataLoaded) // Also check for SOC best price
                     )) ||
                     (calculationMode === "direct_rail" && (
                       !isDirectRailExcelDataLoaded ||

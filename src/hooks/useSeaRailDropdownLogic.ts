@@ -40,7 +40,7 @@ export function useSeaRailDropdownLogic({
     isSeaRailExcelDataLoaded, excelRussianDestinationCitiesMasterList,
   } = context;
 
-  const watchedShipmentType = watch("shipmentType");
+  const watchedShipmentType = watch("shipmentType") as ShipmentType; // Ensure type
   const watchedOriginPort = watch("originPort");
   const watchedDestinationPort = watch("destinationPort");
   const watchedRussianDestinationCity = watch("russianDestinationCity");
@@ -51,10 +51,9 @@ export function useSeaRailDropdownLogic({
       if (JSON.stringify(localAvailableDestinationPorts) !== JSON.stringify([])) setLocalAvailableDestinationPorts([]);
       return;
     }
-    const currentShipmentTypeValue = getValues("shipmentType") as ShipmentType;
     const currentOriginPort = getValues("originPort");
-    const dataset = currentShipmentTypeValue === "COC" ? excelRouteData : excelSOCRouteData;
-    const originFieldKey = currentShipmentTypeValue === "COC" ? "originPorts" : "departurePorts";
+    const dataset = watchedShipmentType === "COC" ? excelRouteData : excelSOCRouteData;
+    const originFieldKey = watchedShipmentType === "COC" ? "originPorts" : "departurePorts";
     let newAvailableDestinations = new Set<string>();
 
     if (currentOriginPort) {
@@ -65,7 +64,7 @@ export function useSeaRailDropdownLogic({
           if (Array.isArray(route.destinationPorts)) route.destinationPorts.forEach(dp => newAvailableDestinations.add(dp));
         }
       });
-    } else {
+    } else { // If no origin port selected, show all possible destination ports for the chosen shipment type
       dataset.forEach(route => {
         const hasSeaLines = Array.isArray(route.seaLines) && route.seaLines.length > 0;
         if (hasSeaLines && Array.isArray(route.destinationPorts)) route.destinationPorts.forEach(dp => newAvailableDestinations.add(dp));
@@ -85,7 +84,8 @@ export function useSeaRailDropdownLogic({
       if (currentOriginPort && currentFormDestinationPort && !newAvailableArray.includes(currentFormDestinationPort)) {
         if (getValues("destinationPort") !== "") setValue("destinationPort", "", { shouldValidate: true });
       } else if (!currentOriginPort && getValues("destinationPort") !== "") {
-        setValue("destinationPort", "", { shouldValidate: true });
+        // Do not clear destination port if origin is not selected, to allow independent selection for Best Price
+        // setValue("destinationPort", "", { shouldValidate: true });
       }
     }
   }, [watchedOriginPort, watchedShipmentType, isSeaRailExcelDataLoaded, excelRouteData, excelSOCRouteData, setValue, getValues, hasRestoredFromCache, localAvailableDestinationPorts, setLocalAvailableDestinationPorts]);
@@ -131,9 +131,10 @@ export function useSeaRailDropdownLogic({
         setLocalAvailableRussianDestinationCities([]);
       }
     }
-    if (hasRestoredFromCache && !getValues("originPort") && getValues("russianDestinationCity") !== "") {
-        setValue("russianDestinationCity", "", { shouldValidate: true });
-    }
+     // Do not auto-clear russianDestinationCity if originPort is not set for Best Price scenario
+    // if (hasRestoredFromCache && !getValues("originPort") && getValues("russianDestinationCity") !== "") {
+    //     setValue("russianDestinationCity", "", { shouldValidate: true });
+    // }
   }, [
     isSeaRailExcelDataLoaded,
     excelRussianDestinationCitiesMasterList,
@@ -148,10 +149,10 @@ export function useSeaRailDropdownLogic({
   React.useEffect(() => {
     let newAvailableStationsArray: string[] = [];
     const selectedRussianCity = getValues("russianDestinationCity");
-    const selectedSeaPort = getValues("destinationPort");
+    const selectedSeaPort = getValues("destinationPort"); // Sea destination port
 
     if (isSeaRailExcelDataLoaded && selectedRussianCity && selectedSeaPort &&
-        VLADIVOSTOK_VARIANTS.some(v => selectedSeaPort.startsWith(v.split(" ")[0])) &&
+        VLADIVOSTOK_VARIANTS.some(v => selectedSeaPort.startsWith(v.split(" ")[0])) && // Rail leg implies from Vladivostok-like sea port
         excelRailData.length > 0) {
       const stationsForCity = new Set<string>();
       const seaPortLower = selectedSeaPort.toLowerCase();
@@ -183,13 +184,15 @@ export function useSeaRailDropdownLogic({
       const currentArrivalStationSelection = getValues("arrivalStationSelection");
       if ((currentArrivalStationSelection && !newAvailableStationsArray.includes(currentArrivalStationSelection)) ||
           (newAvailableStationsArray.length === 0 && currentArrivalStationSelection) ||
-          (!selectedRussianCity && currentArrivalStationSelection)) {
+          (!selectedRussianCity && currentArrivalStationSelection) ||
+          (!selectedSeaPort && currentArrivalStationSelection) // Also clear if sea port is cleared
+          ) {
         if (getValues("arrivalStationSelection") !== "") setValue("arrivalStationSelection", "", { shouldValidate: true });
       }
     }
   }, [
     watchedRussianDestinationCity,
-    watchedDestinationPort,
+    watchedDestinationPort, // Re-evaluate when sea destination port changes
     isSeaRailExcelDataLoaded,
     excelRailData,
     setValue,
@@ -207,10 +210,12 @@ export function useSeaRailDropdownLogic({
       const currentSeaLine = getValues("seaLineCompany");
 
       if (!currentOrigin) {
-        if (currentSeaDest !== "") setValue("destinationPort", "", { shouldValidate: true });
+        // Don't clear sea dest or russian city if origin is cleared, for Best Price flexibility
+        // if (currentSeaDest !== "") setValue("destinationPort", "", { shouldValidate: true });
         if (currentSeaLine !== NONE_SEALINE_VALUE) setValue("seaLineCompany", NONE_SEALINE_VALUE, { shouldValidate: true });
-        if (getValues("arrivalStationSelection") !== "") setValue("arrivalStationSelection", "", {shouldValidate: true});
+        // if (getValues("arrivalStationSelection") !== "") setValue("arrivalStationSelection", "", {shouldValidate: true});
       } else if (currentOrigin && !currentSeaDest) {
+        // If origin is selected but sea dest is not, clear sea line. Arrival station is handled by its own effect.
         if (currentSeaLine !== NONE_SEALINE_VALUE) setValue("seaLineCompany", NONE_SEALINE_VALUE, { shouldValidate: true });
       }
     }
