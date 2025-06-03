@@ -12,7 +12,7 @@ import type {
   ShipmentType,
 } from '@/types';
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, DROP_OFF_TRIGGER_PHRASES } from './constants';
-import { appendCommentary } from './utils'; // Import the new utility
+import { appendCommentary } from './utils';
 
 // --- Helper Interfaces (can be moved to types if they become more widely used) ---
 export interface SeaPriceInfo {
@@ -45,7 +45,7 @@ export interface DropOffInfo { // For COC Drop-off
 
 export interface SOCDropOffInfo { // For SOC Drop-off
   costNumeric: number | null;
-  displayValue: string | null;
+  displayValue: string | null; // Keep for consistency if SOC Excel might have string prices
   comment: string | null;
   socDropOffLegFailed: boolean;
   commentaryReason: string;
@@ -128,7 +128,7 @@ export function findSeaPriceAndDetails(
 export function findRailLegDetails(
   values: RouteFormValues,
   context: PricingDataContextType,
-  seaDestinationPort: string, // This is the sea port (e.g., Vladivostok)
+  seaDestinationPort: string, 
   currentCommentary: string
 ): RailLegInfo {
   const { containerType, russianDestinationCity, arrivalStationSelection } = values;
@@ -157,7 +157,7 @@ export function findRailLegDetails(
 
     const compatibleDepartureStation = railEntry.departureStations.find(depStation => {
       const pStationLower = depStation.toLowerCase().trim();
-      if (seaDestPortLower.includes("пл")) return pStationLower.includes("пасифик лоджистик"); // Pacific Logistic
+      if (seaDestPortLower.includes("пл")) return pStationLower.includes("пасифик лоджистик"); 
       const specificSeaHubKeywordMatch = seaDestinationPort.match(/\(([^)]+)\)/);
       const specificSeaHubKeywords = specificSeaHubKeywordMatch ? specificSeaHubKeywordMatch[1].toLowerCase().split(/[/\s-]+/).map(s => s.trim()).filter(Boolean) : [];
       if (specificSeaHubKeywords.length > 0 && specificSeaHubKeywords.some(kw => pStationLower.includes(kw))) return true;
@@ -166,15 +166,15 @@ export function findRailLegDetails(
 
     if (compatibleDepartureStation) {
       railInfo.departureStation = compatibleDepartureStation;
-      railInfo.arrivalStation = arrivalStationSelection || railEntry.arrivalStations[0]; // Default to first if specific not selected
+      railInfo.arrivalStation = arrivalStationSelection || railEntry.arrivalStations[0]; 
       if (containerType === "20DC") {
-        if (railEntry.price20DC_24t !== null && railEntry.guardCost20DC !== null) { // Check for both price and guard cost
+        if (railEntry.price20DC_24t !== null && railEntry.guardCost20DC !== null) { 
           railInfo.baseCost24t = railEntry.price20DC_24t;
-          railInfo.baseCost28t = railEntry.price20DC_28t; // Can be null, that's fine
+          railInfo.baseCost28t = railEntry.price20DC_28t; 
           railInfo.guardCost20DC = railEntry.guardCost20DC;
           railCostFound = true; 
-        } else if (railEntry.price20DC_28t !== null && railEntry.guardCost20DC !== null) { // If <24t is null, try <28t
-           railInfo.baseCost24t = null; // Explicitly null
+        } else if (railEntry.price20DC_28t !== null && railEntry.guardCost20DC !== null) { 
+           railInfo.baseCost24t = null; 
            railInfo.baseCost28t = railEntry.price20DC_28t;
            railInfo.guardCost20DC = railEntry.guardCost20DC;
            railCostFound = true;
@@ -187,9 +187,8 @@ export function findRailLegDetails(
         }
       }
       if (railCostFound) {
-        // Clear previous commentary only if successful, to avoid overwriting specific component failure messages
         if (!railInfo.commentaryReason.includes("Rail pricing components")) {
-             railInfo.commentaryReason = currentCommentary; // Revert to original commentary before this leg if fully successful
+             railInfo.commentaryReason = currentCommentary; 
         }
         break; 
       } else if (!railInfo.commentaryReason.includes("Rail pricing components")) {
@@ -208,7 +207,7 @@ export function findRailLegDetails(
   return railInfo;
 }
 
-export function findDropOffDetails( // COC Drop-off
+export function findDropOffDetails( 
   values: RouteFormValues,
   context: PricingDataContextType,
   cityForDropOffLookup: string,
@@ -216,7 +215,7 @@ export function findDropOffDetails( // COC Drop-off
   currentCommentary: string
 ): DropOffInfo {
   const { shipmentType, seaLineCompany, containerType } = values;
-  const { excelDropOffData } = context; // COC Drop-off data
+  const { excelDropOffData } = context; 
   const actualSeaLine = seaLineCompany === NONE_SEALINE_VALUE ? undefined : seaLineCompany;
 
   let dropOffInfo: DropOffInfo = {
@@ -275,51 +274,53 @@ export function findDropOffDetails( // COC Drop-off
   return dropOffInfo;
 }
 
-export function findSOCDropOffDetails( // SOC Drop-off (New Function)
+export function findSOCDropOffDetails(
   values: RouteFormValues,
   context: PricingDataContextType,
-  cityForDropOffLookup: string,
+  cityForDropOffLookup: string, // This is the final Russian city where container is dropped
+  socDepartureCityForDropOff: string, // This is values.originPort (where SOC container is sourced for this leg)
   currentCommentary: string
 ): SOCDropOffInfo {
-  const { seaLineCompany, containerType } = values;
   const { excelSOCDropOffData, isSOCDropOffExcelDataLoaded } = context;
-  const actualSeaLine = seaLineCompany === NONE_SEALINE_VALUE ? undefined : seaLineCompany;
+  const { containerType } = values; // `seaLineCompany` is not used for matching SOC Drop-off based on current Excel structure
 
   let socDropOffInfo: SOCDropOffInfo = {
     costNumeric: null, displayValue: null, comment: null,
     socDropOffLegFailed: false, commentaryReason: currentCommentary
   };
 
-  if (!isSOCDropOffExcelDataLoaded || !actualSeaLine || !containerType || !cityForDropOffLookup) {
-    if (isSOCDropOffExcelDataLoaded && actualSeaLine && containerType && cityForDropOffLookup) { 
-        socDropOffInfo.commentaryReason = appendCommentary(socDropOffInfo.commentaryReason, `SOC Drop-off data not fully available or missing parameters.`);
-    }
+  if (!isSOCDropOffExcelDataLoaded || !containerType || !cityForDropOffLookup || !socDepartureCityForDropOff) {
     socDropOffInfo.socDropOffLegFailed = true;
+    if (isSOCDropOffExcelDataLoaded) { // Only add specific message if data was loaded but params were missing
+        socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, `SOC Drop-off lookup missing key parameters (container type, drop-off city, or departure city for drop-off).`);
+    } // Otherwise, the calling function should handle message for non-loaded Excel.
     return socDropOffInfo;
   }
 
   let entryMatched = false;
-  const normalizedLookupCity = (cityForDropOffLookup.toLowerCase().replace(/^г\.\s*/, '') || "").trim();
+  const normalizedDropOffCity = (cityForDropOffLookup.toLowerCase().replace(/^г\.\s*/, '') || "").trim();
+  const normalizedDepartureCity = (socDepartureCityForDropOff.toLowerCase() || "").trim();
 
-  for (const entry of excelSOCDropOffData) {
-    const seaLineMatch = entry.seaLine.toLowerCase().trim() === actualSeaLine.toLowerCase().trim();
-    const cityMatch = entry.destination.toLowerCase().replace(/^г\.\s*/, '').trim() === normalizedLookupCity;
+  for (const entry of excelSOCDropOffData) { // entry is ExcelSOCDropOffEntry { departureCity, dropOffCity, containerType, price }
+    const departureMatch = entry.departureCity.toLowerCase().trim() === normalizedDepartureCity;
+    const dropOffCityMatch = entry.dropOffCity.toLowerCase().replace(/^г\.\s*/, '').trim() === normalizedDropOffCity;
     const containerMatch = entry.containerType === containerType;
 
-    if (seaLineMatch && cityMatch && containerMatch) {
-      socDropOffInfo.comment = entry.comment || null;
-      const priceRaw = entry.price;
-
-      if (typeof priceRaw === 'string') {
-        socDropOffInfo.displayValue = priceRaw;
-        socDropOffInfo.costNumeric = parseFirstNumberFromString(priceRaw);
-        if (socDropOffInfo.costNumeric === null && priceRaw.trim() !== "" && priceRaw.trim().toLowerCase() !== "n/a") {
-          socDropOffInfo.socDropOffLegFailed = true;
-          socDropOffInfo.commentaryReason = appendCommentary(socDropOffInfo.commentaryReason, `SOC Drop-off charges for ${actualSeaLine} to ${cityForDropOffLookup} (${containerType}) has an unparsable string price: ${priceRaw}.`);
-        }
-      } else if (typeof priceRaw === 'number') {
-        socDropOffInfo.costNumeric = priceRaw;
-        socDropOffInfo.displayValue = String(priceRaw);
+    if (departureMatch && dropOffCityMatch && containerMatch) {
+      // For SOC Drop-off, the price is directly a number or null from parsing.
+      // The `ExcelSOCDropOffEntry` stores `price: number | null`.
+      socDropOffInfo.costNumeric = entry.price;
+      socDropOffInfo.displayValue = entry.price !== null ? String(entry.price) : null; 
+      // socDropOffInfo.comment = entry.comment; // The ExcelSOCDropOffEntry type doesn't have a comment field yet. Add if needed.
+      
+      if (entry.price === null) {
+        socDropOffInfo.socDropOffLegFailed = true;
+        socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, `SOC Drop-off price for ${containerType} from ${socDepartureCityForDropOff} to ${cityForDropOffLookup} is not available in Excel.`);
+      } else {
+        // Clear previous commentary only if successful
+         if (!socDropOffInfo.commentaryReason.includes("SOC Drop-off price for")) {
+             socDropOffInfo.commentaryReason = currentCommentary;
+         }
       }
       entryMatched = true;
       break;
@@ -327,11 +328,12 @@ export function findSOCDropOffDetails( // SOC Drop-off (New Function)
   }
 
   if (!entryMatched) {
-    socDropOffInfo.commentaryReason = appendCommentary(socDropOffInfo.commentaryReason, `No matching SOC Drop-off pricing found for ${actualSeaLine} to ${cityForDropOffLookup} (${containerType}).`);
     socDropOffInfo.socDropOffLegFailed = true;
+    socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, `No matching SOC Drop-off pricing found for ${containerType} from ${socDepartureCityForDropOff} to ${cityForDropOffLookup}.`);
   }
   return socDropOffInfo;
 }
+
 
 export function findDirectRailEntry(values: RouteFormValues, context: PricingDataContextType): DirectRailEntry | undefined {
   const { excelDirectRailData } = context;

@@ -1,4 +1,3 @@
-
 // src/lib/pricing/calculation-processors.ts
 import type { UseFormReturn } from 'react-hook-form';
 import { useToast } from '@/hooks/use-toast';
@@ -67,21 +66,18 @@ async function callAiAndSetState(
 
   if (noPricedComponents && finalCommentaryReason && aiInputData.originCity && (aiInputData.destinationCity || aiInputData.russianDestinationCity) ) {
     toast({ title: "Pricing Not Available", description: finalCommentaryReason, variant: "destructive" });
-    // Only call for commentary if it's a sea+rail scenario and essential details are present for a general query
+    
     if (aiInputData.shipmentType && aiInputData.originCity && (aiInputData.destinationCity || aiInputData.russianDestinationCity) ) {
         const pricingCommentaryInput: PricingCommentaryInput = {
             originCity: aiInputData.originCity,
-            destinationCity: aiInputData.destinationCity || aiInputData.russianDestinationCity!, // Use russianDestCity if sea dest is not primary
+            destinationCity: aiInputData.destinationCity || aiInputData.russianDestinationCity!, 
             containerType: aiInputData.containerType,
             russianDestinationCity: aiInputData.russianDestinationCity
         };
         try {
-            // This call was removed to avoid AI commentary when not explicitly requested or needed.
-            // const commentaryRes = await generatePricingCommentary(pricingCommentaryInput);
-            // displayOutput.commentary = commentaryRes.commentary;
-            displayOutput.commentary = finalCommentaryReason; // Fallback to Excel parsing notes
+            displayOutput.commentary = finalCommentaryReason; 
         } catch (e) {
-            displayOutput.commentary = finalCommentaryReason; // Fallback to Excel parsing notes
+            displayOutput.commentary = finalCommentaryReason; 
         }
     } else {
         displayOutput.commentary = finalCommentaryReason;
@@ -93,7 +89,6 @@ async function callAiAndSetState(
     if (setCachedLastSuccessfulCalculation) setCachedLastSuccessfulCalculation(null);
 
   } else if (aiInputData.originCity || (aiInputData.directRailCityOfDeparture && aiInputData.directRailDestinationCity)) {
-    // Use the finalCommentaryReason derived from Excel parsing directly if pricing components are found.
     displayOutput.commentary = finalCommentaryReason; 
     setShippingInfo(displayOutput);
     setCachedShippingInfo(displayOutput);
@@ -130,13 +125,17 @@ export async function processSeaPlusRailCalculation({
   const { shipmentType, originPort, destinationPort, seaLineCompany, containerType, russianDestinationCity } = values;
 
   if (calculationMode === "sea_plus_rail") {
-    if (!originPort || !containerType) { // Destination port is not strictly required for initial best price if Russian city is given
+    if (!originPort || !containerType) { 
       toast({ variant: "destructive", title: "Missing Information", description: "Origin Port and Container Type are required for Sea+Rail." });
       setIsLoading(false); return;
     }
     if (!destinationPort && !russianDestinationCity) {
         toast({ variant: "destructive", title: "Missing Information", description: "Either Destination Port (Sea) or Final Destination City (Rail) is required for Sea+Rail." });
         setIsLoading(false); return;
+    }
+    if (shipmentType === "SOC" && !context.isSOCDropOffExcelDataLoaded) {
+      toast({ variant: "destructive", title: "Missing Data", description: "SOC Drop-off Excel file not loaded. Required for SOC calculations."});
+      setIsLoading(false); return;
     }
   }
 
@@ -157,8 +156,8 @@ export async function processSeaPlusRailCalculation({
   let socDropOffDetails: SOCDropOffInfo | null = null;
   
   const isFurtherRailJourney = russianDestinationCity && destinationPort && 
-                             VLADIVOSTOK_VARIANTS.some(v => destinationPort.startsWith(v.split(" ")[0])) && // Sea port must be Vladivostok-like
-                             !VLADIVOSTOK_VARIANTS.some(v => v === russianDestinationCity && destinationPort.startsWith(v.split(" ")[0])); // And final city isn't just Vladivostok itself
+                             VLADIVOSTOK_VARIANTS.some(v => destinationPort.startsWith(v.split(" ")[0])) && 
+                             !VLADIVOSTOK_VARIANTS.some(v => v === russianDestinationCity && destinationPort.startsWith(v.split(" ")[0]));
 
   if (seaInfo.seaPriceNumeric !== null && seaInfo.matchedSeaRouteInfo && isFurtherRailJourney && destinationPort) {
     railDetails = findRailLegDetails(values, context, destinationPort, finalCommentary);
@@ -169,10 +168,14 @@ export async function processSeaPlusRailCalculation({
   }
 
   let cityForDropOffLookup: string | undefined = undefined;
-  if (isFurtherRailJourney && railDetails && !railDetails.railLegFailed && russianDestinationCity) {
+  if (shipmentType === "SOC" && russianDestinationCity) {
     cityForDropOffLookup = russianDestinationCity;
-  } else if (destinationPort && VLADIVOSTOK_VARIANTS.some(v => destinationPort.startsWith(v.split(" ")[0]))) {
-    cityForDropOffLookup = destinationPort;
+  } else if (shipmentType === "COC") {
+    if (isFurtherRailJourney && railDetails && !railDetails.railLegFailed && russianDestinationCity) {
+        cityForDropOffLookup = russianDestinationCity;
+    } else if (destinationPort && VLADIVOSTOK_VARIANTS.some(v => destinationPort.startsWith(v.split(" ")[0]))) {
+        cityForDropOffLookup = destinationPort;
+    }
   }
 
 
@@ -180,8 +183,8 @@ export async function processSeaPlusRailCalculation({
       (seaInfo.seaPriceNumeric !== null || (isFurtherRailJourney && railDetails && !railDetails.railLegFailed) || (!isFurtherRailJourney && destinationPort && VLADIVOSTOK_VARIANTS.some(variant => destinationPort.startsWith(variant.split(" ")[0]))))) {
     cocDropOffDetails = findDropOffDetails(values, context, cityForDropOffLookup, seaInfo.seaComment, finalCommentary);
     finalCommentary = cocDropOffDetails.commentaryReason; 
-  } else if (shipmentType === "SOC" && seaInfo.matchedSeaRouteInfo && cityForDropOffLookup && context.isSOCDropOffExcelDataLoaded && actualSeaLine && containerType) {
-    socDropOffDetails = findSOCDropOffDetails(values, context, cityForDropOffLookup, finalCommentary);
+  } else if (shipmentType === "SOC" && seaInfo.matchedSeaRouteInfo && cityForDropOffLookup && originPort && containerType && context.isSOCDropOffExcelDataLoaded) {
+    socDropOffDetails = findSOCDropOffDetails(values, context, cityForDropOffLookup, originPort, finalCommentary);
     finalCommentary = socDropOffDetails.commentaryReason;
   }
 
@@ -214,12 +217,14 @@ export async function processSeaPlusRailCalculation({
       socDropOffCost: shipmentType === "SOC" ? socDropOffDetails?.costNumeric : null,
       socDropOffComment: shipmentType === "SOC" ? socDropOffDetails?.comment : null,
 
-      socComment: seaInfo.socComment, russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : undefined,
+      socComment: seaInfo.socComment, russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : (shipmentType === 'SOC' ? russianDestinationCity : undefined),
       commentary: '', 
     };
 
     const calcDetails: CalculationDetailsForInstructions | null = hasAnyPricedComponent ? {
-      shipmentType, originPort: originPort!, destinationPort: destinationPort!, seaLineCompany: actualSeaLine, containerType, russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : undefined, railArrivalStation: railDetails?.arrivalStation ?? undefined, railDepartureStation: railDetails?.departureStation ?? undefined,
+      shipmentType, originPort: originPort!, destinationPort: destinationPort!, seaLineCompany: actualSeaLine, containerType, 
+      russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : (shipmentType === 'SOC' ? russianDestinationCity : undefined), 
+      railArrivalStation: railDetails?.arrivalStation ?? undefined, railDepartureStation: railDetails?.departureStation ?? undefined,
       seaCostBase: seaInfo.seaPriceNumeric, seaMarginApplied: seaMargin, seaCostFinal: finalSeaPriceWithMargin, seaComment: seaInfo.seaComment,
       railCostBase24t: containerType === "20DC" ? railDetails?.baseCost24t : null, railCostBase28t: containerType === "20DC" ? railDetails?.baseCost28t : null, railGuardCost20DC: containerType === "20DC" ? railDetails?.guardCost20DC : null,
       railCostBase40HC: containerType === "40HC" ? railDetails?.baseCost40HC : null, railGuardCost40HC: containerType === "40HC" ? railDetails?.guardCost40HC : null,
@@ -277,7 +282,7 @@ export async function processDirectRailCalculation({
       directRailCommentary: matchedEntry.commentary, 
       directRailAgentName: matchedEntry.agentName,
       directRailIncoterms: matchedEntry.incoterms,
-      commentary: matchedEntry.commentary || '' // Use Excel commentary as the main commentary
+      commentary: matchedEntry.commentary || '' 
     };
     setShippingInfo(displayOutput);
     setCachedShippingInfo(displayOutput);
@@ -317,15 +322,21 @@ export function calculateBestPrice({
       toast({ title: "Missing Info", description: "Select Origin Port & Container Type for Best Price (Sea+Rail)." });
       setIsCalculatingBestPrice(false); return;
     }
-    if (excelRussianDestinationCitiesMasterList.length > 0 && !values.russianDestinationCity) { 
-      toast({ title: "Missing Info", description: "Select Destination City for Best Price (Sea+Rail)." });
+    if (excelRussianDestinationCitiesMasterList.length > 0 && !values.russianDestinationCity && values.shipmentType === "COC") { 
+      // For COC, if rail hubs exist, russianDestCity is required
+      toast({ title: "Missing Info", description: "Select Destination City for Best Price (Sea+Rail COC)." });
       setIsCalculatingBestPrice(false); return;
+    }
+    if (values.shipmentType === "SOC" && !values.russianDestinationCity) {
+        // For SOC, russianDestCity is always required for drop-off lookup
+        toast({ title: "Missing Info", description: "Select Destination City for Best Price (Sea+Rail SOC)." });
+        setIsCalculatingBestPrice(false); return;
     }
     if (!isSeaRailExcelDataLoaded) {
       toast({ title: "Data Not Loaded", description: "Please load the Море + Ж/Д Excel file first." });
       setIsCalculatingBestPrice(false); return;
     }
-    if (values.shipmentType === "SOC" && !isSOCDropOffExcelDataLoaded) { // Check for SOC drop-off data if SOC type
+    if (values.shipmentType === "SOC" && !isSOCDropOffExcelDataLoaded) { 
         toast({ title: "Data Not Loaded", description: "Please load the SOC Drop-off Excel file for SOC Best Price calculation." });
         setIsCalculatingBestPrice(false); return;
     }
@@ -355,5 +366,3 @@ export function calculateBestPrice({
   }
   setIsCalculatingBestPrice(false);
 }
-
-    
