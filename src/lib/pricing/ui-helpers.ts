@@ -98,10 +98,6 @@ export async function handleCopyOutput(args: ActionHandlerArgs) {
                                  !VLADIVOSTOK_VARIANTS.some(vladVariant => vladVariant === russianDestinationCity && destinationPort.startsWith(vladVariant.split(" ")[0]));
 
   const seaCostUSDToUse = lastSuccessfulCalculation?.seaCostFinal ?? (shippingInfo && 'seaCost' in shippingInfo ? shippingInfo.seaCost : null);
-  let dropOffCostUSDToUse: number | null = null;
-  if (shipmentType === "COC" && actualSeaLine && !isPandaLine) {
-    dropOffCostUSDToUse = lastSuccessfulCalculation?.dropOffCost ?? (shippingInfo && 'dropOffCost' in shippingInfo && shippingInfo.dropOffCost ? shippingInfo.dropOffCost : null);
-  }
   const railArrivalStationToUse = lastSuccessfulCalculation?.railArrivalStation ?? (shippingInfo && 'railArrivalStation' in shippingInfo ? shippingInfo.railArrivalStation : null);
 
   textToCopy += "FOB " + (containerType || 'N/A') + " " + (originPort || 'N/A');
@@ -112,18 +108,23 @@ export async function handleCopyOutput(args: ActionHandlerArgs) {
   }
   textToCopy += "\n";
 
-  let seaCostBaseForSum = seaCostUSDToUse ?? 0;
-  let dropOffCostForSum = 0;
-  if (shipmentType === "COC" && actualSeaLine && !isPandaLine && dropOffCostUSDToUse) {
-    dropOffCostForSum = dropOffCostUSDToUse;
+  let totalFreightCostUSD = seaCostUSDToUse ?? 0;
+
+  if (shipmentType === "COC") {
+    const dropOffCostUSDToUse = lastSuccessfulCalculation?.dropOffCost ?? (shippingInfo && 'dropOffCost' in shippingInfo && shippingInfo.dropOffCost ? shippingInfo.dropOffCost : null);
+    if (actualSeaLine && !isPandaLine && dropOffCostUSDToUse) {
+      totalFreightCostUSD += dropOffCostUSDToUse;
+    }
+  } else if (shipmentType === "SOC") {
+    const socDropOffCostUSD = lastSuccessfulCalculation?.socDropOffCost ?? (shippingInfo && 'socDropOffCost' in shippingInfo ? shippingInfo.socDropOffCost : null);
+    if (socDropOffCostUSD) {
+      totalFreightCostUSD += socDropOffCostUSD;
+    }
   }
-  const totalFreightCostUSD = seaCostBaseForSum + dropOffCostForSum;
+  
   textToCopy += "Фрахт: " + formatDisplayCost(totalFreightCostUSD > 0 ? totalFreightCostUSD : null, 'USD') + "\n";
 
-  if (shipmentType === "SOC" && lastSuccessfulCalculation?.socDropOffCost) {
-    textToCopy += `Вывоз контейнера (SOC Drop-off): ${formatDisplayCost(lastSuccessfulCalculation.socDropOffCost, 'RUB')}\n`;
-  }
-
+  // The separate SOC Drop-off line is now removed as its cost is included in "Фрахт"
 
   let jdLine = "";
   if (isFurtherRailJourneyCopy) {
@@ -159,10 +160,8 @@ export async function handleCopyOutput(args: ActionHandlerArgs) {
   if (jdLine && jdLine !== "Ж/Д Составляющая: ") textToCopy += jdLine + "\n";
   textToCopy += "Прием и вывоз контейнера в режиме ГТД в пределах МКАД: 48 000 руб. с НДС 0%\n";
 
-  if (shipmentType === "SOC") {
-    if (lastSuccessfulCalculation?.socComment) textToCopy += `SOC Comment: ${lastSuccessfulCalculation.socComment}\n`;
-    if (lastSuccessfulCalculation?.socDropOffComment) textToCopy += `SOC Drop-off Comment: ${lastSuccessfulCalculation.socDropOffComment}\n`;
-  } else if (shipmentType === "COC") {
+  // SOC Comment and SOC Drop-off Comment are removed for SOC shipments
+  if (shipmentType === "COC") {
     if (lastSuccessfulCalculation?.seaComment) textToCopy += `Sea Route Comment: ${lastSuccessfulCalculation.seaComment}\n`;
     if (lastSuccessfulCalculation?.dropOffComment) textToCopy += `Drop Off Comment: ${lastSuccessfulCalculation.dropOffComment}\n`;
   }
@@ -233,8 +232,9 @@ export function handleCreateInstructionsNavigation(args: ActionHandlerArgs) {
   }
   if (dropOffComment && shipmentType === "COC") queryParams.set('dropOffComment', dropOffComment);
   
+  // For instructions, SOC drop-off cost is still passed as USD
   if (socDropOffCost !== null && shipmentType === "SOC") {
-    queryParams.set('socDropOffCost', socDropOffCost.toString());
+    queryParams.set('socDropOffCost', socDropOffCost.toString()); // This remains USD
   }
   if (socDropOffComment && shipmentType === "SOC") {
     queryParams.set('socDropOffComment', socDropOffComment);
