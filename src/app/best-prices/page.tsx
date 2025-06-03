@@ -42,13 +42,17 @@ export default function BestPricesPage() {
       if (route.shipmentType === "COC") {
         totalFreightCostUSD += dropOffCostForSum;
       } else if (route.shipmentType === "SOC" && route.socDropOffCostUSD !== null) {
-        totalFreightCostUSD += route.socDropOffCostUSD;
+        totalFreightCostUSD += route.socDropOffCostUSD; // SOC Drop-off cost is USD
       }
 
       textToCopy += "Фрахт: " + formatDisplayCost(totalFreightCostUSD > 0 ? totalFreightCostUSD : null, 'USD') + "\n";
 
       let jdLine = "";
-      if (route.shipmentType === "COC" && route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0]))) {
+      const isFurtherRailForCopy = route.russianDestinationCity && route.russianDestinationCity !== 'N/A' &&
+                                  route.seaDestinationPort && VLADIVOSTOK_VARIANTS.some(v => route.seaDestinationPort!.startsWith(v.split(" ")[0])) &&
+                                  !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity!.startsWith(v.split(" ")[0]));
+
+      if (isFurtherRailForCopy) {
           jdLine = "Ж/Д Составляющая: ";
           if (route.containerType === "20DC") {
               let costsParts = [];
@@ -61,28 +65,32 @@ export default function BestPricesPage() {
                 jdLine += "N/A";
               }
 
-              const guardCostFormatted = formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB');
-              if (route.railGuardCost20DC_RUB !== null) {
-                  jdLine += " + Охрана " + guardCostFormatted;
-                  if (route.railGuardCost20DC_RUB > 0) {
-                       jdLine += " (Если код подохранный)";
-                  }
-              } else if (costsParts.length > 0 || (jdLine !== "N/A" && jdLine !== "Ж/Д Составляющая: N/A")) { // Guard is null but base exists
-                  jdLine += " + Охрана N/A";
+              if (route.shipmentType === "COC") { // Guard cost only for COC
+                const guardCostFormatted = formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB');
+                if (route.railGuardCost20DC_RUB !== null) {
+                    jdLine += " + Охрана " + guardCostFormatted;
+                    if (route.railGuardCost20DC_RUB > 0) {
+                        jdLine += " (Если код подохранный)";
+                    }
+                } else if (costsParts.length > 0 || (jdLine !== "N/A" && jdLine !== "Ж/Д Составляющая: N/A")) { 
+                    jdLine += " + Охрана N/A";
+                }
               }
           } else if (route.containerType === "40HC") {
               if (route.railCost40HC_RUB !== null) {
                 jdLine += formatDisplayCost(route.railCost40HC_RUB, 'RUB');
-                const guardCostFormatted = formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB');
-                if (route.railGuardCost40HC_RUB !== null) {
-                    jdLine += " + Охрана " + guardCostFormatted;
-                    if (route.railGuardCost40HC_RUB > 0) {
-                        jdLine += " (Если код подохранный)";
+                if (route.shipmentType === "COC") { // Guard cost only for COC
+                    const guardCostFormatted = formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB');
+                    if (route.railGuardCost40HC_RUB !== null) {
+                        jdLine += " + Охрана " + guardCostFormatted;
+                        if (route.railGuardCost40HC_RUB > 0) {
+                            jdLine += " (Если код подохранный)";
+                        }
+                    } else { 
+                        jdLine += " + Охрана N/A";
                     }
-                } else { // Guard is null but base exists
-                    jdLine += " + Охрана N/A";
                 }
-              } else if (route.railGuardCost40HC_RUB !== null) { // Base is null but guard exists
+              } else if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) { // Base is null but guard exists for COC
                 jdLine += `Охрана ${formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB')}`;
                 if (route.railGuardCost40HC_RUB > 0) jdLine += " (Если код подохранный)";
               } else {
@@ -99,7 +107,7 @@ export default function BestPricesPage() {
         if (route.seaComment) textToCopy += `Sea Route Comment: ${route.seaComment}\n`;
         if (route.dropOffComment) textToCopy += `Drop Off Comment: ${route.dropOffComment}\n`;
       }
-
+      // Removed SOC Comment and SOC Drop-off Comment from copy text
 
     } else if (route.mode === 'direct_rail') {
       textToCopy += "Direct Rail Option:\n";
@@ -152,16 +160,16 @@ export default function BestPricesPage() {
     queryParams.set('seaMarginApplied', '0');
     queryParams.set('railMarginApplied', '0');
 
-    if (route.containerType === "20DC" && route.shipmentType === "COC") {
+    if (route.containerType === "20DC") { // Applies to COC and potentially SOC if rail costs are populated
         if (route.railCost20DC_24t_RUB !== null) queryParams.set('railCostBase24t', route.railCost20DC_24t_RUB.toString());
         if (route.railCost20DC_28t_RUB !== null) queryParams.set('railCostBase28t', route.railCost20DC_28t_RUB.toString());
-        if (route.railGuardCost20DC_RUB !== null) queryParams.set('railGuardCost20DC', route.railGuardCost20DC_RUB.toString());
+        if (route.shipmentType === "COC" && route.railGuardCost20DC_RUB !== null) queryParams.set('railGuardCost20DC', route.railGuardCost20DC_RUB.toString());
 
         if (route.railCost20DC_24t_RUB !== null) queryParams.set('railCostFinal24t', route.railCost20DC_24t_RUB.toString());
         if (route.railCost20DC_28t_RUB !== null) queryParams.set('railCostFinal28t', route.railCost20DC_28t_RUB.toString());
-    } else if (route.containerType === "40HC" && route.shipmentType === "COC") {
+    } else if (route.containerType === "40HC") { // Applies to COC and potentially SOC
         if (route.railCost40HC_RUB !== null) queryParams.set('railCostBase40HC', route.railCost40HC_RUB.toString());
-        if (route.railGuardCost40HC_RUB !== null) queryParams.set('railGuardCost40HC', route.railGuardCost40HC_RUB.toString());
+        if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) queryParams.set('railGuardCost40HC', route.railGuardCost40HC_RUB.toString());
 
         if (route.railCost40HC_RUB !== null) queryParams.set('railCostFinal40HC', route.railCost40HC_RUB.toString());
     }
@@ -176,7 +184,7 @@ export default function BestPricesPage() {
     }
     
     if (route.shipmentType === "SOC") {
-        if (route.socDropOffCostUSD !== null && route.socDropOffCostUSD !== undefined) queryParams.set('socDropOffCost', route.socDropOffCostUSD.toString());
+        if (route.socDropOffCostUSD !== null && route.socDropOffCostUSD !== undefined) queryParams.set('socDropOffCost', route.socDropOffCostUSD.toString()); // This is USD
         if (route.socDropOffComment) queryParams.set('socDropOffComment', route.socDropOffComment);
     }
 
@@ -256,6 +264,17 @@ export default function BestPricesPage() {
             const dropOffToDisplay = route.dropOffDisplayValue || (route.dropOffCostUSD !== null && route.dropOffCostUSD !== undefined ? formatDisplayCost(route.dropOffCostUSD, 'USD') : null);
             const agentOrSeaLineLabel = route.mode === 'direct_rail' ? 'Agent:' : 'Sea Line:';
             const agentOrSeaLineValue = route.mode === 'direct_rail' ? route.directRailAgentName : route.seaLineCompany;
+            
+            const hasRailComponentToShow = 
+              route.mode === 'sea_plus_rail' &&
+              route.seaDestinationPort &&
+              VLADIVOSTOK_VARIANTS.some(v => route.seaDestinationPort!.startsWith(v.split(" ")[0])) &&
+              route.russianDestinationCity &&
+              !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity!.startsWith(v.split(" ")[0])) &&
+              (
+                (route.containerType === "20DC" && (route.railCost20DC_24t_RUB !== null || route.railCost20DC_28t_RUB !== null || (route.shipmentType === "COC" && route.railGuardCost20DC_RUB !== null) )) ||
+                (route.containerType === "40HC" && (route.railCost40HC_RUB !== null || (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) ))
+              );
 
             return (
           <Card key={route.id} className="shadow-xl rounded-xl overflow-hidden flex flex-col bg-card border border-border hover:shadow-2xl transition-shadow duration-300">
@@ -300,22 +319,17 @@ export default function BestPricesPage() {
                     </>
                   )}
 
-                  {route.mode === 'sea_plus_rail' && route.shipmentType === "COC" && route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0])) && (
-                    <>
-                      <p className="font-medium text-muted-foreground">Destination City (Rail):</p><p className="text-right">{route.russianDestinationCity}</p>
-                    </>
-                  )}
-                   {route.mode === 'sea_plus_rail' && route.shipmentType === "SOC" && route.russianDestinationCity && (
+                  {route.mode === 'sea_plus_rail' && route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0])) && (
                     <>
                       <p className="font-medium text-muted-foreground">Final Destination City:</p><p className="text-right">{route.russianDestinationCity}</p>
                     </>
                   )}
-                  {route.mode === 'sea_plus_rail' && route.shipmentType === "COC" && route.railDepartureStation && (
+                  {route.mode === 'sea_plus_rail' && route.railDepartureStation && (
                     <>
                       <p className="font-medium text-muted-foreground">Rail Dep. Station:</p><p className="text-right">{route.railDepartureStation}</p>
                     </>
                   )}
-                  {route.mode === 'sea_plus_rail' && route.shipmentType === "COC" && route.railArrivalStation && (
+                  {route.mode === 'sea_plus_rail' && route.railArrivalStation && (
                      <>
                       <p className="font-medium text-muted-foreground">Rail Arr. Station:</p><p className="text-right">{route.railArrivalStation}</p>
                     </>
@@ -350,15 +364,7 @@ export default function BestPricesPage() {
                             )}
 
                             {/* Combined Railway Leg Cost Display */}
-                            {route.shipmentType === "COC" &&
-                              route.seaDestinationPort &&
-                              VLADIVOSTOK_VARIANTS.some(v => route.seaDestinationPort!.startsWith(v.split(" ")[0])) &&
-                              route.russianDestinationCity &&
-                              !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity!.startsWith(v.split(" ")[0])) &&
-                              (
-                                (route.containerType === "20DC" && (route.railCost20DC_24t_RUB !== null || route.railCost20DC_28t_RUB !== null || route.railGuardCost20DC_RUB !== null)) ||
-                                (route.containerType === "40HC" && (route.railCost40HC_RUB !== null || route.railGuardCost40HC_RUB !== null))
-                              ) && (
+                            {hasRailComponentToShow && (
                               <p className="flex justify-between">
                                 <span>Ж/Д Составляющая:</span>
                                 <span className="font-semibold text-primary text-right">
@@ -373,40 +379,38 @@ export default function BestPricesPage() {
                                       
                                       if (costsParts.length > 0) {
                                         railLegStr = costsParts.join(' / ');
-                                      } else {
-                                        // railLegStr remains empty if no base costs
                                       }
 
-                                      if (route.railGuardCost20DC_RUB !== null) {
+                                      if (route.shipmentType === "COC" && route.railGuardCost20DC_RUB !== null) {
                                         const guardStr = `Охрана ${formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB')}`;
-                                        if (railLegStr) { // If base cost exists
+                                        if (railLegStr) { 
                                             railLegStr += ` + ${guardStr}`;
-                                        } else { // Only guard cost exists
+                                        } else { 
                                             railLegStr = guardStr;
                                         }
                                         if (route.railGuardCost20DC_RUB > 0) guardNeededComment = true;
-                                      } else if (railLegStr) { // Guard cost is null, but base cost exists
+                                      } else if (route.shipmentType === "COC" && railLegStr) { 
                                           railLegStr += ` + Охрана N/A`;
                                       }
-                                      if (!railLegStr) railLegStr = "N/A"; // If still empty, means no base and no guard
+                                      if (!railLegStr) railLegStr = "N/A"; 
 
                                     } else if (route.containerType === "40HC") {
                                       if (route.railCost40HC_RUB !== null) {
                                         railLegStr = formatDisplayCost(route.railCost40HC_RUB, 'RUB');
-                                        if (route.railGuardCost40HC_RUB !== null) {
+                                        if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) {
                                           railLegStr += ` + Охрана ${formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB')}`;
                                           if (route.railGuardCost40HC_RUB > 0) guardNeededComment = true;
-                                        } else {
+                                        } else if (route.shipmentType === "COC") {
                                           railLegStr += ` + Охрана N/A`;
                                         }
-                                      } else if (route.railGuardCost40HC_RUB !== null) { // Only guard cost available
+                                      } else if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) { 
                                         railLegStr = `Охрана ${formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB')}`;
                                         if (route.railGuardCost40HC_RUB > 0) guardNeededComment = true;
                                       } else {
                                         railLegStr = "N/A";
                                       }
                                     }
-                                    if (guardNeededComment) {
+                                    if (route.shipmentType === "COC" && guardNeededComment) {
                                       railLegStr += " (Если код подохранный)";
                                     }
                                     return railLegStr;
@@ -429,7 +433,8 @@ export default function BestPricesPage() {
                                 <span className="text-xs text-destructive text-right ml-2">{route.dropOffComment}</span>
                             </p>
                             )}
-                            {route.shipmentType === "SOC" && route.socDropOffCostUSD !== null && (
+                            {/* Display SOC Drop Off Cost only if rail component is NOT shown for SOC */}
+                            {!hasRailComponentToShow && route.shipmentType === "SOC" && route.socDropOffCostUSD !== null && (
                               <p className="flex justify-between">
                                 <span>SOC Drop Off Cost ({route.containerType}):</span>
                                 <span className="font-semibold text-primary">

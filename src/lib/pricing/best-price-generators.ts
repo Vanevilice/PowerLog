@@ -93,26 +93,26 @@ function _getRailAndDropOffDetailsForCandidate(
       }
     }
   } else if (shipmentType === "SOC") {
-    costToAddForRailRUB = 0; // No separate rail leg calculation for SOC in this context, it's part of drop-off if applicable
-    railLegDetails = null;
+    costToAddForRailRUB = 0; 
+    railLegDetails = null; 
 
-    if (context.isSOCDropOffExcelDataLoaded && russianDestinationCity && originPortForSeaRoute && containerType) {
+    if (context.isSOCDropOffExcelDataLoaded && russianDestinationCity && seaDestPort && containerType) {
       socDropOffDetails = findSOCDropOffDetails(
         values,
         context,
         russianDestinationCity,       // cityForDropOffLookup (final drop-off city)
-        originPortForSeaRoute,        // socDepartureCityForDropOff (e.g., Qingdao, the sea leg's origin)
+        seaDestPort,                  // socDepartureCityForDropOff (e.g., Vladivostok, the sea destination port)
         currentSeaComment || ""
       );
-      // Assuming socDropOffDetails.costNumeric is now USD
-      if (socDropOffDetails.costNumeric !== null) {
+      
+      if (socDropOffDetails.costNumeric !== null) { // costNumeric is USD
         costToAddForDropOffRUB = (socDropOffDetails.costNumeric ?? 0) * USD_RUB_CONVERSION_RATE;
       }
       derivedRussianDestinationCityForCandidate = russianDestinationCity;
     } else {
       socDropOffDetails = {
         socDropOffLegFailed: true,
-        commentaryReason: "SOC Drop-off data not loaded or key info (origin, final city, container) missing for lookup.",
+        commentaryReason: "SOC Drop-off data not loaded or key info (sea destination port, final city, container) missing for lookup.",
         costNumeric: null, displayValue: null, comment: null
       };
     }
@@ -207,10 +207,16 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
             return;
         }
 
-        totalComparisonCostRUB += details.costToAddForDropOffRUB; // This is now the RUB equivalent
-        if (shipmentType === "COC") {
+        totalComparisonCostRUB += details.costToAddForDropOffRUB; // This is the RUB equivalent of drop-off (COC or SOC)
+        
+        let socInlandRailCostRUB: number | null = null;
+        if (shipmentType === "SOC" && details.socDropOffDetails?.costNumeric !== null) {
+          socInlandRailCostRUB = details.socDropOffDetails.costNumeric * USD_RUB_CONVERSION_RATE;
+           // For SOC, costToAddForRailRUB is already 0, so no double count for total.
+        } else if (shipmentType === "COC") {
              totalComparisonCostRUB += details.costToAddForRailRUB;
         }
+
 
         candidates.push({
           id: `sroute-${routeIdCounter++}`,
@@ -226,17 +232,17 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
           seaCostUSD: seaPriceForContainerNumeric,
           seaComment: currentSeaComment,
           socComment: currentSocComment,
-          railCost20DC_24t_RUB: details.railLegDetails?.baseCost24t ?? null,
-          railCost20DC_28t_RUB: details.railLegDetails?.baseCost28t ?? null,
-          railGuardCost20DC_RUB: details.railLegDetails?.guardCost20DC ?? null,
-          railCost40HC_RUB: details.railLegDetails?.baseCost40HC ?? null,
-          railGuardCost40HC_RUB: details.railLegDetails?.guardCost40HC ?? null,
+          
+          railCost20DC_24t_RUB: shipmentType === "COC" ? (details.railLegDetails?.baseCost24t ?? null) : (containerType === "20DC" ? socInlandRailCostRUB : null),
+          railCost20DC_28t_RUB: shipmentType === "COC" ? (details.railLegDetails?.baseCost28t ?? null) : null, // SOC doesn't have 28t variant in this model
+          railGuardCost20DC_RUB: shipmentType === "COC" ? (details.railLegDetails?.guardCost20DC ?? null) : null, // No guard for SOC
+          railCost40HC_RUB: shipmentType === "COC" ? (details.railLegDetails?.baseCost40HC ?? null) : (containerType === "40HC" ? socInlandRailCostRUB : null),
+          railGuardCost40HC_RUB: shipmentType === "COC" ? (details.railLegDetails?.guardCost40HC ?? null) : null, // No guard for SOC
 
           dropOffCostUSD: shipmentType === "COC" ? (details.cocDropOffDetails?.costNumeric ?? null) : null,
           dropOffDisplayValue: shipmentType === "COC" ? (details.cocDropOffDetails?.displayValue ?? null) : null,
           dropOffComment: shipmentType === "COC" ? (details.cocDropOffDetails?.comment ?? null) : null,
 
-          // Store SOC drop-off cost as USD
           socDropOffCostUSD: shipmentType === "SOC" ? (details.socDropOffDetails?.costNumeric ?? null) : null,
           socDropOffComment: shipmentType === "SOC" ? (details.socDropOffDetails?.comment ?? null) : null,
 
