@@ -8,8 +8,8 @@ import type {
   CalculationDetailsForInstructions,
   ShipmentType,
   ContainerType,
-  DashboardServiceDataRow, // Added for new utility
-  RailwayLegData,         // Added for new utility
+  DashboardServiceDataRow, 
+  RailwayLegData,         
 } from '@/types';
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS } from './constants';
 
@@ -120,6 +120,11 @@ export async function handleCopyOutput(args: ActionHandlerArgs) {
   const totalFreightCostUSD = seaCostBaseForSum + dropOffCostForSum;
   textToCopy += "Фрахт: " + formatDisplayCost(totalFreightCostUSD > 0 ? totalFreightCostUSD : null, 'USD') + "\n";
 
+  if (shipmentType === "SOC" && lastSuccessfulCalculation?.socDropOffCost) {
+    textToCopy += `Вывоз контейнера (SOC Drop-off): ${formatDisplayCost(lastSuccessfulCalculation.socDropOffCost, 'RUB')}\n`;
+  }
+
+
   let jdLine = "";
   if (isFurtherRailJourneyCopy) {
     jdLine = "Ж/Д Составляющая: ";
@@ -154,13 +159,12 @@ export async function handleCopyOutput(args: ActionHandlerArgs) {
   if (jdLine && jdLine !== "Ж/Д Составляющая: ") textToCopy += jdLine + "\n";
   textToCopy += "Прием и вывоз контейнера в режиме ГТД в пределах МКАД: 48 000 руб. с НДС 0%\n";
 
-  if (shipmentType === "SOC" && shippingInfo && 'socComment' in shippingInfo && shippingInfo.socComment) {
-    textToCopy += `SOC Comment: ${shippingInfo.socComment}\n`;
-  } else if (shipmentType === "COC" && shippingInfo && 'seaComment' in shippingInfo && shippingInfo.seaComment) {
-    textToCopy += `Sea Route Comment: ${shippingInfo.seaComment}\n`;
-  }
-  if (shipmentType === "COC" && shippingInfo && 'dropOffComment' in shippingInfo && shippingInfo.dropOffComment) {
-    textToCopy += `Drop Off Comment: ${shippingInfo.dropOffComment}\n`;
+  if (shipmentType === "SOC") {
+    if (lastSuccessfulCalculation?.socComment) textToCopy += `SOC Comment: ${lastSuccessfulCalculation.socComment}\n`;
+    if (lastSuccessfulCalculation?.socDropOffComment) textToCopy += `SOC Drop-off Comment: ${lastSuccessfulCalculation.socDropOffComment}\n`;
+  } else if (shipmentType === "COC") {
+    if (lastSuccessfulCalculation?.seaComment) textToCopy += `Sea Route Comment: ${lastSuccessfulCalculation.seaComment}\n`;
+    if (lastSuccessfulCalculation?.dropOffComment) textToCopy += `Drop Off Comment: ${lastSuccessfulCalculation.dropOffComment}\n`;
   }
 
 
@@ -181,11 +185,11 @@ export function handleCreateInstructionsNavigation(args: ActionHandlerArgs) {
   const {
     shipmentType, originPort, destinationPort, seaLineCompany, containerType, russianDestinationCity,
     railArrivalStation, railDepartureStation,
-    seaCostBase, seaComment, socComment, // Added socComment
+    seaCostBase, seaComment, socComment,
     railCostBase24t, railCostBase28t, railGuardCost20DC, railCostBase40HC, railGuardCost40HC,
     seaMarginApplied, railMarginApplied, seaCostFinal,
     railCostFinal24t, railCostFinal28t, railCostFinal40HC,
-    dropOffCost, dropOffComment
+    dropOffCost, dropOffComment, socDropOffCost, socDropOffComment
   } = lastSuccessfulCalculation;
 
   const queryParams = new URLSearchParams();
@@ -195,7 +199,7 @@ export function handleCreateInstructionsNavigation(args: ActionHandlerArgs) {
   if (seaLineCompany) queryParams.set('seaLineCompany', seaLineCompany);
   if (containerType) queryParams.set('containerType', containerType);
   if (seaComment && shipmentType === "COC") queryParams.set('seaComment', seaComment);
-  if (socComment && shipmentType === "SOC") queryParams.set('socComment', socComment); // Added socComment
+  if (socComment && shipmentType === "SOC") queryParams.set('socComment', socComment); 
   if (railDepartureStation) queryParams.set('railDepartureStation', railDepartureStation);
 
 
@@ -228,6 +232,13 @@ export function handleCreateInstructionsNavigation(args: ActionHandlerArgs) {
     queryParams.set('dropOffCost', dropOffCost.toString());
   }
   if (dropOffComment && shipmentType === "COC") queryParams.set('dropOffComment', dropOffComment);
+  
+  if (socDropOffCost !== null && shipmentType === "SOC") {
+    queryParams.set('socDropOffCost', socDropOffCost.toString());
+  }
+  if (socDropOffComment && shipmentType === "SOC") {
+    queryParams.set('socDropOffComment', socDropOffComment);
+  }
 
 
   router.push("/instructions?" + queryParams.toString());
@@ -257,8 +268,8 @@ export function handleDirectRailCopy(shippingInfo: SmartPricingOutput | null, to
 export function generateDashboardCopyText(
   row: DashboardServiceDataRow,
   selectedLeg: RailwayLegData | null,
-  originPart: string,
-  forPartDisplay: string
+  originPart: string, 
+  forPartDisplay: string 
 ): string {
   let textToCopy = "";
 
@@ -267,7 +278,13 @@ export function generateDashboardCopyText(
 
   if (selectedLeg && selectedLeg.cost && selectedLeg.cost !== 'N/A') {
     textToCopy += `Ж/Д Составляющая: ${selectedLeg.cost}\n`;
+    // Optionally add container info and comment from the selected leg if needed.
+    // if (selectedLeg.containerInfo && selectedLeg.containerInfo !== 'N/A') textToCopy += `  Контейнер (Ж/Д): ${selectedLeg.containerInfo}\n`;
+    // if (selectedLeg.comment && selectedLeg.comment !== '-') textToCopy += `  Комментарий (Ж/Д): ${selectedLeg.comment}\n`;
   }
+  // Add other details from the main row if needed
+  // if (row.additionalComment && row.additionalComment !== '-') textToCopy += `Комментарий (Море): ${row.additionalComment}\n`;
 
   return textToCopy.trim();
 }
+

@@ -81,3 +81,4 @@ export function parseContainerInfoCell(cellValue: string | undefined | null): { 
   // If no standard type found at the beginning, the whole cell is a comment or unknown type
   return { containerType: 'N/A', comment: fullCellText };
 }
+
