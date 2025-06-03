@@ -261,7 +261,7 @@ export default function PortPriceFinderForm(): JSX.Element {
                       !currentFormValuesForButton.originPort ||
                       (!currentFormValuesForButton.destinationPort && !currentFormValuesForButton.russianDestinationCity) || 
                       !currentFormValuesForButton.containerType ||
-                      (shipmentType === "SOC" && !isSOCDropOffExcelDataLoaded) // Disabled if SOC and SOC drop-off file not loaded
+                      (shipmentType === "SOC" && (!isSOCDropOffExcelDataLoaded || !currentFormValuesForButton.russianDestinationCity)) 
                     )) ||
                     (calculationMode === "direct_rail" && (
                       !isDirectRailExcelDataLoaded ||
@@ -283,17 +283,28 @@ export default function PortPriceFinderForm(): JSX.Element {
                   disabled={
                     isCalculatingBestPrice || isLoading || isParsingSeaRailFile || isParsingDirectRailFile || isParsingSOCDropOffFile ||
                     (calculationMode === "sea_plus_rail" && (
-                      !isSeaRailExcelDataLoaded ||
-                      !currentFormValuesForButton.originPort ||
-                      !currentFormValuesForButton.containerType ||
-                      (excelRussianDestinationCitiesMasterList.length > 0 && !currentFormValuesForButton.russianDestinationCity) ||
-                      (shipmentType === "SOC" && !isSOCDropOffExcelDataLoaded) // Also check for SOC best price
+                        !isSeaRailExcelDataLoaded ||
+                        !currentFormValuesForButton.originPort ||
+                        !currentFormValuesForButton.containerType ||
+                        ( // COC specific "Best Price" requirements
+                            shipmentType === "COC" &&
+                            excelRussianDestinationCitiesMasterList.length > 0 && // If rail hubs exist in general
+                            !currentFormValuesForButton.russianDestinationCity   // Then a Russian city must be selected
+                        ) ||
+                        ( // SOC specific "Best Price" requirements
+                            shipmentType === "SOC" &&
+                            (
+                                !isSOCDropOffExcelDataLoaded ||         // SOC Drop-off file must be loaded
+                                !currentFormValuesForButton.russianDestinationCity // Russian Dest City (for drop-off) must be selected
+                            )
+                        )
                     )) ||
                     (calculationMode === "direct_rail" && (
                       !isDirectRailExcelDataLoaded ||
                       !currentFormValuesForButton.directRailCityOfDeparture ||
                       !currentFormValuesForButton.directRailDestinationCityDR ||
                       !currentFormValuesForButton.directRailIncoterms
+                      // Border is optional for direct rail "best price" initial search if multiple borders are possible for an incoterm
                     ))
                   }
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
