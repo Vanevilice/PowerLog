@@ -13,7 +13,7 @@ import type {
   ShipmentType,
 } from '@/types';
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, DROP_OFF_TRIGGER_PHRASES } from './constants';
-import { appendCommentary } from './utils';
+import { appendCommentary, normalizeCityName } from './utils'; // Import normalizeCityName
 
 // --- Helper Interfaces (can be moved to types if they become more widely used) ---
 export interface SeaPriceInfo {
@@ -234,7 +234,7 @@ export function findDropOffDetails(
 
   if (shouldAttemptDropOffLookup && !isPandaLine) {
     let dropOffEntryMatched = false;
-    const normalizedLookupCity = (cityForDropOffLookup.toLowerCase().replace(/^г\.\s*/, '') || "").trim();
+    const normalizedLookupCity = normalizeCityName(cityForDropOffLookup); // Use new normalization
 
     for (const dropOffEntry of excelDropOffData) {
       const seaLineFromMainRouteLower = actualSeaLine.toLowerCase().trim();
@@ -242,7 +242,8 @@ export function findDropOffDetails(
       const seaLineMatch = seaLineFromMainRouteLower.includes(seaLineFromDropOffSheetLower) || seaLineFromDropOffSheetLower.includes(seaLineFromMainRouteLower);
       if (!seaLineMatch) continue;
 
-      const cityMatch = dropOffEntry.cities.some(excelCity => excelCity.toLowerCase().replace(/^г\.\s*/, '').trim() === normalizedLookupCity);
+      // Assuming dropOffEntry.cities are already normalized during their parsing if needed, or normalize here
+      const cityMatch = dropOffEntry.cities.some(excelCity => normalizeCityName(excelCity) === normalizedLookupCity);
       if (cityMatch) {
         dropOffInfo.comment = dropOffEntry.comment || null;
         const dropOffPriceRaw = containerType === "20DC" ? dropOffEntry.price20DC : dropOffEntry.price40HC;
@@ -292,39 +293,47 @@ export function findSOCDropOffDetails(
 
   if (!isSOCDropOffExcelDataLoaded || !containerType || !cityForDropOffLookup || !socDepartureCityForDropOff) {
     socDropOffInfo.socDropOffLegFailed = true;
-    if (isSOCDropOffExcelDataLoaded) {
+    if (isSOCDropOffExcelDataLoaded) { // Only add specific commentary if the data was meant to be loaded
         socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, `SOC Drop-off lookup missing key parameters (container type: ${containerType}, drop-off city: ${cityForDropOffLookup}, or departure city for drop-off: ${socDepartureCityForDropOff}).`);
+    } else if (!isSOCDropOffExcelDataLoaded) {
+        socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, "SOC Drop-off Excel data not loaded.");
     }
     return socDropOffInfo;
   }
 
   let entryMatched = false;
-  const normalizedLookupDropOffCity = (cityForDropOffLookup.toLowerCase().replace(/^г\.\s*/, '') || "").trim();
-  const normalizedLookupDepartureCity = (socDepartureCityForDropOff.toLowerCase().replace(/^г\.\s*/, '') || "").trim();
+  // Normalize form inputs for lookup
+  const normalizedLookupDropOffCity = normalizeCityName(cityForDropOffLookup);
+  const normalizedLookupDepartureCity = normalizeCityName(socDepartureCityForDropOff);
 
+  if (!normalizedLookupDropOffCity || !normalizedLookupDepartureCity) {
+    socDropOffInfo.socDropOffLegFailed = true;
+    socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, `SOC Drop-off lookup failed due to empty normalized city names (Drop-off: '${normalizedLookupDropOffCity}', Departure: '${normalizedLookupDepartureCity}').`);
+    return socDropOffInfo;
+  }
 
   for (const entry of excelSOCDropOffData) {
-    // entry.departureCity and entry.dropOffCity are already normalized during parsing
+    // entry.departureCity and entry.dropOffCity are ALREADY normalized during parsing in handleSOCDropOffFileParse
     
-    // Flexible matching for departureCity (which is the form's originPort)
     const departureMatch = entry.departureCity === normalizedLookupDepartureCity ||
                            (entry.departureCity.includes(normalizedLookupDepartureCity) && normalizedLookupDepartureCity.length > 2) ||
                            (normalizedLookupDepartureCity.includes(entry.departureCity) && entry.departureCity.length > 2);
                            
-    const dropOffCityMatch = entry.dropOffCity === normalizedLookupDropOffCity;
+    const dropOffCityMatch = entry.dropOffCity === normalizedLookupDropOffCity; // Exact match after normalization
     const containerMatch = entry.containerType === containerType;
 
     if (departureMatch && dropOffCityMatch && containerMatch) {
       socDropOffInfo.costNumeric = entry.price;
       socDropOffInfo.displayValue = entry.price !== null ? String(entry.price) : null;
+      // socDropOffInfo.comment might be added here if SOC drop-off Excel has comments per entry
       entryMatched = true;
 
       if (entry.price === null) {
         socDropOffInfo.socDropOffLegFailed = true;
-        socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, `SOC Drop-off price for ${containerType} from ${socDepartureCityForDropOff} to ${cityForDropOffLookup} is not available in Excel.`);
+        socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, `SOC Drop-off price for ${containerType} from ${socDepartureCityForDropOff} to ${cityForDropOffLookup} is not available in Excel (matched entry has null price).`);
       } else {
         socDropOffInfo.socDropOffLegFailed = false; 
-        socDropOffInfo.commentaryReason = currentCommentary; 
+        socDropOffInfo.commentaryReason = currentCommentary; // Reset commentary if fully successful
       }
       break; 
     }
@@ -332,7 +341,7 @@ export function findSOCDropOffDetails(
 
   if (!entryMatched) {
     socDropOffInfo.socDropOffLegFailed = true;
-    socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, `No matching SOC Drop-off pricing found for ${containerType} from ${socDepartureCityForDropOff} to ${cityForDropOffLookup}.`);
+    socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, `No matching SOC Drop-off pricing found for ${containerType} from ${socDepartureCityForDropOff} (normalized: ${normalizedLookupDepartureCity}) to ${cityForDropOffLookup} (normalized: ${normalizedLookupDropOffCity}).`);
   }
   return socDropOffInfo;
 }
@@ -346,12 +355,20 @@ export function findDirectRailEntry(values: RouteFormValues, context: PricingDat
     return undefined;
   }
 
+  // Normalize form inputs for lookup, assuming Direct Rail Excel data might not be pre-normalized
+  const normalizedAgentName = directRailAgentName.toLowerCase().trim();
+  const normalizedDepCity = normalizeCityName(directRailCityOfDeparture);
+  const normalizedDestCityDR = normalizeCityName(directRailDestinationCityDR);
+  const normalizedIncoterms = directRailIncoterms.toLowerCase().trim();
+  const normalizedBorder = normalizeCityName(directRailBorder);
+
+
   return excelDirectRailData.find(entry =>
-    entry.agentName.toLowerCase() === directRailAgentName.toLowerCase() &&
-    entry.cityOfDeparture.toLowerCase() === directRailCityOfDeparture.toLowerCase() &&
-    entry.destinationCity.toLowerCase() === directRailDestinationCityDR.toLowerCase() &&
-    entry.incoterms.toLowerCase() === directRailIncoterms.toLowerCase() &&
-    entry.border.toLowerCase() === directRailBorder.toLowerCase()
+    entry.agentName.toLowerCase().trim() === normalizedAgentName &&
+    normalizeCityName(entry.cityOfDeparture) === normalizedDepCity &&
+    normalizeCityName(entry.destinationCity) === normalizedDestCityDR &&
+    entry.incoterms.toLowerCase().trim() === normalizedIncoterms &&
+    normalizeCityName(entry.border) === normalizedBorder
   );
 }
 
