@@ -16,6 +16,7 @@ import {
 import { Repeat, Menu } from 'lucide-react'; 
 import { PricingDataProvider } from '@/contexts/PricingDataContext';
 import { NavLinks } from '@/components/layout/NavLinks'; // Import the new NavLinks component
+import PageTransitionLoader from '@/components/layout/PageTransitionLoader'; // Import the PageTransitionLoader
 
 const inter = Inter({
   subsets: ['latin'],
@@ -79,6 +80,7 @@ export default function RootLayout({
           </SidebarProvider>
         </PricingDataProvider>
         <Toaster />
+        <PageTransitionLoader /> {/* Add the loader here */}
       </body>
     </html>
   );
