@@ -40,8 +40,12 @@ export default function BestPricesPage() {
       const totalFreightCost = seaCostBaseForSum + dropOffCostForSum;
       textToCopy += "Фрахт: " + formatDisplayCost(totalFreightCost > 0 ? totalFreightCost : null, 'USD') + "\n";
 
+      if (route.shipmentType === "SOC" && route.socDropOffCostUSD !== null) {
+        textToCopy += `Вывоз контейнера (SOC Drop-off): ${formatDisplayCost(route.socDropOffCostUSD, 'RUB')}\n`;
+      }
+
       let jdLine = "";
-      if (route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0]))) {
+      if (route.shipmentType === "COC" && route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0]))) {
           jdLine = "Ж/Д Составляющая: ";
           if (route.containerType === "20DC") {
               let costsParts = [];
@@ -76,6 +80,13 @@ export default function BestPricesPage() {
       }
       textToCopy += "Прием и вывоз контейнера в режиме ГТД в пределах МКАД: 48 000 руб. с НДС 0%\n";
 
+      // Add comments
+      if (route.shipmentType === "SOC" && route.socComment) textToCopy += `SOC Comment: ${route.socComment}\n`;
+      if (route.shipmentType === "SOC" && route.socDropOffComment) textToCopy += `SOC Drop-off Comment: ${route.socDropOffComment}\n`;
+      if (route.shipmentType === "COC" && route.seaComment) textToCopy += `Sea Route Comment: ${route.seaComment}\n`;
+      if (route.shipmentType === "COC" && route.dropOffComment) textToCopy += `Drop Off Comment: ${route.dropOffComment}\n`;
+
+
     } else if (route.mode === 'direct_rail') {
       textToCopy += "Direct Rail Option:\n";
       textToCopy += `Agent: ${route.directRailAgentName || 'N/A'}\n`;
@@ -109,8 +120,9 @@ export default function BestPricesPage() {
     if (route.seaDestinationPort) queryParams.set('destinationPort', route.seaDestinationPort);
     if (route.seaLineCompany) queryParams.set('seaLineCompany', route.seaLineCompany);
     if (route.containerType && route.containerType !== 'N/A') queryParams.set('containerType', route.containerType);
-    if (route.seaComment && route.shipmentType === "COC") queryParams.set('seaComment', route.seaComment);
-    if (route.socComment && route.shipmentType === "SOC") queryParams.set('socComment', route.socComment);
+    
+    if (route.shipmentType === "COC" && route.seaComment) queryParams.set('seaComment', route.seaComment);
+    if (route.shipmentType === "SOC" && route.socComment) queryParams.set('socComment', route.socComment);
 
 
     if (route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0]))) {
@@ -127,14 +139,14 @@ export default function BestPricesPage() {
     queryParams.set('seaMarginApplied', '0');
     queryParams.set('railMarginApplied', '0');
 
-    if (route.containerType === "20DC") {
+    if (route.containerType === "20DC" && route.shipmentType === "COC") {
         if (route.railCost20DC_24t_RUB !== null) queryParams.set('railCostBase24t', route.railCost20DC_24t_RUB.toString());
         if (route.railCost20DC_28t_RUB !== null) queryParams.set('railCostBase28t', route.railCost20DC_28t_RUB.toString());
         if (route.railGuardCost20DC_RUB !== null) queryParams.set('railGuardCost20DC', route.railGuardCost20DC_RUB.toString());
 
         if (route.railCost20DC_24t_RUB !== null) queryParams.set('railCostFinal24t', route.railCost20DC_24t_RUB.toString());
         if (route.railCost20DC_28t_RUB !== null) queryParams.set('railCostFinal28t', route.railCost20DC_28t_RUB.toString());
-    } else if (route.containerType === "40HC") {
+    } else if (route.containerType === "40HC" && route.shipmentType === "COC") {
         if (route.railCost40HC_RUB !== null) queryParams.set('railCostBase40HC', route.railCost40HC_RUB.toString());
         if (route.railGuardCost40HC_RUB !== null) queryParams.set('railGuardCost40HC', route.railGuardCost40HC_RUB.toString());
 
@@ -147,11 +159,15 @@ export default function BestPricesPage() {
         } else if (route.dropOffCostUSD !== null && route.dropOffCostUSD !== undefined) {
             queryParams.set('dropOffCost', route.dropOffCostUSD.toString());
         }
+        if (route.dropOffComment) queryParams.set('dropOffComment', route.dropOffComment);
+    }
+    
+    if (route.shipmentType === "SOC") {
+        if (route.socDropOffCostUSD !== null && route.socDropOffCostUSD !== undefined) queryParams.set('socDropOffCost', route.socDropOffCostUSD.toString());
+        if (route.socDropOffComment) queryParams.set('socDropOffComment', route.socDropOffComment);
     }
 
-    if (route.dropOffComment && route.shipmentType === "COC") {
-      queryParams.set('dropOffComment', route.dropOffComment);
-    }
+
     if (route.shipmentType && route.shipmentType !== 'N/A') queryParams.set('shipmentType', route.shipmentType);
 
 
@@ -271,17 +287,22 @@ export default function BestPricesPage() {
                     </>
                   )}
 
-                  {route.mode === 'sea_plus_rail' && route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0])) && (
+                  {route.mode === 'sea_plus_rail' && route.shipmentType === "COC" && route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0])) && (
                     <>
                       <p className="font-medium text-muted-foreground">Destination City (Rail):</p><p className="text-right">{route.russianDestinationCity}</p>
                     </>
                   )}
-                  {route.mode === 'sea_plus_rail' && route.railDepartureStation && (
+                   {route.mode === 'sea_plus_rail' && route.shipmentType === "SOC" && route.russianDestinationCity && (
+                    <>
+                      <p className="font-medium text-muted-foreground">Final Destination City:</p><p className="text-right">{route.russianDestinationCity}</p>
+                    </>
+                  )}
+                  {route.mode === 'sea_plus_rail' && route.shipmentType === "COC" && route.railDepartureStation && (
                     <>
                       <p className="font-medium text-muted-foreground">Rail Dep. Station:</p><p className="text-right">{route.railDepartureStation}</p>
                     </>
                   )}
-                  {route.mode === 'sea_plus_rail' && route.railArrivalStation && (
+                  {route.mode === 'sea_plus_rail' && route.shipmentType === "COC" && route.railArrivalStation && (
                      <>
                       <p className="font-medium text-muted-foreground">Rail Arr. Station:</p><p className="text-right">{route.railArrivalStation}</p>
                     </>
@@ -315,7 +336,7 @@ export default function BestPricesPage() {
                                 </p>
                             )}
 
-                            {route.containerType === "20DC" && (
+                            {route.shipmentType === "COC" && route.containerType === "20DC" && (
                             <>
                                 {route.railCost20DC_24t_RUB !== null && (
                                 <p className="flex justify-between">
@@ -337,7 +358,7 @@ export default function BestPricesPage() {
                                 )}
                             </>
                             )}
-                            {route.containerType === "40HC" && (
+                            {route.shipmentType === "COC" && route.containerType === "40HC" && (
                             <>
                                 {route.railCost40HC_RUB !== null && (
                                 <p className="flex justify-between">
@@ -364,6 +385,21 @@ export default function BestPricesPage() {
                                 <span>Drop Off Comment:</span>
                                 <span className="text-xs text-destructive text-right ml-2">{route.dropOffComment}</span>
                             </p>
+                            )}
+                            {/* SOC Drop-off Cost Display */}
+                            {route.shipmentType === "SOC" && route.socDropOffCostUSD !== null && (
+                              <p className="flex justify-between">
+                                <span>SOC Drop Off Cost:</span>
+                                <span className="font-semibold text-primary">
+                                  {formatDisplayCost(route.socDropOffCostUSD, 'RUB')}
+                                </span>
+                              </p>
+                            )}
+                            {route.shipmentType === "SOC" && route.socDropOffComment && (
+                              <p className="flex justify-between items-start">
+                                <span>SOC Drop Off Comment:</span>
+                                <span className="text-xs text-muted-foreground text-right ml-2">{route.socDropOffComment}</span>
+                              </p>
                             )}
                         </>
                     ) : ( // Direct Rail cost display
@@ -424,3 +460,4 @@ export default function BestPricesPage() {
     </div>
   );
 }
+
