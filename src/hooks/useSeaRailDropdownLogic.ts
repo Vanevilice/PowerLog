@@ -21,31 +21,19 @@ interface UseSeaRailDropdownLogicProps {
   localAvailableArrivalStations: string[];
 }
 
-export function useSeaRailDropdownLogic({
-  form,
-  context,
-  hasRestoredFromCache,
-  setLocalAvailableDestinationPorts,
-  localAvailableDestinationPorts,
-  setLocalAvailableSeaLines,
-  localAvailableSeaLines,
-  setLocalAvailableRussianDestinationCities,
-  localAvailableRussianDestinationCities,
-  setLocalAvailableArrivalStations,
-  localAvailableArrivalStations,
-}: UseSeaRailDropdownLogicProps) {
-  const { watch, setValue, getValues } = form;
-  const {
-    excelRouteData, excelSOCRouteData, excelRailData,
-    isSeaRailExcelDataLoaded, excelRussianDestinationCitiesMasterList,
-  } = context;
+// Helper function for Destination Ports effect
+function useEffectForDestinationPorts(
+  form: UseFormReturn<RouteFormValues>,
+  context: PricingDataContextType,
+  hasRestoredFromCache: boolean,
+  watchedShipmentType: ShipmentType,
+  watchedOriginPort: string | undefined,
+  localAvailableDestinationPorts: string[],
+  setLocalAvailableDestinationPorts: React.Dispatch<React.SetStateAction<string[]>>
+) {
+  const { getValues, setValue } = form;
+  const { isSeaRailExcelDataLoaded, excelRouteData, excelSOCRouteData } = context;
 
-  const watchedShipmentType = watch("shipmentType") as ShipmentType; // Ensure type
-  const watchedOriginPort = watch("originPort");
-  const watchedDestinationPort = watch("destinationPort");
-  const watchedRussianDestinationCity = watch("russianDestinationCity");
-
-  // Effect for populating/filtering Destination Ports (Sea+Rail)
   React.useEffect(() => {
     if (!isSeaRailExcelDataLoaded) {
       if (JSON.stringify(localAvailableDestinationPorts) !== JSON.stringify([])) setLocalAvailableDestinationPorts([]);
@@ -64,7 +52,7 @@ export function useSeaRailDropdownLogic({
           if (Array.isArray(route.destinationPorts)) route.destinationPorts.forEach(dp => newAvailableDestinations.add(dp));
         }
       });
-    } else { // If no origin port selected, show all possible destination ports for the chosen shipment type
+    } else {
       dataset.forEach(route => {
         const hasSeaLines = Array.isArray(route.seaLines) && route.seaLines.length > 0;
         if (hasSeaLines && Array.isArray(route.destinationPorts)) route.destinationPorts.forEach(dp => newAvailableDestinations.add(dp));
@@ -83,14 +71,25 @@ export function useSeaRailDropdownLogic({
       const currentFormDestinationPort = getValues("destinationPort");
       if (currentOriginPort && currentFormDestinationPort && !newAvailableArray.includes(currentFormDestinationPort)) {
         if (getValues("destinationPort") !== "") setValue("destinationPort", "", { shouldValidate: true });
-      } else if (!currentOriginPort && getValues("destinationPort") !== "") {
-        // Do not clear destination port if origin is not selected, to allow independent selection for Best Price
-        // setValue("destinationPort", "", { shouldValidate: true });
       }
     }
   }, [watchedOriginPort, watchedShipmentType, isSeaRailExcelDataLoaded, excelRouteData, excelSOCRouteData, setValue, getValues, hasRestoredFromCache, localAvailableDestinationPorts, setLocalAvailableDestinationPorts]);
+}
 
-  // Effect for populating Sea Lines (Sea+Rail)
+// Helper function for Sea Lines effect
+function useEffectForSeaLines(
+  form: UseFormReturn<RouteFormValues>,
+  context: PricingDataContextType,
+  hasRestoredFromCache: boolean,
+  watchedShipmentType: ShipmentType,
+  watchedOriginPort: string | undefined,
+  watchedDestinationPort: string | undefined,
+  localAvailableSeaLines: string[],
+  setLocalAvailableSeaLines: React.Dispatch<React.SetStateAction<string[]>>
+) {
+  const { getValues, setValue } = form;
+  const { isSeaRailExcelDataLoaded, excelRouteData, excelSOCRouteData } = context;
+
   React.useEffect(() => {
     if (!isSeaRailExcelDataLoaded || !watchedOriginPort || !watchedDestinationPort) {
       if (JSON.stringify(localAvailableSeaLines) !== JSON.stringify([])) setLocalAvailableSeaLines([]);
@@ -118,8 +117,19 @@ export function useSeaRailDropdownLogic({
       }
     }
   }, [watchedShipmentType, watchedOriginPort, watchedDestinationPort, excelRouteData, excelSOCRouteData, isSeaRailExcelDataLoaded, setValue, getValues, hasRestoredFromCache, localAvailableSeaLines, setLocalAvailableSeaLines]);
+}
 
-  // Effect for populating Russian Destination Cities (Sea+Rail)
+// Helper function for Russian Destination Cities effect
+function useEffectForRussianDestinationCities(
+  form: UseFormReturn<RouteFormValues>,
+  context: PricingDataContextType,
+  hasRestoredFromCache: boolean,
+  localAvailableRussianDestinationCities: string[],
+  setLocalAvailableRussianDestinationCities: React.Dispatch<React.SetStateAction<string[]>>
+) {
+  const { getValues, setValue } = form;
+  const { isSeaRailExcelDataLoaded, excelRussianDestinationCitiesMasterList } = context;
+
   React.useEffect(() => {
     if (isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length > 0) {
       const sortedMasterList = [...excelRussianDestinationCitiesMasterList].sort();
@@ -131,10 +141,6 @@ export function useSeaRailDropdownLogic({
         setLocalAvailableRussianDestinationCities([]);
       }
     }
-     // Do not auto-clear russianDestinationCity if originPort is not set for Best Price scenario
-    // if (hasRestoredFromCache && !getValues("originPort") && getValues("russianDestinationCity") !== "") {
-    //     setValue("russianDestinationCity", "", { shouldValidate: true });
-    // }
   }, [
     isSeaRailExcelDataLoaded,
     excelRussianDestinationCitiesMasterList,
@@ -144,15 +150,28 @@ export function useSeaRailDropdownLogic({
     setValue,
     hasRestoredFromCache
   ]);
+}
 
-  // Effect for populating Arrival Stations (Sea+Rail)
+// Helper function for Arrival Stations effect
+function useEffectForArrivalStations(
+  form: UseFormReturn<RouteFormValues>,
+  context: PricingDataContextType,
+  hasRestoredFromCache: boolean,
+  watchedRussianDestinationCity: string | undefined,
+  watchedDestinationPort: string | undefined, // Sea port
+  localAvailableArrivalStations: string[],
+  setLocalAvailableArrivalStations: React.Dispatch<React.SetStateAction<string[]>>
+) {
+  const { getValues, setValue } = form;
+  const { isSeaRailExcelDataLoaded, excelRailData } = context;
+
   React.useEffect(() => {
     let newAvailableStationsArray: string[] = [];
     const selectedRussianCity = getValues("russianDestinationCity");
-    const selectedSeaPort = getValues("destinationPort"); // Sea destination port
+    const selectedSeaPort = getValues("destinationPort");
 
     if (isSeaRailExcelDataLoaded && selectedRussianCity && selectedSeaPort &&
-        VLADIVOSTOK_VARIANTS.some(v => selectedSeaPort.startsWith(v.split(" ")[0])) && // Rail leg implies from Vladivostok-like sea port
+        VLADIVOSTOK_VARIANTS.some(v => selectedSeaPort.startsWith(v.split(" ")[0])) &&
         excelRailData.length > 0) {
       const stationsForCity = new Set<string>();
       const seaPortLower = selectedSeaPort.toLowerCase();
@@ -185,14 +204,14 @@ export function useSeaRailDropdownLogic({
       if ((currentArrivalStationSelection && !newAvailableStationsArray.includes(currentArrivalStationSelection)) ||
           (newAvailableStationsArray.length === 0 && currentArrivalStationSelection) ||
           (!selectedRussianCity && currentArrivalStationSelection) ||
-          (!selectedSeaPort && currentArrivalStationSelection) // Also clear if sea port is cleared
+          (!selectedSeaPort && currentArrivalStationSelection)
           ) {
         if (getValues("arrivalStationSelection") !== "") setValue("arrivalStationSelection", "", { shouldValidate: true });
       }
     }
   }, [
     watchedRussianDestinationCity,
-    watchedDestinationPort, // Re-evaluate when sea destination port changes
+    watchedDestinationPort,
     isSeaRailExcelDataLoaded,
     excelRailData,
     setValue,
@@ -201,8 +220,16 @@ export function useSeaRailDropdownLogic({
     localAvailableArrivalStations,
     setLocalAvailableArrivalStations
   ]);
+}
 
-  // Effect for auto-clearing dependent Sea+Rail fields
+// Helper function for Auto-clearing dependent Sea+Rail fields
+function useEffectForAutoClearFields(
+  form: UseFormReturn<RouteFormValues>,
+  hasRestoredFromCache: boolean,
+  watchedOriginPort: string | undefined,
+  watchedDestinationPort: string | undefined
+) {
+  const { getValues, setValue } = form;
   React.useEffect(() => {
     if (hasRestoredFromCache) {
       const currentOrigin = getValues("originPort");
@@ -210,14 +237,56 @@ export function useSeaRailDropdownLogic({
       const currentSeaLine = getValues("seaLineCompany");
 
       if (!currentOrigin) {
-        // Don't clear sea dest or russian city if origin is cleared, for Best Price flexibility
-        // if (currentSeaDest !== "") setValue("destinationPort", "", { shouldValidate: true });
         if (currentSeaLine !== NONE_SEALINE_VALUE) setValue("seaLineCompany", NONE_SEALINE_VALUE, { shouldValidate: true });
-        // if (getValues("arrivalStationSelection") !== "") setValue("arrivalStationSelection", "", {shouldValidate: true});
       } else if (currentOrigin && !currentSeaDest) {
-        // If origin is selected but sea dest is not, clear sea line. Arrival station is handled by its own effect.
         if (currentSeaLine !== NONE_SEALINE_VALUE) setValue("seaLineCompany", NONE_SEALINE_VALUE, { shouldValidate: true });
       }
     }
   }, [watchedOriginPort, watchedDestinationPort, setValue, getValues, hasRestoredFromCache]);
+}
+
+
+export function useSeaRailDropdownLogic({
+  form,
+  context,
+  hasRestoredFromCache,
+  setLocalAvailableDestinationPorts,
+  localAvailableDestinationPorts,
+  setLocalAvailableSeaLines,
+  localAvailableSeaLines,
+  setLocalAvailableRussianDestinationCities,
+  localAvailableRussianDestinationCities,
+  setLocalAvailableArrivalStations,
+  localAvailableArrivalStations,
+}: UseSeaRailDropdownLogicProps) {
+  const { watch } = form;
+
+  const watchedShipmentType = watch("shipmentType") as ShipmentType;
+  const watchedOriginPort = watch("originPort");
+  const watchedDestinationPort = watch("destinationPort");
+  const watchedRussianDestinationCity = watch("russianDestinationCity");
+
+  useEffectForDestinationPorts(
+    form, context, hasRestoredFromCache, watchedShipmentType, watchedOriginPort,
+    localAvailableDestinationPorts, setLocalAvailableDestinationPorts
+  );
+
+  useEffectForSeaLines(
+    form, context, hasRestoredFromCache, watchedShipmentType, watchedOriginPort, watchedDestinationPort,
+    localAvailableSeaLines, setLocalAvailableSeaLines
+  );
+
+  useEffectForRussianDestinationCities(
+    form, context, hasRestoredFromCache,
+    localAvailableRussianDestinationCities, setLocalAvailableRussianDestinationCities
+  );
+
+  useEffectForArrivalStations(
+    form, context, hasRestoredFromCache, watchedRussianDestinationCity, watchedDestinationPort,
+    localAvailableArrivalStations, setLocalAvailableArrivalStations
+  );
+
+  useEffectForAutoClearFields(
+    form, hasRestoredFromCache, watchedOriginPort, watchedDestinationPort
+  );
 }
