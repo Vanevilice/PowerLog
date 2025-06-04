@@ -61,7 +61,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
     : !watchedOriginPort
     ? "Select Origin Port First"
     : localAvailableDestinationPorts.length > 0
-    ? "Владивосток / Восточный" // Updated generic placeholder
+    ? (localAvailableDestinationPorts.find(p => p.toLowerCase().includes("владивосток")) ? "Владивосток" : "Select sea destination port")
     : "No destinations for origin";
 
   const getRussianCityPlaceholderDynamic = (): string => {
@@ -70,8 +70,8 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
     if (excelRussianDestinationCitiesMasterList.length === 0) return "No rail destinations loaded";
     
     if (!watchedOriginPort) return "Select Origin Port first";
-    if (!watchedDestinationPort) return "Select Sea Destination Port first";
-    if (!watchedContainerType) return "Select Container Type first";
+    if (!watchedDestinationPort) return "Select Sea Dest. & Container Type"; // Updated this line
+    if (!watchedContainerType) return "Select Sea Dest. & Container Type"; // Updated this line
 
     if (localAvailableRussianDestinationCities.length > 0) return "Select city";
     return "No rail hubs for current selection";
@@ -259,7 +259,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
                 !isSeaRailExcelDataLoaded || 
                 excelRussianDestinationCitiesMasterList.length === 0 || 
                 !watchedOriginPort || 
-                !watchedDestinationPort || 
+                // !watchedDestinationPort ||  // No longer strictly depends on sea destination port for enabling
                 !watchedContainerType || 
                 localAvailableRussianDestinationCities.length === 0
               }
@@ -271,10 +271,10 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
                 {isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_rail_cities_master_disabled" disabled>No rail cities in Excel</SelectItem>)}
                 
                 {isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length > 0 && !watchedOriginPort && !isParsingSeaRailFile && (<SelectItem value="select_origin_first_for_rus_dest_disabled" disabled>Select Origin Port first</SelectItem>)}
-                {isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length > 0 && watchedOriginPort && !watchedDestinationPort && !isParsingSeaRailFile && (<SelectItem value="select_sea_dest_first_for_rus_dest_disabled" disabled>Select Sea Destination Port first</SelectItem>)}
-                {isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length > 0 && watchedOriginPort && watchedDestinationPort && !watchedContainerType && !isParsingSeaRailFile && (<SelectItem value="select_container_first_for_rus_dest_disabled" disabled>Select Container Type first</SelectItem>)}
+                 {/* Updated placeholder logic check */}
+                {isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length > 0 && watchedOriginPort && (!watchedDestinationPort || !watchedContainerType) && !isParsingSeaRailFile && localAvailableRussianDestinationCities.length === 0 && (<SelectItem value="select_sea_dest_cont_for_rus_dest_disabled" disabled>{getRussianCityPlaceholderDynamic()}</SelectItem>)}
                 
-                {isSeaRailExcelDataLoaded && watchedOriginPort && watchedDestinationPort && watchedContainerType && localAvailableRussianDestinationCities.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_rail_cities_for_selection_disabled" disabled>No rail hubs for current selection</SelectItem>)}
+                {isSeaRailExcelDataLoaded && watchedOriginPort && watchedContainerType && localAvailableRussianDestinationCities.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_rail_cities_for_selection_disabled" disabled>No rail hubs for current selection</SelectItem>)}
                 
                 {isSeaRailExcelDataLoaded && localAvailableRussianDestinationCities.map((city) => (<SelectItem key={"rus-city-" + city} value={city}>{city}</SelectItem>))}
               </SelectContent>
