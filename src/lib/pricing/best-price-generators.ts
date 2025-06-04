@@ -8,7 +8,7 @@ import type {
   ContainerType,
   ExcelSOCDropOffEntry
 } from '@/types';
-import { USD_RUB_CONVERSION_RATE, VLADIVOSTOK_VARIANTS, NONE_SEALINE_VALUE } from './constants';
+import { USD_RUB_CONVERSION_RATE, VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS, NONE_SEALINE_VALUE } from './constants';
 import {
   findRailLegDetails,
   findDropOffDetails,
@@ -153,7 +153,32 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
   const price20DCKey = "price20DC";
   const price40HCKey = "price40HC";
 
-  const seaDestinationPortCandidatesToIterate = destinationPort ? [destinationPort] : excelDestinationPorts;
+  // Determine the sea destination ports to iterate over FOR BEST PRICE
+  let seaPortsToConsiderForBestPrice: string[];
+  const isFurtherRailForBestPrice = russianDestinationCity &&
+                                  !VLADIVOSTOK_VARIANTS.some(v => russianDestinationCity.startsWith(v.split(" ")[0])) && // True if russianCity is set and is NOT a hub like Vlad.
+                                  (VLADIVOSTOK_VARIANTS.some(v => excelDestinationPorts.some(edp => edp.startsWith(v.split(" ")[0]))) || // And excel has some Vlad hubs
+                                   VOSTOCHNIY_VARIANTS.some(v => excelDestinationPorts.some(edp => edp.startsWith(v.split(" ")[0]))));   // Or excel has some Vost hubs
+
+  if (isFurtherRailForBestPrice) {
+    // If a specific Russian rail destination is given (and it's not a hub itself),
+    // we should only consider sea hubs like Vladivostok/Vostochniy that are in our excel data.
+    seaPortsToConsiderForBestPrice = excelDestinationPorts.filter(dp =>
+      VLADIVOSTOK_VARIANTS.some(v => dp.startsWith(v.split(" ")[0])) ||
+      VOSTOCHNIY_VARIANTS.some(v => dp.startsWith(v.split(" ")[0]))
+    );
+    // If, for some reason, no hubs were found in excelDestinationPorts after filtering,
+    // (which would be unusual if isFurtherRailForBestPrice was true),
+    // then this list might be empty. This is okay, loop won't run.
+  } else {
+    // If no specific "further" Russian rail destination (or it is a hub like Vladivostok itself),
+    // or if no hubs are in excel data to begin with,
+    // consider all destination ports from excel to find the best direct sea route.
+    seaPortsToConsiderForBestPrice = excelDestinationPorts;
+  }
+  
+  const seaDestinationPortCandidatesToIterate = seaPortsToConsiderForBestPrice;
+
 
   seaDestinationPortCandidatesToIterate.forEach(seaDestPortCandidate => {
     if (shipmentType === "SOC" && russianDestinationCity &&
@@ -295,4 +320,6 @@ export function generateDirectRailCandidates(values: RouteFormValues, context: P
   });
   return candidates;
 }
+    
+
     
