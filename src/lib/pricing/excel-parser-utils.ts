@@ -38,9 +38,25 @@ export function parsePortsCell(cellValue: string | undefined, isDestination: boo
 export function parseSeaLinesCell(cellValue: string | undefined): string[] {
   if (!cellValue) return [];
   const seaLines = new Set<string>();
+  let processedCellValue = String(cellValue).trim();
+
+  // Define the specific string and a placeholder
+  const targetString = "REEL/HUB Shipping";
+  const placeholder = "___PLACEHOLDER_REEL_HUB_SHIPPING___"; // Unique placeholder
+
+  // Temporarily replace the target string (case-insensitive)
+  // Escape special characters in targetString for RegExp
+  const escapedTargetString = targetString.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regexTarget = new RegExp(escapedTargetString, 'gi');
+  processedCellValue = processedCellValue.replace(regexTarget, placeholder);
+
   // Split by slash or comma
-  String(cellValue).trim().split(/[,/]/g).forEach(line => {
-    const trimmedLine = line.trim();
+  processedCellValue.split(/[,/]/g).forEach(line => {
+    let trimmedLine = line.trim();
+    // Restore the placeholder
+    if (trimmedLine === placeholder) {
+      trimmedLine = targetString; // Restore to original/desired casing
+    }
     if (trimmedLine) seaLines.add(trimmedLine);
   });
   return Array.from(seaLines).sort();
@@ -100,3 +116,4 @@ export function parsePriceCell(cellValue: any): number | null {
     return null; // If not a number after cleaning, return null
   }
 }
+
