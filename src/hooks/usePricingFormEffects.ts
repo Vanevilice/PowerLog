@@ -20,8 +20,7 @@ interface UsePricingFormEffectsProps {
   localAvailableRussianDestinationCities: string[];
   setLocalAvailableArrivalStations: React.Dispatch<React.SetStateAction<string[]>>;
   localAvailableArrivalStations: string[];
-  setShippingInfoState: React.Dispatch<React.SetStateAction<SmartPricingOutput | null>>;
-  setLastSuccessfulCalculationState: React.Dispatch<React.SetStateAction<CalculationDetailsForInstructions | null>>;
+  // setShippingInfoState and setLastSuccessfulCalculationState are removed as they are managed by usePricingFormManager
 }
 
 export function usePricingFormEffects({
@@ -36,23 +35,21 @@ export function usePricingFormEffects({
   localAvailableRussianDestinationCities,
   setLocalAvailableArrivalStations,
   localAvailableArrivalStations,
-  setShippingInfoState,
-  setLastSuccessfulCalculationState,
 }: UsePricingFormEffectsProps) {
-  const { watch, reset, getValues } = form;
+  const { reset, getValues } = form; // Removed watch as it's not directly used for caching here anymore
   const {
     calculationMode,
-    isSeaRailExcelDataLoaded,
-    isDirectRailExcelDataLoaded,
-    setCachedFormValues,
-    setCachedShippingInfo,
-    setCachedLastSuccessfulCalculation,
-    setLocalAvailableDirectRailAgents, // Pass these setters to the Direct Rail hook if needed
+    // isSeaRailExcelDataLoaded, // Not directly used for caching here anymore
+    // isDirectRailExcelDataLoaded, // Not directly used for caching here anymore
+    // setCachedFormValues, // Removed, handled by usePricingFormManager
+    // setCachedShippingInfo, // Removed, handled by usePricingFormManager
+    // setCachedLastSuccessfulCalculation, // Removed, handled by usePricingFormManager
+    setLocalAvailableDirectRailAgents,
     setLocalAvailableDirectRailIncoterms,
     setLocalAvailableDirectRailBorders,
   } = context;
 
-  // Use the specialized hooks
+  // Use the specialized hooks for dropdown logic
   useSeaRailDropdownLogic({
     form, context, hasRestoredFromCache,
     setLocalAvailableDestinationPorts, localAvailableDestinationPorts,
@@ -94,26 +91,24 @@ export function usePricingFormEffects({
           calculationModeToggle: "direct_rail",
         });
       }
-      setShippingInfoState(null);
-      setLastSuccessfulCalculationState(null);
-      setCachedShippingInfo(null);
-      setCachedLastSuccessfulCalculation(null);
+      // Clearing of shippingInfo, lastSuccessfulCalculation and their cached versions
+      // is now handled by usePricingFormManager when it initiates onSubmitHandler
+      // or by file handlers when a new file is loaded.
       
       // Reset local available lists for Direct Rail as well
       setLocalAvailableDirectRailAgents([]);
       setLocalAvailableDirectRailIncoterms([]);
       setLocalAvailableDirectRailBorders([]);
     }
-  }, [calculationMode, hasRestoredFromCache, reset, getValues, setShippingInfoState, setLastSuccessfulCalculationState, setCachedShippingInfo, setCachedLastSuccessfulCalculation, setLocalAvailableDirectRailAgents, setLocalAvailableDirectRailIncoterms, setLocalAvailableDirectRailBorders]);
+  }, [
+      calculationMode, 
+      hasRestoredFromCache, 
+      reset, 
+      getValues, 
+      setLocalAvailableDirectRailAgents, 
+      setLocalAvailableDirectRailIncoterms, 
+      setLocalAvailableDirectRailBorders
+    ]);
 
-
-  // Effect for caching form values
-  const currentFormValues = watch();
-  const watchedFormValuesString = React.useMemo(() => JSON.stringify(currentFormValues), [currentFormValues]);
-
-  React.useEffect(() => {
-    if (isSeaRailExcelDataLoaded || isDirectRailExcelDataLoaded) {
-      setCachedFormValues(JSON.parse(watchedFormValuesString));
-    }
-  }, [watchedFormValuesString, setCachedFormValues, isSeaRailExcelDataLoaded, isDirectRailExcelDataLoaded]);
+  // Effect for caching form values has been removed, as this is now handled by usePricingFormManager.
 }
