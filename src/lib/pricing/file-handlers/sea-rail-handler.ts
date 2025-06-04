@@ -1,3 +1,4 @@
+
 // src/lib/pricing/file-handlers/sea-rail-handler.ts
 import * as XLSX from 'xlsx';
 import type {
@@ -55,7 +56,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
         const firstSheetName = workbook.SheetNames[0];
         if (firstSheetName && workbook.Sheets[firstSheetName]) {
           const newDashboardData = parseDashboardSheet(workbook.Sheets[firstSheetName]);
-          const trulyNewDashboardData = JSON.parse(JSON.stringify(newDashboardData)); 
+          const trulyNewDashboardData = JSON.parse(JSON.stringify(newDashboardData));
           contextSetters.setDashboardServiceSections(trulyNewDashboardData);
           if (newDashboardData.length > 0) {
             toast({ title: "Dashboard Data Parsed (Sheet 1)", description: `Found ${newDashboardData.length} service sections.`});
@@ -149,7 +150,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
             toast({ variant: "default", title: "File Info", description: "Fourth sheet (drop-off) not found." });
         }
 
-        const fifthSheetName = workbook.SheetNames[4];
+        const fifthSheetName = workbook.SheetNames[4]; // "ЖД порты"
         const newRailDataLocal: ContextRailDataEntry[] = [];
         const uniqueRussianCitiesFromSheet = new Set<string>();
         if (fifthSheetName && workbook.Sheets[fifthSheetName]) {
@@ -157,15 +158,19 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
           const fifthSheetDataToParse = (fifthSheetRawData.length > 0 && Array.isArray(fifthSheetRawData[0]) && fifthSheetRawData[0].some(cell => typeof cell === 'string' && String(cell).trim().length > 0)) ? fifthSheetRawData.slice(1) : fifthSheetRawData;
           fifthSheetDataToParse.forEach(row => {
             if (!Array.isArray(row) || row.every(cell => cell === null || cell === undefined || String(cell).trim() === "")) return;
-            const parsedDepartureStations = parseRailStationsCell(row[1] as string | undefined);
-            const cityOfArrival = String(row[11] || '').trim();
-            const parsedArrivalStations = parseRailStationsCell(row[2] as string | undefined);
+            const parsedDepartureStations = parseRailStationsCell(row[1] as string | undefined); // Col B
+            const cityOfArrival = String(row[11] || '').trim(); // Col L
+            const parsedArrivalStations = parseRailStationsCell(row[2] as string | undefined); // Col C
             if (parsedDepartureStations.length > 0 && cityOfArrival && parsedArrivalStations.length > 0) {
               newRailDataLocal.push({
-                departureStations: parsedDepartureStations, arrivalStations: parsedArrivalStations, cityOfArrival,
-                price20DC_24t: parsePriceCell(row[3]) as number | null, guardCost20DC: parsePriceCell(row[4]) as number | null,
-                price20DC_28t: parsePriceCell(row[5]) as number | null, price40HC: parsePriceCell(row[6]) as number | null,
-                guardCost40HC: parsePriceCell(row[7]) as number | null,
+                departureStations: parsedDepartureStations, // from Col B
+                arrivalStations: parsedArrivalStations,   // from Col C
+                cityOfArrival,                            // from Col L
+                price20DC_24t: parsePriceCell(row[3]),    // from Col D
+                guardCost20DC: parsePriceCell(row[4]),    // from Col E
+                price20DC_28t: parsePriceCell(row[5]),    // from Col F
+                price40HC: parsePriceCell(row[6]),        // from Col G
+                guardCost40HC: parsePriceCell(row[7]),    // from Col H
               });
               if (cityOfArrival) uniqueRussianCitiesFromSheet.add(cityOfArrival);
             }

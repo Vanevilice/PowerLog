@@ -7,7 +7,7 @@ export function parsePortsCell(cellValue: string | undefined, isDestination: boo
   const cellString = String(cellValue).trim();
   // Split by slash not inside parentheses: /\/(?![^(]*\))/g
   // Split by slash OR comma not inside parentheses: /[,/](?![^(]*\))/g
-  const entries = cellString.split(/[,/](?![^(]*\))/g); 
+  const entries = cellString.split(/[,/](?![^(]*\))/g);
   const destPortPattern = /([^\/(,]+)\s*\(([^)]+)\)/; // Adjusted to not split on slash within parentheses
 
   entries.forEach(entry => {
@@ -73,42 +73,30 @@ export function parseGenericListCell(cellValue: string | undefined): string[] {
     return Array.from(items).sort();
 }
 
-export function parsePriceCell(cellValue: any): string | number | null {
+export function parsePriceCell(cellValue: any): number | null {
   if (cellValue === null || cellValue === undefined) return null;
   let sValueOriginal = String(cellValue).trim();
-  if (sValueOriginal === "" || sValueOriginal.toLowerCase() === "n/a") return null;
+  // Check for common non-price strings or empty strings after trim
+  if (sValueOriginal === "" || sValueOriginal.toLowerCase() === "n/a" || sValueOriginal === "-") return null;
 
   // Handle cases like "1 500 / 1 600" - take the first number
-  if (sValueOriginal.includes('/') && sValueOriginal.match(/\d+\s*\/\s*\d+/)) {
+  if (sValueOriginal.includes('/') && sValueOriginal.match(/\d[\d\s.,]*\/\d[\d\s.,]*/)) {
     sValueOriginal = sValueOriginal.split('/')[0].trim();
   }
-  
-  // Remove currency symbols and extra spaces for numeric parsing
+
+  // Remove currency symbols/units (like P, $, €, RUB, USD, EUR, р., руб.)
+  // and spaces. Standardize decimal separator.
   const sValueNumericCandidate = sValueOriginal
-    .replace(/\$/g, '')
-    .replace(/€/g, '')
-    .replace(/₽/g, '')
-    .replace(/USD/gi, '')
-    .replace(/EUR/gi, '')
-    .replace(/RUB/gi, '')
-    .replace(/\s/g, '')
-    .replace(',', '.');
-    
+    .replace(/\$|€|₽|USD|EUR|RUB|P|р\.|руб\./gi, '') // Remove common currency symbols/units. Note: "р." includes dot.
+    .replace(/\s/g, '')    // Remove all spaces (e.g., "149 000" -> "149000")
+    .replace(',', '.');     // Standardize decimal separator to dot (e.g., "123,45" -> "123.45")
+
   const num = parseFloat(sValueNumericCandidate);
 
   if (!isNaN(num)) {
     return num;
   } else {
-    // Return the original string if it's not a simple number but might be a special format like "$ X / $ Y"
-    // This is particularly relevant for DropOff prices which might have such formats.
-    // However, we already tried to parse the first part if it contains '/'
-    // If it's still not a number, it's likely a non-numeric string or complex format we don't fully handle.
-    // For simplicity, if it's not parseable to a number after basic cleanup, treat as non-price for calculation.
-    // But for display, the original string might be useful.
-    // For calculation logic, we primarily need numbers. So, if not a number, return null.
-    // If the original string is important for display, the calling code should handle it.
-    // Let's return the original if it's not empty and not "N/A", so it can be displayed as text.
-    // The calculation logic (parseFirstNumberFromString) will then attempt to get a number from it.
-    return sValueOriginal;
+    // console.warn(`parsePriceCell could not parse "${String(cellValue).trim()}" to a number (cleaned: "${sValueNumericCandidate}"). Returning null.`);
+    return null; // If not a number after cleaning, return null
   }
 }
