@@ -22,6 +22,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
   contextSetters.setCachedShippingInfo(null);
   contextSetters.setCachedFormValues(null);
   contextSetters.setCachedLastSuccessfulCalculation(null);
+  // Reset hasRestoredFromCacheState at the beginning of a new file load cycle
   setHasRestoredFromCacheState(false);
 
   contextSetters.setExcelRouteData([]);
@@ -185,7 +186,7 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
         }
 
         contextSetters.setIsSeaRailExcelDataLoaded(true);
-        setHasRestoredFromCacheState(true);
+        setHasRestoredFromCacheState(true); // Set flag after successful parsing
         toast({ title: "Море + Ж/Д Excel Processed", description: "All relevant sheets parsed."});
 
       } catch (parseError) {
