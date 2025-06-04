@@ -1,3 +1,4 @@
+
 // src/lib/pricing/file-handlers/direct-rail-handler.ts
 import * as XLSX from 'xlsx';
 import type { DirectRailEntry } from '@/types';
@@ -14,7 +15,7 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
   contextSetters.setCachedShippingInfo(null);
   contextSetters.setCachedFormValues(null);
   contextSetters.setCachedLastSuccessfulCalculation(null);
-  setHasRestoredFromCacheState(false);
+  setHasRestoredFromCacheState(false); // Reset flag at the start of new file processing
 
   contextSetters.setExcelDirectRailData([]);
   contextSetters.setDirectRailAgents([]);
@@ -76,7 +77,7 @@ export async function handleDirectRailFileParse(args: ExcelParserArgsBase) {
           contextSetters.setDirectRailIncotermsList(Array.from(uniqueIncoterms).sort());
           contextSetters.setDirectRailBordersList(Array.from(uniqueBorders).sort());
           contextSetters.setIsDirectRailExcelDataLoaded(true);
-          setHasRestoredFromCacheState(true);
+          setHasRestoredFromCacheState(true); // Set flag after successful parsing
           toast({ title: "Прямое ЖД Excel Processed", description: `Found ${newDirectRailDataLocal.length} entries.` });
         } else {
           contextSetters.setIsDirectRailExcelDataLoaded(false);
