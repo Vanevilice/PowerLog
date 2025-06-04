@@ -2,10 +2,10 @@
 import React from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import type {
-  RouteFormValues, PricingDataContextType, ShipmentType,
+  RouteFormValues, PricingDataContextType, ShipmentType, ContainerType,
   ExcelRoute, ExcelSOCRoute, RailDataEntry,
 } from '@/types';
-import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS } from '@/lib/pricing/constants';
+import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS } from '@/lib/pricing/constants';
 
 interface UseSeaRailDropdownLogicProps {
   form: UseFormReturn<RouteFormValues>;
@@ -124,26 +124,91 @@ function useEffectForRussianDestinationCities(
   form: UseFormReturn<RouteFormValues>,
   context: PricingDataContextType,
   hasRestoredFromCache: boolean,
+  watchedOriginPort: string | undefined,
+  watchedDestinationPort: string | undefined, // Sea Destination Port
+  watchedContainerType: ContainerType | undefined,
   localAvailableRussianDestinationCities: string[],
   setLocalAvailableRussianDestinationCities: React.Dispatch<React.SetStateAction<string[]>>
 ) {
   const { getValues, setValue } = form;
-  const { isSeaRailExcelDataLoaded, excelRussianDestinationCitiesMasterList } = context;
+  const { isSeaRailExcelDataLoaded, excelRailData, excelRussianDestinationCitiesMasterList } = context;
 
   React.useEffect(() => {
-    if (isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length > 0) {
-      const sortedMasterList = [...excelRussianDestinationCitiesMasterList].sort();
-      if (JSON.stringify(localAvailableRussianDestinationCities) !== JSON.stringify(sortedMasterList)) {
-        setLocalAvailableRussianDestinationCities(sortedMasterList);
-      }
-    } else {
+    const currentRussianCity = getValues("russianDestinationCity");
+    const currentArrivalStation = getValues("arrivalStationSelection");
+
+    if (!isSeaRailExcelDataLoaded || !watchedDestinationPort || !watchedContainerType || excelRailData.length === 0) {
       if (JSON.stringify(localAvailableRussianDestinationCities) !== JSON.stringify([])) {
         setLocalAvailableRussianDestinationCities([]);
+      }
+      if (hasRestoredFromCache) {
+        if (currentRussianCity !== "") setValue("russianDestinationCity", "", { shouldValidate: true });
+        if (currentArrivalStation !== "") setValue("arrivalStationSelection", "", { shouldValidate: true });
+      }
+      return;
+    }
+
+    const availableCitiesFromRail = new Set<string>();
+    const seaDestPortLower = watchedDestinationPort.toLowerCase();
+    const isVladivostokHub = VLADIVOSTOK_VARIANTS.some(v => seaDestPortLower.startsWith(v.toLowerCase().split(" ")[0]));
+    const isVostochniyHub = VOSTOCHNIY_VARIANTS.some(v => seaDestPortLower.startsWith(v.toLowerCase().split(" ")[0]));
+
+    excelRailData.forEach(railEntry => {
+      const hasPriceForContainer = watchedContainerType === "20DC"
+        ? (railEntry.price20DC_24t !== null || railEntry.price20DC_28t !== null)
+        : (railEntry.price40HC !== null);
+
+      if (!hasPriceForContainer) return;
+
+      const isCompatibleDepartureStation = railEntry.departureStations.some(depStation => {
+        const pStationLower = depStation.toLowerCase().trim();
+        if (seaDestPortLower.includes("пл") && pStationLower.includes("пасифик лоджистик")) return true;
+        
+        const specificSeaHubKeywordMatch = watchedDestinationPort.match(/\(([^)]+)\)/);
+        const specificSeaHubKeywords = specificSeaHubKeywordMatch ? specificSeaHubKeywordMatch[1].toLowerCase().split(/[/\s-]+/).map(s => s.trim()).filter(Boolean) : [];
+        if (specificSeaHubKeywords.length > 0 && specificSeaHubKeywords.some(kw => pStationLower.includes(kw))) return true;
+
+        if (isVladivostokHub) {
+            if (pStationLower.includes("владивосток")) return true;
+            if (VLADIVOSTOK_VARIANTS.some(vladVariant => pStationLower.includes(vladVariant.toLowerCase().split(" ")[0]))) return true;
+        }
+        if (isVostochniyHub) {
+            if (pStationLower.includes("восточный")) return true;
+            if (VOSTOCHNIY_VARIANTS.some(vostVariant => pStationLower.includes(vostVariant.toLowerCase().split(" ")[0]))) return true;
+        }
+        
+        const seaPortBaseNameLower = seaDestPortLower.split(" ")[0];
+        if (pStationLower.includes(seaPortBaseNameLower)) return true;
+        const stationBaseNameLower = pStationLower.split(" ")[0];
+        if (seaDestPortLower.includes(stationBaseNameLower)) return true;
+        
+        return false;
+      });
+
+      if (isCompatibleDepartureStation) {
+        availableCitiesFromRail.add(railEntry.cityOfArrival);
+      }
+    });
+
+    const newAvailableArray = Array.from(availableCitiesFromRail).sort();
+
+    if (JSON.stringify(localAvailableRussianDestinationCities) !== JSON.stringify(newAvailableArray)) {
+      setLocalAvailableRussianDestinationCities(newAvailableArray);
+    }
+
+    if (hasRestoredFromCache) {
+      if (currentRussianCity && !newAvailableArray.includes(currentRussianCity)) {
+        setValue("russianDestinationCity", "", { shouldValidate: true });
+        setValue("arrivalStationSelection", "", { shouldValidate: true });
       }
     }
   }, [
     isSeaRailExcelDataLoaded,
-    excelRussianDestinationCitiesMasterList,
+    watchedOriginPort, // Though not directly used in filtering here, its change can clear dependent fields which triggers this
+    watchedDestinationPort,
+    watchedContainerType,
+    excelRailData,
+    excelRussianDestinationCitiesMasterList, // Used for initial check if any rail cities loaded at all
     setLocalAvailableRussianDestinationCities,
     localAvailableRussianDestinationCities,
     getValues,
@@ -151,6 +216,7 @@ function useEffectForRussianDestinationCities(
     hasRestoredFromCache
   ]);
 }
+
 
 // Helper function for Arrival Stations effect
 function useEffectForArrivalStations(
@@ -171,13 +237,15 @@ function useEffectForArrivalStations(
     const selectedSeaPort = getValues("destinationPort");
 
     if (isSeaRailExcelDataLoaded && selectedRussianCity && selectedSeaPort &&
-        VLADIVOSTOK_VARIANTS.some(v => selectedSeaPort.startsWith(v.split(" ")[0])) &&
+        (VLADIVOSTOK_VARIANTS.some(v => selectedSeaPort.startsWith(v.split(" ")[0])) || VOSTOCHNIY_VARIANTS.some(v => selectedSeaPort.startsWith(v.split(" ")[0]))) &&
         excelRailData.length > 0) {
       const stationsForCity = new Set<string>();
       const seaPortLower = selectedSeaPort.toLowerCase();
       const seaPortBaseName = selectedSeaPort.split(" ")[0].toLowerCase();
       const specificSeaHubKeywordMatch = selectedSeaPort.match(/\(([^)]+)\)/);
       const specificSeaHubKeywords = specificSeaHubKeywordMatch ? specificSeaHubKeywordMatch[1].toLowerCase().split(/[/\s-]+/).map(s => s.trim()).filter(Boolean) : [];
+      const isVladivostokHubArrival = VLADIVOSTOK_VARIANTS.some(v => seaPortLower.startsWith(v.toLowerCase().split(" ")[0]));
+      const isVostochniyHubArrival = VOSTOCHNIY_VARIANTS.some(v => seaPortLower.startsWith(v.toLowerCase().split(" ")[0]));
 
       excelRailData.forEach(railEntry => {
         if (railEntry.cityOfArrival.toLowerCase() === selectedRussianCity.toLowerCase()) {
@@ -185,7 +253,21 @@ function useEffectForArrivalStations(
             const pStationLower = depStation.toLowerCase().trim();
             if (seaPortLower.includes("пл") && pStationLower.includes("пасифик лоджистик")) return true;
             if (specificSeaHubKeywords.length > 0 && specificSeaHubKeywords.some(kw => pStationLower.includes(kw))) return true;
-            return pStationLower.includes(seaPortBaseName) || seaPortLower.includes(pStationLower);
+            
+            if (isVladivostokHubArrival) {
+                if (pStationLower.includes("владивосток")) return true;
+                if (VLADIVOSTOK_VARIANTS.some(vladVariant => pStationLower.includes(vladVariant.toLowerCase().split(" ")[0]))) return true;
+            }
+            if (isVostochniyHubArrival) {
+                if (pStationLower.includes("восточный")) return true;
+                if (VOSTOCHNIY_VARIANTS.some(vostVariant => pStationLower.includes(vostVariant.toLowerCase().split(" ")[0]))) return true;
+            }
+
+            if (pStationLower.includes(seaPortBaseName)) return true;
+            const stationBaseNameLower = pStationLower.split(" ")[0];
+            if (seaPortLower.includes(stationBaseNameLower)) return true;
+            
+            return false;
           });
           if (isDepartureStationCompatible) {
             railEntry.arrivalStations.forEach(arrStation => stationsForCity.add(arrStation));
@@ -264,6 +346,7 @@ export function useSeaRailDropdownLogic({
   const watchedShipmentType = watch("shipmentType") as ShipmentType;
   const watchedOriginPort = watch("originPort");
   const watchedDestinationPort = watch("destinationPort");
+  const watchedContainerType = watch("containerType");
   const watchedRussianDestinationCity = watch("russianDestinationCity");
 
   useEffectForDestinationPorts(
@@ -278,6 +361,7 @@ export function useSeaRailDropdownLogic({
 
   useEffectForRussianDestinationCities(
     form, context, hasRestoredFromCache,
+    watchedOriginPort, watchedDestinationPort, watchedContainerType,
     localAvailableRussianDestinationCities, setLocalAvailableRussianDestinationCities
   );
 
