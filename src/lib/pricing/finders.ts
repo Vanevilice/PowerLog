@@ -129,7 +129,7 @@ export function findSeaPriceAndDetails(
 export function findRailLegDetails(
   values: RouteFormValues,
   context: PricingDataContextType,
-  seaDestinationPort: string, // This is the actual sea destination port (e.g., "Восточный", "Владивосток (ВМПП)")
+  seaDestinationPort: string, 
   currentCommentary: string
 ): RailLegInfo {
   const { containerType, russianDestinationCity, arrivalStationSelection } = values;
@@ -150,8 +150,6 @@ export function findRailLegDetails(
 
   let railCostFound = false;
   const seaDestPortLower = seaDestinationPort.toLowerCase();
-
-  // Determine if the sea destination port is a known hub like Vladivostok or Vostochniy
   const isVladivostokHub = VLADIVOSTOK_VARIANTS.some(v => seaDestPortLower.startsWith(v.toLowerCase().split(" ")[0]));
   const isVostochniyHub = VOSTOCHNIY_VARIANTS.some(v => seaDestPortLower.startsWith(v.toLowerCase().split(" ")[0]));
 
@@ -161,33 +159,22 @@ export function findRailLegDetails(
 
     const compatibleDepartureStation = railEntry.departureStations.find(depStation => {
       const pStationLower = depStation.toLowerCase().trim();
-
-      // Check for Pacific Logistics if sea port indicates it
       if (seaDestPortLower.includes("пл") && pStationLower.includes("пасифик лоджистик")) return true;
-      
-      // Check for specific keywords in parentheses like (ВМПП)
       const specificSeaHubKeywordMatch = seaDestinationPort.match(/\(([^)]+)\)/);
       const specificSeaHubKeywords = specificSeaHubKeywordMatch ? specificSeaHubKeywordMatch[1].toLowerCase().split(/[/\s-]+/).map(s => s.trim()).filter(Boolean) : [];
       if (specificSeaHubKeywords.length > 0 && specificSeaHubKeywords.some(kw => pStationLower.includes(kw))) return true;
 
-      // If sea destination is a Vladivostok variant, check if station includes "владивосток" or any specific variant base name
       if (isVladivostokHub) {
-          if (pStationLower.includes("владивосток")) return true; // General match for "владивосток"
+          if (pStationLower.includes("владивосток")) return true;
           if (VLADIVOSTOK_VARIANTS.some(vladVariant => pStationLower.includes(vladVariant.toLowerCase().split(" ")[0]))) return true;
       }
-      
-      // If sea destination is a Vostochniy variant, check if station includes "восточный" or any specific variant base name
       if (isVostochniyHub) {
-          if (pStationLower.includes("восточный")) return true; // General match for "восточный"
+          if (pStationLower.includes("восточный")) return true;
           if (VOSTOCHNIY_VARIANTS.some(vostVariant => pStationLower.includes(vostVariant.toLowerCase().split(" ")[0]))) return true;
       }
       
-      // Fallback: simple substring match of the sea port's base name (first word) within the station name
-      // This helps if seaDestinationPort is just "Восточный" and station is "ст. Восточный"
       const seaPortBaseNameLower = seaDestPortLower.split(" ")[0];
       if (pStationLower.includes(seaPortBaseNameLower)) return true;
-      
-      // Also check if the station's base name is included in the sea port (e.g. sea port "Восточный порт пк", station "Восточный")
       const stationBaseNameLower = pStationLower.split(" ")[0];
       if (seaDestPortLower.includes(stationBaseNameLower)) return true;
 
@@ -196,17 +183,14 @@ export function findRailLegDetails(
 
     if (compatibleDepartureStation) {
       railInfo.departureStation = compatibleDepartureStation;
-      railInfo.arrivalStation = arrivalStationSelection || railEntry.arrivalStations[0]; // Default to first if not specified
+      railInfo.arrivalStation = arrivalStationSelection || railEntry.arrivalStations[0]; 
       if (containerType === "20DC") {
-        // Prioritize 24t if available, else try 28t. Both need guard cost.
         if (railEntry.price20DC_24t !== null && railEntry.guardCost20DC !== null) {
           railInfo.baseCost24t = railEntry.price20DC_24t;
-          // Only assign 28t if it also has a value, otherwise it remains null from initialization
           railInfo.baseCost28t = railEntry.price20DC_28t; 
           railInfo.guardCost20DC = railEntry.guardCost20DC;
           railCostFound = true;
         } else if (railEntry.price20DC_28t !== null && railEntry.guardCost20DC !== null) {
-           // baseCost24t remains null
            railInfo.baseCost28t = railEntry.price20DC_28t;
            railInfo.guardCost20DC = railEntry.guardCost20DC;
            railCostFound = true;
@@ -219,7 +203,7 @@ export function findRailLegDetails(
         }
       }
       if (railCostFound) {
-        railInfo.commentaryReason = currentCommentary; // Reset commentary if successful
+        railInfo.commentaryReason = currentCommentary; 
         break; 
       } else if (!railInfo.commentaryReason.includes("Rail pricing components")) { 
          railInfo.commentaryReason = appendCommentary(currentCommentary, `Rail pricing components for ${containerType} from a ${seaDestinationPort}-compatible station to ${russianDestinationCity}${arrivalStationSelection ? ` (station: ${arrivalStationSelection})` : ""} are missing for station ${compatibleDepartureStation}.`);
@@ -254,16 +238,40 @@ export function findDropOffDetails(
   };
 
   if (shipmentType !== "COC" || !actualSeaLine) {
-    return dropOffInfo;
+    return dropOffInfo; // No COC drop-off for SOC or if sea line is not specified
   }
 
-  const isCKLine = actualSeaLine.toLowerCase().includes('ck line');
+  const isPandaLine = actualSeaLine.toLowerCase().includes('panda express line');
   const seaCommentLower = String(seaCommentFromRoute || '').toLowerCase().trim();
+  
+  // Specific Panda Express Line rules
+  if (isPandaLine) {
+    const excludedCitiesPanda = ["москва", "екатеринбург", "новосибирск"].map(normalizeCityName);
+    const normalizedCityForDropOffPanda = normalizeCityName(cityForDropOffLookup);
+
+    if (excludedCitiesPanda.includes(normalizedCityForDropOffPanda)) {
+      dropOffInfo.costNumeric = null;
+      dropOffInfo.displayValue = "N/A";
+      dropOffInfo.comment = "Drop-off not applicable for Panda Express to this city.";
+      dropOffInfo.dropOffLegFailed = false; // Rule applied, not a failure
+      // Retain currentCommentary as no new failure occurred related to drop-off
+      return dropOffInfo;
+    } else {
+      // For Panda Express to other cities, drop-off is generally not itemized
+      dropOffInfo.costNumeric = null;
+      dropOffInfo.displayValue = "N/A";
+      dropOffInfo.comment = "Drop-off generally not applicable for Panda Express Line.";
+      dropOffInfo.dropOffLegFailed = false; // Default for Panda, not a lookup failure
+      return dropOffInfo;
+    }
+  }
+
+  // Logic for other sea lines (CK Line or comment-triggered lookup)
+  const isCKLine = actualSeaLine.toLowerCase().includes('ck line');
   const needsDropOffLookupFromComment = DROP_OFF_TRIGGER_PHRASES.some(phrase => seaCommentLower.includes(phrase));
   const shouldAttemptDropOffLookup = isCKLine || needsDropOffLookupFromComment;
-  const isPandaLine = actualSeaLine.toLowerCase().includes('panda express line');
 
-  if (shouldAttemptDropOffLookup && !isPandaLine) {
+  if (shouldAttemptDropOffLookup) {
     let dropOffEntryMatched = false;
     const normalizedLookupCity = normalizeCityName(cityForDropOffLookup); 
 
@@ -289,7 +297,7 @@ export function findDropOffDetails(
           dropOffInfo.costNumeric = dropOffPriceRaw;
           dropOffInfo.displayValue = String(dropOffPriceRaw);
         }
-         if (!dropOffInfo.dropOffLegFailed) dropOffInfo.commentaryReason = currentCommentary; 
+        if (!dropOffInfo.dropOffLegFailed) dropOffInfo.commentaryReason = currentCommentary; 
         dropOffEntryMatched = true; break;
       }
     }
@@ -297,12 +305,8 @@ export function findDropOffDetails(
       dropOffInfo.commentaryReason = appendCommentary(dropOffInfo.commentaryReason, `COC Drop-off charges triggered for ${actualSeaLine} to ${cityForDropOffLookup}, but no matching COC drop-off pricing entry found.`);
       dropOffInfo.dropOffLegFailed = true;
     }
-  } else if (shouldAttemptDropOffLookup && isPandaLine) {
-    dropOffInfo.costNumeric = null;
-    dropOffInfo.displayValue = null;
-    dropOffInfo.comment = "Drop-off N/A for Panda Express Line";
-    dropOffInfo.commentaryReason = currentCommentary; 
   }
+  // If not CK Line and no comment trigger, dropOffInfo remains as initialized (costNumeric: null, not a failure)
   return dropOffInfo;
 }
 
@@ -396,3 +400,4 @@ export function findDirectRailEntry(values: RouteFormValues, context: PricingDat
     normalizeCityName(entry.border) === normalizedBorder
   );
 }
+
