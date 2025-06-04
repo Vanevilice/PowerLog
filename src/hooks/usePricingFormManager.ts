@@ -221,8 +221,8 @@ export function usePricingFormManager({
         !context.isSeaRailExcelDataLoaded ||
         !currentFormValues.originPort ||
         !currentFormValues.containerType ||
-        // For SOC, russianDestinationCity and SOC drop-off data are required
-        (shipmentType === "SOC" && (!context.isSOCDropOffExcelDataLoaded || !currentFormValues.russianDestinationCity))
+        // For COC, russianDestinationCity is no longer a strict requirement for this button
+        (shipmentType === "SOC" && (!context.isSOCDropOffExcelDataLoaded || !currentFormValues.russianDestinationCity)) // For SOC, SOC drop-off data and russianDestCity are required
       )) ||
       (context.calculationMode === "direct_rail" && (
         !context.isDirectRailExcelDataLoaded ||
