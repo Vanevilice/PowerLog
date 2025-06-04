@@ -1,3 +1,4 @@
+
 // src/lib/pricing/file-handlers/soc-drop-off-handler.ts
 import * as XLSX from 'xlsx';
 import type { ExcelSOCDropOffEntry } from '@/types';
@@ -6,12 +7,15 @@ import { parsePriceCell } from '../excel-parser-utils';
 import type { ExcelParserArgsBase } from './types';
 
 export async function handleSOCDropOffFileParse(args: ExcelParserArgsBase) {
-  const { file, contextSetters, toast, fileInputRef, setIsParsingState } = args;
+  const { file, contextSetters, toast, fileInputRef, setIsParsingState, setHasRestoredFromCacheState } = args;
 
   setIsParsingState(true);
   let parsedSuccessfullyWithData = false;
   contextSetters.setExcelSOCDropOffData([]);
   contextSetters.setIsSOCDropOffExcelDataLoaded(false); // Initialize before parsing
+
+  // Note: setHasRestoredFromCacheState is destructured but intentionally NOT called here.
+  // Cache restoration state is managed by the primary file handlers (sea-rail, direct-rail).
 
   const reader = new FileReader();
   reader.onload = async (e) => {
