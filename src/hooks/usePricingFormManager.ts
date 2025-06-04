@@ -192,9 +192,9 @@ export function usePricingFormManager({
       (context.calculationMode === "sea_plus_rail" && (
         !context.isSeaRailExcelDataLoaded ||
         !currentFormValues.originPort ||
-        (!currentFormValues.destinationPort && !currentFormValues.russianDestinationCity) ||
+        (!currentFormValues.destinationPort && !currentFormValues.russianDestinationCity) || // Needs either sea dest or rail dest
         !currentFormValues.containerType ||
-        (shipmentType === "SOC" && (!context.isSOCDropOffExcelDataLoaded || !currentFormValues.russianDestinationCity))
+        (shipmentType === "SOC" && (!context.isSOCDropOffExcelDataLoaded || !currentFormValues.russianDestinationCity)) // SOC needs SOC drop-off data and a Russian city
       )) ||
       (context.calculationMode === "direct_rail" && (
         !context.isDirectRailExcelDataLoaded ||
@@ -208,12 +208,6 @@ export function usePricingFormManager({
   }, [
       isLoading, isCalculatingBestPrice, isAnyParsing, context.calculationMode,
       context.isSeaRailExcelDataLoaded, context.isSOCDropOffExcelDataLoaded, context.isDirectRailExcelDataLoaded,
-      // getValues is not stable, so use specific watched values or a trigger if needed
-      // For now, relying on re-render from other state changes to update this memo.
-      // A more robust approach might involve watching specific form values directly if getValues() doesn't trigger re-evaluation reliably.
-      // However, since this hook manages isLoading, etc., its re-renders should keep this up-to-date.
-      // To be absolutely safe, one might pass specific watched form values into this hook if this memo becomes stale.
-      // For now, assuming re-renders from other state changes are sufficient.
       form.watch('originPort'), form.watch('destinationPort'), form.watch('russianDestinationCity'), form.watch('containerType'), form.watch('shipmentType'),
       form.watch('directRailCityOfDeparture'), form.watch('directRailDestinationCityDR'), form.watch('directRailAgentName'), form.watch('directRailIncoterms'), form.watch('directRailBorder')
   ]);
@@ -227,7 +221,7 @@ export function usePricingFormManager({
         !context.isSeaRailExcelDataLoaded ||
         !currentFormValues.originPort ||
         !currentFormValues.containerType ||
-        (shipmentType === "COC" && context.excelRussianDestinationCitiesMasterList.length > 0 && !currentFormValues.russianDestinationCity) ||
+        // For SOC, russianDestinationCity and SOC drop-off data are required
         (shipmentType === "SOC" && (!context.isSOCDropOffExcelDataLoaded || !currentFormValues.russianDestinationCity))
       )) ||
       (context.calculationMode === "direct_rail" && (
@@ -235,11 +229,14 @@ export function usePricingFormManager({
         !currentFormValues.directRailCityOfDeparture ||
         !currentFormValues.directRailDestinationCityDR ||
         !currentFormValues.directRailIncoterms
+        // Agent and Border are not strictly needed to *initiate* a best price search for direct rail,
+        // as we might want to find best price across agents/borders if not specified.
+        // This can be adjusted based on how `generateDirectRailCandidates` handles missing agent/border.
       ))
     );
   }, [
       isCalculatingBestPrice, isLoading, isAnyParsing, context.calculationMode,
-      context.isSeaRailExcelDataLoaded, context.excelRussianDestinationCitiesMasterList, context.isSOCDropOffExcelDataLoaded, context.isDirectRailExcelDataLoaded,
+      context.isSeaRailExcelDataLoaded, context.isSOCDropOffExcelDataLoaded, context.isDirectRailExcelDataLoaded,
       form.watch('originPort'), form.watch('containerType'), form.watch('russianDestinationCity'), form.watch('shipmentType'),
       form.watch('directRailCityOfDeparture'), form.watch('directRailDestinationCityDR'), form.watch('directRailIncoterms')
   ]);
