@@ -124,8 +124,7 @@ function useEffectForRussianDestinationCities(
   form: UseFormReturn<RouteFormValues>,
   context: PricingDataContextType,
   hasRestoredFromCache: boolean,
-  watchedOriginPort: string | undefined,
-  watchedDestinationPort: string | undefined, // Sea Destination Port
+  watchedOriginPort: string | undefined, // Kept for consistency in auto-clearing if origin changes
   watchedContainerType: ContainerType | undefined,
   localAvailableRussianDestinationCities: string[],
   setLocalAvailableRussianDestinationCities: React.Dispatch<React.SetStateAction<string[]>>
@@ -137,7 +136,7 @@ function useEffectForRussianDestinationCities(
     const currentRussianCity = getValues("russianDestinationCity");
     const currentArrivalStation = getValues("arrivalStationSelection");
 
-    if (!isSeaRailExcelDataLoaded || !watchedDestinationPort || !watchedContainerType || excelRailData.length === 0) {
+    if (!isSeaRailExcelDataLoaded || !watchedContainerType || excelRailData.length === 0) {
       if (JSON.stringify(localAvailableRussianDestinationCities) !== JSON.stringify([])) {
         setLocalAvailableRussianDestinationCities([]);
       }
@@ -149,43 +148,12 @@ function useEffectForRussianDestinationCities(
     }
 
     const availableCitiesFromRail = new Set<string>();
-    const seaDestPortLower = watchedDestinationPort.toLowerCase();
-    const isVladivostokHub = VLADIVOSTOK_VARIANTS.some(v => seaDestPortLower.startsWith(v.toLowerCase().split(" ")[0]));
-    const isVostochniyHub = VOSTOCHNIY_VARIANTS.some(v => seaDestPortLower.startsWith(v.toLowerCase().split(" ")[0]));
-
     excelRailData.forEach(railEntry => {
       const hasPriceForContainer = watchedContainerType === "20DC"
         ? (railEntry.price20DC_24t !== null || railEntry.price20DC_28t !== null)
         : (railEntry.price40HC !== null);
 
-      if (!hasPriceForContainer) return;
-
-      const isCompatibleDepartureStation = railEntry.departureStations.some(depStation => {
-        const pStationLower = depStation.toLowerCase().trim();
-        if (seaDestPortLower.includes("пл") && pStationLower.includes("пасифик лоджистик")) return true;
-        
-        const specificSeaHubKeywordMatch = watchedDestinationPort.match(/\(([^)]+)\)/);
-        const specificSeaHubKeywords = specificSeaHubKeywordMatch ? specificSeaHubKeywordMatch[1].toLowerCase().split(/[/\s-]+/).map(s => s.trim()).filter(Boolean) : [];
-        if (specificSeaHubKeywords.length > 0 && specificSeaHubKeywords.some(kw => pStationLower.includes(kw))) return true;
-
-        if (isVladivostokHub) {
-            if (pStationLower.includes("владивосток")) return true;
-            if (VLADIVOSTOK_VARIANTS.some(vladVariant => pStationLower.includes(vladVariant.toLowerCase().split(" ")[0]))) return true;
-        }
-        if (isVostochniyHub) {
-            if (pStationLower.includes("восточный")) return true;
-            if (VOSTOCHNIY_VARIANTS.some(vostVariant => pStationLower.includes(vostVariant.toLowerCase().split(" ")[0]))) return true;
-        }
-        
-        const seaPortBaseNameLower = seaDestPortLower.split(" ")[0];
-        if (pStationLower.includes(seaPortBaseNameLower)) return true;
-        const stationBaseNameLower = pStationLower.split(" ")[0];
-        if (seaDestPortLower.includes(stationBaseNameLower)) return true;
-        
-        return false;
-      });
-
-      if (isCompatibleDepartureStation) {
+      if (hasPriceForContainer) {
         availableCitiesFromRail.add(railEntry.cityOfArrival);
       }
     });
@@ -204,11 +172,10 @@ function useEffectForRussianDestinationCities(
     }
   }, [
     isSeaRailExcelDataLoaded,
-    watchedOriginPort, // Though not directly used in filtering here, its change can clear dependent fields which triggers this
-    watchedDestinationPort,
+    watchedOriginPort, // Retained for potential cascading clear effects.
     watchedContainerType,
     excelRailData,
-    excelRussianDestinationCitiesMasterList, // Used for initial check if any rail cities loaded at all
+    excelRussianDestinationCitiesMasterList,
     setLocalAvailableRussianDestinationCities,
     localAvailableRussianDestinationCities,
     getValues,
@@ -361,7 +328,7 @@ export function useSeaRailDropdownLogic({
 
   useEffectForRussianDestinationCities(
     form, context, hasRestoredFromCache,
-    watchedOriginPort, watchedDestinationPort, watchedContainerType,
+    watchedOriginPort, watchedContainerType, // Pass watchedOriginPort, not watchedDestinationPort
     localAvailableRussianDestinationCities, setLocalAvailableRussianDestinationCities
   );
 
