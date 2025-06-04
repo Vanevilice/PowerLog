@@ -12,8 +12,8 @@ import type {
   ContainerType,
   ShipmentType,
 } from '@/types';
-import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, DROP_OFF_TRIGGER_PHRASES } from './constants';
-import { appendCommentary, normalizeCityName } from './utils'; // Import normalizeCityName
+import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS, DROP_OFF_TRIGGER_PHRASES } from './constants';
+import { appendCommentary, normalizeCityName } from './utils';
 
 // --- Helper Interfaces (can be moved to types if they become more widely used) ---
 export interface SeaPriceInfo {
@@ -129,7 +129,7 @@ export function findSeaPriceAndDetails(
 export function findRailLegDetails(
   values: RouteFormValues,
   context: PricingDataContextType,
-  seaDestinationPort: string,
+  seaDestinationPort: string, // This is the actual sea destination port (e.g., "Восточный", "Владивосток (ВМПП)")
   currentCommentary: string
 ): RailLegInfo {
   const { containerType, russianDestinationCity, arrivalStationSelection } = values;
@@ -150,7 +150,10 @@ export function findRailLegDetails(
 
   let railCostFound = false;
   const seaDestPortLower = seaDestinationPort.toLowerCase();
-  const seaDestPortBaseName = seaDestinationPort.split(" ")[0].toLowerCase();
+
+  // Determine if the sea destination port is a known hub like Vladivostok or Vostochniy
+  const isVladivostokHub = VLADIVOSTOK_VARIANTS.some(v => seaDestPortLower.startsWith(v.toLowerCase().split(" ")[0]));
+  const isVostochniyHub = VOSTOCHNIY_VARIANTS.some(v => seaDestPortLower.startsWith(v.toLowerCase().split(" ")[0]));
 
   for (const railEntry of excelRailData) {
     if (railEntry.cityOfArrival.toLowerCase() !== russianDestinationCity.toLowerCase()) continue;
@@ -158,24 +161,52 @@ export function findRailLegDetails(
 
     const compatibleDepartureStation = railEntry.departureStations.find(depStation => {
       const pStationLower = depStation.toLowerCase().trim();
-      if (seaDestPortLower.includes("пл")) return pStationLower.includes("пасифик лоджистик");
+
+      // Check for Pacific Logistics if sea port indicates it
+      if (seaDestPortLower.includes("пл") && pStationLower.includes("пасифик лоджистик")) return true;
+      
+      // Check for specific keywords in parentheses like (ВМПП)
       const specificSeaHubKeywordMatch = seaDestinationPort.match(/\(([^)]+)\)/);
       const specificSeaHubKeywords = specificSeaHubKeywordMatch ? specificSeaHubKeywordMatch[1].toLowerCase().split(/[/\s-]+/).map(s => s.trim()).filter(Boolean) : [];
       if (specificSeaHubKeywords.length > 0 && specificSeaHubKeywords.some(kw => pStationLower.includes(kw))) return true;
-      return pStationLower.includes(seaDestPortBaseName) || seaDestPortLower.includes(pStationLower);
+
+      // If sea destination is a Vladivostok variant, check if station includes "владивосток" or any specific variant base name
+      if (isVladivostokHub) {
+          if (pStationLower.includes("владивосток")) return true; // General match for "владивосток"
+          if (VLADIVOSTOK_VARIANTS.some(vladVariant => pStationLower.includes(vladVariant.toLowerCase().split(" ")[0]))) return true;
+      }
+      
+      // If sea destination is a Vostochniy variant, check if station includes "восточный" or any specific variant base name
+      if (isVostochniyHub) {
+          if (pStationLower.includes("восточный")) return true; // General match for "восточный"
+          if (VOSTOCHNIY_VARIANTS.some(vostVariant => pStationLower.includes(vostVariant.toLowerCase().split(" ")[0]))) return true;
+      }
+      
+      // Fallback: simple substring match of the sea port's base name (first word) within the station name
+      // This helps if seaDestinationPort is just "Восточный" and station is "ст. Восточный"
+      const seaPortBaseNameLower = seaDestPortLower.split(" ")[0];
+      if (pStationLower.includes(seaPortBaseNameLower)) return true;
+      
+      // Also check if the station's base name is included in the sea port (e.g. sea port "Восточный порт пк", station "Восточный")
+      const stationBaseNameLower = pStationLower.split(" ")[0];
+      if (seaDestPortLower.includes(stationBaseNameLower)) return true;
+
+      return false;
     });
 
     if (compatibleDepartureStation) {
       railInfo.departureStation = compatibleDepartureStation;
-      railInfo.arrivalStation = arrivalStationSelection || railEntry.arrivalStations[0];
+      railInfo.arrivalStation = arrivalStationSelection || railEntry.arrivalStations[0]; // Default to first if not specified
       if (containerType === "20DC") {
+        // Prioritize 24t if available, else try 28t. Both need guard cost.
         if (railEntry.price20DC_24t !== null && railEntry.guardCost20DC !== null) {
           railInfo.baseCost24t = railEntry.price20DC_24t;
-          railInfo.baseCost28t = railEntry.price20DC_28t;
+          // Only assign 28t if it also has a value, otherwise it remains null from initialization
+          railInfo.baseCost28t = railEntry.price20DC_28t; 
           railInfo.guardCost20DC = railEntry.guardCost20DC;
           railCostFound = true;
         } else if (railEntry.price20DC_28t !== null && railEntry.guardCost20DC !== null) {
-           railInfo.baseCost24t = null;
+           // baseCost24t remains null
            railInfo.baseCost28t = railEntry.price20DC_28t;
            railInfo.guardCost20DC = railEntry.guardCost20DC;
            railCostFound = true;
@@ -189,8 +220,8 @@ export function findRailLegDetails(
       }
       if (railCostFound) {
         railInfo.commentaryReason = currentCommentary; // Reset commentary if successful
-        break;
-      } else if (!railInfo.commentaryReason.includes("Rail pricing components")) {
+        break; 
+      } else if (!railInfo.commentaryReason.includes("Rail pricing components")) { 
          railInfo.commentaryReason = appendCommentary(currentCommentary, `Rail pricing components for ${containerType} from a ${seaDestinationPort}-compatible station to ${russianDestinationCity}${arrivalStationSelection ? ` (station: ${arrivalStationSelection})` : ""} are missing for station ${compatibleDepartureStation}.`);
       }
     }
@@ -234,7 +265,7 @@ export function findDropOffDetails(
 
   if (shouldAttemptDropOffLookup && !isPandaLine) {
     let dropOffEntryMatched = false;
-    const normalizedLookupCity = normalizeCityName(cityForDropOffLookup); // Use new normalization
+    const normalizedLookupCity = normalizeCityName(cityForDropOffLookup); 
 
     for (const dropOffEntry of excelDropOffData) {
       const seaLineFromMainRouteLower = actualSeaLine.toLowerCase().trim();
@@ -242,7 +273,6 @@ export function findDropOffDetails(
       const seaLineMatch = seaLineFromMainRouteLower.includes(seaLineFromDropOffSheetLower) || seaLineFromDropOffSheetLower.includes(seaLineFromMainRouteLower);
       if (!seaLineMatch) continue;
 
-      // Assuming dropOffEntry.cities are already normalized during their parsing if needed, or normalize here
       const cityMatch = dropOffEntry.cities.some(excelCity => normalizeCityName(excelCity) === normalizedLookupCity);
       if (cityMatch) {
         dropOffInfo.comment = dropOffEntry.comment || null;
@@ -259,7 +289,7 @@ export function findDropOffDetails(
           dropOffInfo.costNumeric = dropOffPriceRaw;
           dropOffInfo.displayValue = String(dropOffPriceRaw);
         }
-         if (!dropOffInfo.dropOffLegFailed) dropOffInfo.commentaryReason = currentCommentary; // Reset if successful
+         if (!dropOffInfo.dropOffLegFailed) dropOffInfo.commentaryReason = currentCommentary; 
         dropOffEntryMatched = true; break;
       }
     }
@@ -271,7 +301,7 @@ export function findDropOffDetails(
     dropOffInfo.costNumeric = null;
     dropOffInfo.displayValue = null;
     dropOffInfo.comment = "Drop-off N/A for Panda Express Line";
-    dropOffInfo.commentaryReason = currentCommentary; // Panda line is not a "failure" in terms of missing data
+    dropOffInfo.commentaryReason = currentCommentary; 
   }
   return dropOffInfo;
 }
@@ -279,8 +309,8 @@ export function findDropOffDetails(
 export function findSOCDropOffDetails(
   values: RouteFormValues,
   context: PricingDataContextType,
-  cityForDropOffLookup: string, // Final Russian drop-off city
-  socDepartureCityForDropOff: string, // Origin Port from the form, used as departure for this drop-off leg
+  cityForDropOffLookup: string, 
+  socDepartureCityForDropOff: string, 
   currentCommentary: string
 ): SOCDropOffInfo {
   const { excelSOCDropOffData, isSOCDropOffExcelDataLoaded } = context;
@@ -293,7 +323,7 @@ export function findSOCDropOffDetails(
 
   if (!isSOCDropOffExcelDataLoaded || !containerType || !cityForDropOffLookup || !socDepartureCityForDropOff) {
     socDropOffInfo.socDropOffLegFailed = true;
-    if (isSOCDropOffExcelDataLoaded) { // Only add specific commentary if the data was meant to be loaded
+    if (isSOCDropOffExcelDataLoaded) { 
         socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, `SOC Drop-off lookup missing key parameters (container type: ${containerType}, drop-off city: ${cityForDropOffLookup}, or departure city for drop-off: ${socDepartureCityForDropOff}).`);
     } else if (!isSOCDropOffExcelDataLoaded) {
         socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, "SOC Drop-off Excel data not loaded.");
@@ -302,7 +332,6 @@ export function findSOCDropOffDetails(
   }
 
   let entryMatched = false;
-  // Normalize form inputs for lookup
   const normalizedLookupDropOffCity = normalizeCityName(cityForDropOffLookup);
   const normalizedLookupDepartureCity = normalizeCityName(socDepartureCityForDropOff);
 
@@ -313,19 +342,16 @@ export function findSOCDropOffDetails(
   }
 
   for (const entry of excelSOCDropOffData) {
-    // entry.departureCity and entry.dropOffCity are ALREADY normalized during parsing in handleSOCDropOffFileParse
-    
     const departureMatch = entry.departureCity === normalizedLookupDepartureCity ||
                            (entry.departureCity.includes(normalizedLookupDepartureCity) && normalizedLookupDepartureCity.length > 2) ||
                            (normalizedLookupDepartureCity.includes(entry.departureCity) && entry.departureCity.length > 2);
                            
-    const dropOffCityMatch = entry.dropOffCity === normalizedLookupDropOffCity; // Exact match after normalization
+    const dropOffCityMatch = entry.dropOffCity === normalizedLookupDropOffCity; 
     const containerMatch = entry.containerType === containerType;
 
     if (departureMatch && dropOffCityMatch && containerMatch) {
       socDropOffInfo.costNumeric = entry.price;
       socDropOffInfo.displayValue = entry.price !== null ? String(entry.price) : null;
-      // socDropOffInfo.comment might be added here if SOC drop-off Excel has comments per entry
       entryMatched = true;
 
       if (entry.price === null) {
@@ -333,7 +359,7 @@ export function findSOCDropOffDetails(
         socDropOffInfo.commentaryReason = appendCommentary(currentCommentary, `SOC Drop-off price for ${containerType} from ${socDepartureCityForDropOff} to ${cityForDropOffLookup} is not available in Excel (matched entry has null price).`);
       } else {
         socDropOffInfo.socDropOffLegFailed = false; 
-        socDropOffInfo.commentaryReason = currentCommentary; // Reset commentary if fully successful
+        socDropOffInfo.commentaryReason = currentCommentary; 
       }
       break; 
     }
@@ -355,7 +381,6 @@ export function findDirectRailEntry(values: RouteFormValues, context: PricingDat
     return undefined;
   }
 
-  // Normalize form inputs for lookup, assuming Direct Rail Excel data might not be pre-normalized
   const normalizedAgentName = directRailAgentName.toLowerCase().trim();
   const normalizedDepCity = normalizeCityName(directRailCityOfDeparture);
   const normalizedDestCityDR = normalizeCityName(directRailDestinationCityDR);
@@ -371,5 +396,3 @@ export function findDirectRailEntry(values: RouteFormValues, context: PricingDat
     normalizeCityName(entry.border) === normalizedBorder
   );
 }
-
-    
