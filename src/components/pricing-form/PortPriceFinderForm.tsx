@@ -119,8 +119,6 @@ export default function PortPriceFinderForm(): JSX.Element {
     localAvailableSeaLines, setLocalAvailableSeaLines,
     localAvailableRussianDestinationCities, setLocalAvailableRussianDestinationCities,
     localAvailableArrivalStations, setLocalAvailableArrivalStations,
-    setShippingInfoState: () => {}, // Now managed by usePricingFormManager
-    setLastSuccessfulCalculationState: () => {}, // Now managed by usePricingFormManager
   });
 
 
@@ -181,11 +179,20 @@ export default function PortPriceFinderForm(): JSX.Element {
                 <Button
                   type="button"
                   onClick={onCalculateBestPriceWrapper}
-                  disabled={calculateBestPriceButtonDisabled}
+                  disabled={isCalculatingBestPrice || calculateBestPriceButtonDisabled}
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
-                  {isCalculatingBestPrice ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SearchCheck className="mr-2 h-4 w-4" />}
-                  {isCalculatingBestPrice ? "Calculating..." : "Calculate Best Price"}
+                  {isCalculatingBestPrice ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Calculating...
+                    </>
+                  ) : (
+                    <>
+                      <SearchCheck className="mr-2 h-4 w-4" />
+                      Calculate Best Price
+                    </>
+                  )}
                 </Button>
               </div>
             </form>
