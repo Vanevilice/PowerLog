@@ -25,6 +25,7 @@ import { CommonFormFields } from './fields/CommonFormFields';
 import { SeaRailFormFields } from './fields/SeaRailFormFields';
 import { DirectRailFormFields } from './fields/DirectRailFormFields';
 import { ShippingInfoDisplay } from './ShippingInfoDisplay';
+import { useLocalization } from '@/contexts/LocalizationContext'; // Import useLocalization
 
 
 export default function PortPriceFinderForm(): JSX.Element {
@@ -42,6 +43,8 @@ export default function PortPriceFinderForm(): JSX.Element {
     localAvailableDirectRailAgents, localAvailableDirectRailIncoterms, localAvailableDirectRailBorders,
     cachedFormValues, // Still needed for initial form reset
   } = pricingContext;
+
+  const { translate, language } = useLocalization(); // Get translate and language
 
   const form = useForm<RouteFormValues>({
     resolver: zodResolver(RouteSchema),
@@ -150,15 +153,18 @@ export default function PortPriceFinderForm(): JSX.Element {
     masterAgentList: directRailAgents, masterIncotermsList: directRailIncotermsList, masterBorderList: directRailBordersList,
   };
 
+  const descriptionText = translate('powerLogDescription');
+
+
   return (
     <React.Fragment>
       <Card className="w-full max-w-xl mx-auto shadow-xl rounded-xl bg-card">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold text-primary flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-accent h-8 w-8"><path d="M10 20H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4"/><path d="M5 11h11"/><path d="m22 18-3-3 3-3"/><path d="M14 18h5"/></svg>
-            PowerLog
+            {translate('powerLogTitle')}
           </CardTitle>
-          <CardDescription>Calculate shipping costs and get insights for PowerLog.</CardDescription>
+          <CardDescription>{descriptionText}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <Form {...form}>

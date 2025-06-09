@@ -265,7 +265,7 @@ const translationsData: Record<Language, Partial<Translations>> = {
 
     // PortPriceFinderForm specific
     powerLogTitle: "PowerLog",
-    powerLogDescription_RU_ONLY_REMOVED: " ", // For RU, this description is removed
+    powerLogDescription: " ", // Effectively remove for Russian
     
     uploadSeaRailExcel: "Загрузите Море + Ж/Д файл",
     uploadDirectRailExcel: "Загрузите Прямое ЖД файл",
