@@ -10,6 +10,7 @@ import type {
   ContainerType,
   DashboardServiceDataRow, 
   RailwayLegData,         
+  Translations // Import Translations type
 } from '@/types';
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS } from './constants';
 
@@ -36,37 +37,62 @@ interface PlaceholderGetterArgs {
   localAvailableArrivalStations?: string[];
 }
 
-export function getSeaLinePlaceholder(args: PlaceholderGetterArgs): string {
+export function getSeaLinePlaceholder(args: PlaceholderGetterArgs): keyof Translations {
   const { isParsingSeaRailFile, isSeaRailExcelDataLoaded, formGetValues, localAvailableSeaLines = [] } = args;
   const watchedOriginPort = formGetValues("originPort");
   const watchedDestinationPort = formGetValues("destinationPort");
 
-  if (isParsingSeaRailFile) return "Processing...";
-  if (!isSeaRailExcelDataLoaded) return "Upload Море + Ж/Д Excel";
-  if (!watchedOriginPort || !watchedDestinationPort) return "Select Origin & Destination first";
-  if (localAvailableSeaLines.length > 0) return "Select sea line (or None)";
-  return "No sea lines for this O/D";
+  if (isParsingSeaRailFile) return "seaLineCompanyPlaceholder_Loading";
+  if (!isSeaRailExcelDataLoaded) return "seaLineCompanyPlaceholder_NoData";
+  if (!watchedOriginPort || !watchedDestinationPort) return "seaLineCompanyPlaceholder_SelectOD";
+  if (localAvailableSeaLines.length > 0) return "seaLineCompanyPlaceholder_Select";
+  return "seaLineCompanyPlaceholder_NoLinesForOD";
 }
 
-export function getRussianCityPlaceholder(args: PlaceholderGetterArgs): string {
-  const { isParsingSeaRailFile, isSeaRailExcelDataLoaded, excelRussianDestinationCitiesMasterList = [], localAvailableRussianDestinationCities = [] } = args;
-  if (isParsingSeaRailFile) return "Processing...";
-  if (!isSeaRailExcelDataLoaded) return "Upload Море + Ж/Д Excel";
-  if (excelRussianDestinationCitiesMasterList.length > 0) {
-    return localAvailableRussianDestinationCities.length > 0 ? "Select city" : "No rail hubs for Sea Dest.";
+export function getRussianCityPlaceholder(args: PlaceholderGetterArgs): keyof Translations {
+  const { 
+    isParsingSeaRailFile, 
+    isSeaRailExcelDataLoaded, 
+    formGetValues, 
+    excelRussianDestinationCitiesMasterList = [], 
+    localAvailableRussianDestinationCities = [] 
+  } = args;
+  
+  const watchedOriginPort = formGetValues("originPort");
+  const watchedContainerType = formGetValues("containerType");
+  const watchedDestinationPort = formGetValues("destinationPort"); // Sea Port
+
+  if (isParsingSeaRailFile) return "destinationCityRailPlaceholder_Loading";
+  if (!isSeaRailExcelDataLoaded) return "destinationCityRailPlaceholder_NoData";
+  if (excelRussianDestinationCitiesMasterList.length === 0) return "destinationCityRailPlaceholder_NoRailDestLoaded";
+  
+  if (!watchedOriginPort && !watchedContainerType) return "destinationCityRailPlaceholder_SelectOriginContainer";
+  if (!watchedOriginPort) return "destinationCityRailPlaceholder_SelectOrigin";
+  if (!watchedContainerType) return "destinationCityRailPlaceholder_SelectContainer";
+
+  // If sea destination port is selected and it's NOT a hub like Vladivostok,
+  // then selecting a Russian city for further rail doesn't make sense with current model.
+  // This check needs careful placement as localAvailableRussianDestinationCities is filtered by container/origin
+  if (watchedDestinationPort && 
+      !VLADIVOSTOK_VARIANTS.some(vladVariant => watchedDestinationPort!.startsWith(vladVariant.split(" ")[0])) &&
+      localAvailableRussianDestinationCities.length > 0) { // Check if any rail cities are *possible* for current O/Container combo
+      return "rusCity_Placeholder_NoRailHubsForSeaDest";
   }
-  return "No rail destinations loaded";
+  
+  if (localAvailableRussianDestinationCities.length > 0) return "destinationCityRailPlaceholder_Select";
+  
+  return "destinationCityRailPlaceholder_NoHubsForSelection";
 }
 
-export function getArrivalStationPlaceholder(args: PlaceholderGetterArgs): string {
+export function getArrivalStationPlaceholder(args: PlaceholderGetterArgs): keyof Translations {
   const { isParsingSeaRailFile, isSeaRailExcelDataLoaded, formGetValues, localAvailableArrivalStations = [] } = args;
   const watchedRussianDestinationCity = formGetValues("russianDestinationCity");
 
-  if (isParsingSeaRailFile) return "Processing...";
-  if (!isSeaRailExcelDataLoaded) return "Upload Море + Ж/Д Excel";
-  if (!watchedRussianDestinationCity) return "Select Destination City first";
-  if (localAvailableArrivalStations.length > 0) return "Select station (optional)";
-  return "No stations for this city";
+  if (isParsingSeaRailFile) return "stationRailPlaceholder_Loading";
+  if (!isSeaRailExcelDataLoaded) return "stationRailPlaceholder_NoData";
+  if (!watchedRussianDestinationCity) return "stationRailPlaceholder_SelectDestCity";
+  if (localAvailableArrivalStations.length > 0) return "stationRailPlaceholder_Select";
+  return "stationRailPlaceholder_NoStationsForCity";
 }
 
 // Copy and Navigation
