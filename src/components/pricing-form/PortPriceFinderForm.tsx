@@ -208,9 +208,9 @@ export default function PortPriceFinderForm(): JSX.Element {
             <div className="text-center p-6 mt-6 border rounded-lg bg-secondary/20 animate-pulse">
               <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-2" />
               <p className="text-lg font-medium text-primary">
-                {isCalculatingBestPrice ? "Calculating best prices..." : (isAnyParsing ? "Processing file..." : "Getting information...")}
+                {isCalculatingBestPrice ? translate('loading_CalculatingBestPrices') : (isAnyParsing ? translate('loading_ProcessingFile') : translate('loading_GettingInfo'))}
               </p>
-              <p className="text-sm text-muted-foreground">This may take a moment.</p>
+              <p className="text-sm text-muted-foreground">{translate('loading_MayTakeMoment')}</p>
             </div>
           )}
 
@@ -265,3 +265,6 @@ export default function PortPriceFinderForm(): JSX.Element {
 
     
 
+
+
+    
