@@ -5,6 +5,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/comp
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Route, MapPin, Users, FileText, Globe } from 'lucide-react';
 import type { RouteFormValues } from '@/types'; // Using consolidated types
+import { useLocalization } from '@/contexts/LocalizationContext'; // Import useLocalization
 
 interface DirectRailFormFieldsProps {
   form: UseFormReturn<RouteFormValues>; // Use consolidated RouteFormValues
@@ -36,6 +37,8 @@ export const DirectRailFormFields: React.FC<DirectRailFormFieldsProps> = ({
   localAvailableDirectRailBorders, 
 }) => {
   const { control, watch } = form;
+  const { translate } = useLocalization(); // Get translate function
+
   const watchedDepCity = watch("directRailCityOfDeparture");
   const watchedDestCity = watch("directRailDestinationCityDR");
   const watchedAgent = watch("directRailAgentName");
@@ -74,7 +77,7 @@ export const DirectRailFormFields: React.FC<DirectRailFormFieldsProps> = ({
         name="directRailCityOfDeparture"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="flex items-center"><Route className="mr-2 h-4 w-4 text-primary" /> City of Departure</FormLabel>
+            <FormLabel className="flex items-center"><Route className="mr-2 h-4 w-4 text-primary" /> {translate('directRail_CityOfDeparture')}</FormLabel>
             <Select onValueChange={field.onChange} value={field.value || ""} disabled={!isDirectRailExcelDataLoaded || directRailDepartureCities.length === 0 || isParsingDirectRailFile}>
               <FormControl><SelectTrigger><SelectValue placeholder={isParsingDirectRailFile ? "Processing..." : (isDirectRailExcelDataLoaded && directRailDepartureCities.length > 0 ? "Select departure city" : "Upload Прямое ЖД Excel")} /></SelectTrigger></FormControl>
               <SelectContent>
@@ -93,7 +96,7 @@ export const DirectRailFormFields: React.FC<DirectRailFormFieldsProps> = ({
         name="directRailDestinationCityDR"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="flex items-center"><MapPin className="mr-2 h-4 w-4 text-primary" /> Destination City</FormLabel>
+            <FormLabel className="flex items-center"><MapPin className="mr-2 h-4 w-4 text-primary" /> {translate('directRail_DestCity')}</FormLabel>
             <Select onValueChange={field.onChange} value={field.value || ""} disabled={!isDirectRailExcelDataLoaded || directRailDestinationCitiesDR.length === 0 || isParsingDirectRailFile}>
               <FormControl><SelectTrigger><SelectValue placeholder={isParsingDirectRailFile ? "Processing..." : (isDirectRailExcelDataLoaded && directRailDestinationCitiesDR.length > 0 ? "Select destination city" : "Upload Прямое ЖД Excel")} /></SelectTrigger></FormControl>
               <SelectContent>
@@ -112,7 +115,7 @@ export const DirectRailFormFields: React.FC<DirectRailFormFieldsProps> = ({
         name="directRailAgentName"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="flex items-center"><Users className="mr-2 h-4 w-4 text-primary" /> Agent name (optional)</FormLabel>
+            <FormLabel className="flex items-center"><Users className="mr-2 h-4 w-4 text-primary" /> {translate('directRail_AgentName')}</FormLabel>
             <Select 
               onValueChange={field.onChange} 
               value={field.value || ""} 
@@ -137,7 +140,7 @@ export const DirectRailFormFields: React.FC<DirectRailFormFieldsProps> = ({
         name="directRailIncoterms"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="flex items-center"><FileText className="mr-2 h-4 w-4 text-primary" /> Incoterms</FormLabel>
+            <FormLabel className="flex items-center"><FileText className="mr-2 h-4 w-4 text-primary" /> {translate('directRail_Incoterms')}</FormLabel>
             <Select 
               onValueChange={field.onChange} 
               value={field.value || ""} 
@@ -162,7 +165,7 @@ export const DirectRailFormFields: React.FC<DirectRailFormFieldsProps> = ({
         name="directRailBorder"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="flex items-center"><Globe className="mr-2 h-4 w-4 text-primary" /> Border</FormLabel>
+            <FormLabel className="flex items-center"><Globe className="mr-2 h-4 w-4 text-primary" /> {translate('directRail_Border')}</FormLabel>
             <Select 
               onValueChange={field.onChange} 
               value={field.value || ""} 
@@ -185,3 +188,6 @@ export const DirectRailFormFields: React.FC<DirectRailFormFieldsProps> = ({
     </>
   );
 };
+
+
+    
