@@ -95,12 +95,14 @@ export interface Translations {
   placeholder_UploadSeaRailExcel: string;
   placeholder_UploadDirectRailExcel: string;
 
-  // DirectRailFormFields placeholders (to be added in later steps)
+  // DirectRailFormFields labels
   directRail_CityOfDeparture: string;
   directRail_DestCity: string;
   directRail_AgentName: string;
   directRail_Incoterms: string;
   directRail_Border: string;
+  
+  // DirectRailFormFields placeholders (to be added in later steps)
   directRail_Placeholder_DepCity_Loading: string;
   directRail_Placeholder_DepCity_NoData: string;
   directRail_Placeholder_DepCity_Select: string;
@@ -227,12 +229,13 @@ const defaultEnTranslations: Translations = {
   processingButton: "Processing...",
   placeholder_UploadSeaRailExcel: "Upload Sea+Rail Excel",
   placeholder_UploadDirectRailExcel: "Upload Direct Rail Excel",
-  // DirectRailFormFields Placeholders
+  // DirectRailFormFields labels
   directRail_CityOfDeparture: "City of Departure",
   directRail_DestCity: "Destination City",
   directRail_AgentName: "Agent name (optional)",
   directRail_Incoterms: "Incoterms",
   directRail_Border: "Border",
+  // DirectRailFormFields Placeholders
   directRail_Placeholder_DepCity_Loading: "Loading cities...",
   directRail_Placeholder_DepCity_NoData: "Upload Direct Rail Excel",
   directRail_Placeholder_DepCity_Select: "Select departure city",
@@ -354,12 +357,13 @@ const translationsData: Record<Language, Partial<Translations>> = {
     processingButton: "Обработка...",
     placeholder_UploadSeaRailExcel: "Загрузите Море + Ж/Д файл",
     placeholder_UploadDirectRailExcel: "Загрузите Прямое ЖД файл",
-    // DirectRailFormFields Placeholders (will be detailed in a later step)
+    // DirectRailFormFields labels
     directRail_CityOfDeparture: "Город отправления",
     directRail_DestCity: "Город назначения",
     directRail_AgentName: "Агент (необязательно)",
     directRail_Incoterms: "Инкотермс",
     directRail_Border: "Граница",
+    // DirectRailFormFields Placeholders (will be detailed in a later step)
     directRail_Placeholder_DepCity_Loading: "Загрузка городов...",
     directRail_Placeholder_DepCity_NoData: "Загрузите Прямое ЖД файл",
     directRail_Placeholder_DepCity_Select: "Выберите город отправления",
@@ -436,3 +440,5 @@ export const useLocalization = (): LocalizationContextType => {
   }
   return context;
 };
+
+    
