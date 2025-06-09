@@ -180,7 +180,7 @@ export default function PortPriceFinderForm(): JSX.Element {
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calculator className="mr-2 h-4 w-4" />}
-                  {isLoading ? "Processing..." : "Get Price & Commentary"}
+                  {isLoading ? translate('processingButton') : translate('getPriceAndCommentary')}
                 </Button>
                 <Button
                   type="button"
@@ -191,12 +191,12 @@ export default function PortPriceFinderForm(): JSX.Element {
                   {isCalculatingBestPrice ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Calculating...
+                      {translate('calculating')}
                     </>
                   ) : (
                     <>
                       <SearchCheck className="mr-2 h-4 w-4" />
-                      Calculate Best Price
+                      {translate('calculateBestPrice')}
                     </>
                   )}
                 </Button>
@@ -264,3 +264,4 @@ export default function PortPriceFinderForm(): JSX.Element {
     
 
     
+
