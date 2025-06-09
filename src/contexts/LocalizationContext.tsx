@@ -18,15 +18,14 @@ export interface Translations {
   powerLogDescription: string;
   powerLogDescription_RU_ONLY_REMOVED?: string; // Special key for RU
 
+  // CommonFormFields
   uploadSeaRailExcel: string;
   uploadDirectRailExcel: string;
   uploadSOCDropOffExcel: string;
   processingFile: string; // For file parsing status
-
   calculationMode: string;
   calculationMode_SeaRail: string;
   calculationMode_DirectRail: string;
-
   seaMargin: string; // Placeholder for Sea Margin input
   railMargin: string; // Placeholder for Rail Margin input
 
@@ -41,39 +40,50 @@ export interface Translations {
   destinationCityRail: string;
   stationRail: string;
 
-  // SeaRailFormFields Placeholders (to be added in next steps)
+  // SeaRailFormFields Placeholders and dynamic messages
   originPortPlaceholder_Loading: string;
   originPortPlaceholder_NoData: string;
   originPortPlaceholder_Select: string;
+  originPort_NoOriginPortsInExcel: string; // Specific disabled item message
+
   destinationPortSeaPlaceholder_Loading: string;
   destinationPortSeaPlaceholder_NoData: string;
   destinationPortSeaPlaceholder_SelectOrigin: string;
-  destinationPortSeaPlaceholder_NoDestForOrigin: string;
   destinationPortSeaPlaceholder_Select: string;
-  destPort_Placeholder_Vladivostok: string;
+  destinationPortSeaPlaceholder_NoDestForOrigin: string;
+  destPort_Placeholder_Vladivostok: string; // For the specific "Владивосток" default
+  destinationPortSea_SelectOriginFirst: string; // Specific disabled item message
+  destinationPortSea_NoDestForOrigin: string; // Specific disabled item message
+
   seaLineCompanyPlaceholder_Loading: string;
   seaLineCompanyPlaceholder_NoData: string;
   seaLineCompanyPlaceholder_SelectOD: string;
-  seaLineCompanyPlaceholder_NoLinesForOD: string;
   seaLineCompanyPlaceholder_Select: string;
-  seaLineCompany_NoneOption: string;
+  seaLineCompanyPlaceholder_NoLinesForOD: string;
+  seaLineCompany_NoneOption: string; // "None (Get General Commentary)"
+  seaLineCompany_SelectODFirst: string; // Specific disabled item message
+
   containerTypePlaceholder_Loading: string;
   containerTypePlaceholder_NoData: string;
   containerTypePlaceholder_Select: string;
+
   destinationCityRailPlaceholder_Loading: string;
   destinationCityRailPlaceholder_NoData: string;
   destinationCityRailPlaceholder_NoRailDestLoaded: string;
-  destinationCityRailPlaceholder_SelectOriginContainer: string;
-  destinationCityRailPlaceholder_SelectContainer: string;
   destinationCityRailPlaceholder_SelectOrigin: string;
-  destinationCityRailPlaceholder_NoHubsForSelection: string;
+  destinationCityRailPlaceholder_SelectContainer: string;
+  destinationCityRailPlaceholder_SelectOriginContainer: string; // More specific
   destinationCityRailPlaceholder_Select: string;
-  rusCity_Placeholder_NoRailHubsForSeaDest: string;
+  destinationCityRailPlaceholder_NoHubsForSelection: string;
+  rusCity_Placeholder_NoRailHubsForSeaDest: string; // Specific placeholder
+  destinationCityRail_NoRailCitiesMaster: string; // Specific disabled item message
+
   stationRailPlaceholder_Loading: string;
   stationRailPlaceholder_NoData: string;
   stationRailPlaceholder_SelectDestCity: string;
-  stationRailPlaceholder_NoStationsForCity: string;
   stationRailPlaceholder_Select: string;
+  stationRailPlaceholder_NoStationsForCity: string;
+  stationRail_SelectDestCityFirst: string; // Specific disabled item message
 
   // PortPriceFinderForm Buttons
   getPriceAndCommentary: string;
@@ -81,7 +91,7 @@ export interface Translations {
   calculating: string;
   processingButton: string;
 
-  // Common placeholders for Excel upload
+  // Common placeholders for Excel upload buttons (already used in CommonFormFields)
   placeholder_UploadSeaRailExcel: string;
   placeholder_UploadDirectRailExcel: string;
 
@@ -119,10 +129,10 @@ export interface Translations {
   // SelectItem disabled states (can be functions if they need dynamic parts)
   select_disabled_UploadExcel: string;
   select_disabled_LoadingOptions: string;
-  select_disabled_NoOptionsLoaded: string;
+  select_disabled_NoOptionsLoaded: string; // More generic
   select_disabled_SelectDependencyFirst: (fieldName: string) => string; // Example
   select_disabled_NoOptionsForSelection: string;
-  select_disabled_NoOptionsInExcel: string;
+  select_disabled_NoOptionsInExcel: string; // Generic
 
   // NavLinks
   nav_Dashboard: string;
@@ -165,39 +175,51 @@ const defaultEnTranslations: Translations = {
   containerType: "Container Type",
   destinationCityRail: "Destination City (Rail)",
   stationRail: "Station (Rail)",
-  // SeaRailFormFields Placeholders
+  // SeaRailFormFields Placeholders & dynamic messages
   originPortPlaceholder_Loading: "Loading ports...",
   originPortPlaceholder_NoData: "Upload Sea+Rail Excel",
   originPortPlaceholder_Select: "Select origin port",
+  originPort_NoOriginPortsInExcel: "No origin ports in Excel",
+
   destinationPortSeaPlaceholder_Loading: "Loading ports...",
-  destinationPortSeaPlaceholder_NoData: "Upload Excel",
+  destinationPortSeaPlaceholder_NoData: "Upload Sea+Rail Excel",
   destinationPortSeaPlaceholder_SelectOrigin: "Select Origin Port First",
-  destinationPortSeaPlaceholder_NoDestForOrigin: "No destinations for origin",
   destinationPortSeaPlaceholder_Select: "Select sea destination port",
+  destinationPortSeaPlaceholder_NoDestForOrigin: "No sea destinations for origin",
   destPort_Placeholder_Vladivostok: "Владивосток",
-  seaLineCompanyPlaceholder_Loading: "Loading...",
+  destinationPortSea_SelectOriginFirst: "Select Origin Port First",
+  destinationPortSea_NoDestForOrigin: "No sea destinations for current origin",
+
+  seaLineCompanyPlaceholder_Loading: "Loading sea lines...",
   seaLineCompanyPlaceholder_NoData: "Upload Sea+Rail Excel",
-  seaLineCompanyPlaceholder_SelectOD: "Select Origin & Dest",
-  seaLineCompanyPlaceholder_NoLinesForOD: "No lines for this O/D",
+  seaLineCompanyPlaceholder_SelectOD: "Select Origin & Destination Port (Sea) first",
   seaLineCompanyPlaceholder_Select: "Select sea line (or None)",
+  seaLineCompanyPlaceholder_NoLinesForOD: "No sea lines for this O/D",
   seaLineCompany_NoneOption: "None (Get General Commentary)",
-  containerTypePlaceholder_Loading: "Loading...",
+  seaLineCompany_SelectODFirst: "Select Origin & Destination (Sea) first",
+
+  containerTypePlaceholder_Loading: "Loading types...",
   containerTypePlaceholder_NoData: "Upload Sea+Rail Excel",
   containerTypePlaceholder_Select: "Select container type",
+
   destinationCityRailPlaceholder_Loading: "Loading cities...",
   destinationCityRailPlaceholder_NoData: "Upload Sea+Rail Excel",
-  destinationCityRailPlaceholder_NoRailDestLoaded: "No rail destinations loaded",
-  destinationCityRailPlaceholder_SelectOriginContainer: "Select Origin & Container",
-  destinationCityRailPlaceholder_SelectContainer: "Select Container Type first",
+  destinationCityRailPlaceholder_NoRailDestLoaded: "No rail destinations loaded from Excel",
   destinationCityRailPlaceholder_SelectOrigin: "Select Origin Port first",
+  destinationCityRailPlaceholder_SelectContainer: "Select Container Type first",
+  destinationCityRailPlaceholder_SelectOriginContainer: "Select Origin Port & Container Type first",
+  destinationCityRailPlaceholder_Select: "Select destination city (rail)",
   destinationCityRailPlaceholder_NoHubsForSelection: "No rail hubs for current selection",
-  destinationCityRailPlaceholder_Select: "Select city",
-  rusCity_Placeholder_NoRailHubsForSeaDest: "No rail hubs for Sea Dest.",
-  stationRailPlaceholder_Loading: "Loading...",
+  rusCity_Placeholder_NoRailHubsForSeaDest: "No rail hubs for selected Sea Destination.",
+  destinationCityRail_NoRailCitiesMaster: "No rail cities in Excel",
+
+  stationRailPlaceholder_Loading: "Loading stations...",
   stationRailPlaceholder_NoData: "Upload Sea+Rail Excel",
   stationRailPlaceholder_SelectDestCity: "Select Destination City (Rail) first",
-  stationRailPlaceholder_NoStationsForCity: "No stations for this city",
   stationRailPlaceholder_Select: "Select station (optional)",
+  stationRailPlaceholder_NoStationsForCity: "No stations for this city",
+  stationRail_SelectDestCityFirst: "Select Destination City (Rail) first",
+
   // PortPriceFinderForm Buttons
   getPriceAndCommentary: "Get Price & Commentary",
   calculateBestPrice: "Calculate Best Price",
@@ -260,6 +282,7 @@ const translationsData: Record<Language, Partial<Translations>> = {
     // PortPriceFinderForm specific
     powerLogTitle: "PowerLog",
     powerLogDescription: " ", // Effectively remove for Russian
+    // CommonFormFields
     uploadSeaRailExcel: "Загрузите Море + Ж/Д файл",
     uploadDirectRailExcel: "Загрузите Прямое ЖД файл",
     uploadSOCDropOffExcel: "Загрузите SOC Drop-off файл",
@@ -279,39 +302,51 @@ const translationsData: Record<Language, Partial<Translations>> = {
     containerType: "Тип Контейнера",
     destinationCityRail: "Город назначения",
     stationRail: "Станция",
-    // SeaRailFormFields Placeholders
+    // SeaRailFormFields Placeholders & dynamic messages
     originPortPlaceholder_Loading: "Загрузка портов...",
     originPortPlaceholder_NoData: "Загрузите Море + Ж/Д файл",
     originPortPlaceholder_Select: "Выберите порт отправки",
+    originPort_NoOriginPortsInExcel: "Нет портов отправки в Excel",
+
     destinationPortSeaPlaceholder_Loading: "Загрузка портов...",
-    destinationPortSeaPlaceholder_NoData: "Загрузите файл",
+    destinationPortSeaPlaceholder_NoData: "Загрузите Море + Ж/Д файл",
     destinationPortSeaPlaceholder_SelectOrigin: "Сначала выберите порт отправки",
-    destinationPortSeaPlaceholder_NoDestForOrigin: "Нет назначений для этого порта",
     destinationPortSeaPlaceholder_Select: "Выберите морской порт назначения",
+    destinationPortSeaPlaceholder_NoDestForOrigin: "Нет морских назначений для этого порта",
     destPort_Placeholder_Vladivostok: "Владивосток",
-    seaLineCompanyPlaceholder_Loading: "Загрузка...",
+    destinationPortSea_SelectOriginFirst: "Сначала выберите порт отправки",
+    destinationPortSea_NoDestForOrigin: "Нет морских назначений для текущего порта отправки",
+
+    seaLineCompanyPlaceholder_Loading: "Загрузка морских линий...",
     seaLineCompanyPlaceholder_NoData: "Загрузите Море + Ж/Д файл",
-    seaLineCompanyPlaceholder_SelectOD: "Выберите Отправку и Назначение",
-    seaLineCompanyPlaceholder_NoLinesForOD: "Нет линий для этого О/Н",
+    seaLineCompanyPlaceholder_SelectOD: "Сначала выберите порт отправки и назначения (морской)",
     seaLineCompanyPlaceholder_Select: "Выберите линию (или Пусто)",
-    seaLineCompany_NoneOption: "Пусто",
-    containerTypePlaceholder_Loading: "Загрузка...",
+    seaLineCompanyPlaceholder_NoLinesForOD: "Нет линий для этого О/Н",
+    seaLineCompany_NoneOption: "Пусто (Общий комментарий)",
+    seaLineCompany_SelectODFirst: "Сначала выберите порт отправки и назначения (морской)",
+
+    containerTypePlaceholder_Loading: "Загрузка типов...",
     containerTypePlaceholder_NoData: "Загрузите Море + Ж/Д файл",
     containerTypePlaceholder_Select: "Выберите тип контейнера",
+
     destinationCityRailPlaceholder_Loading: "Загрузка городов...",
     destinationCityRailPlaceholder_NoData: "Загрузите Море + Ж/Д файл",
-    destinationCityRailPlaceholder_NoRailDestLoaded: "Ж/Д назначения не загружены",
-    destinationCityRailPlaceholder_SelectOriginContainer: "Выберите Порт Отправки и Контейнер",
-    destinationCityRailPlaceholder_SelectContainer: "Сначала выберите тип контейнера",
+    destinationCityRailPlaceholder_NoRailDestLoaded: "Ж/Д назначения не загружены из Excel",
     destinationCityRailPlaceholder_SelectOrigin: "Сначала выберите порт отправки",
-    destinationCityRailPlaceholder_NoHubsForSelection: "Нет Ж/Д хабов для текущего выбора",
-    destinationCityRailPlaceholder_Select: "Выберите город",
-    rusCity_Placeholder_NoRailHubsForSeaDest: "Нет Ж/Д хабов для морского порта",
-    stationRailPlaceholder_Loading: "Загрузка...",
+    destinationCityRailPlaceholder_SelectContainer: "Сначала выберите тип контейнера",
+    destinationCityRailPlaceholder_SelectOriginContainer: "Сначала выберите порт отправки и тип контейнера",
+    destinationCityRailPlaceholder_Select: "Выберите город назначения (жд)",
+    destinationCityRailPlaceholder_NoHubsForSelection: "Нет ж/д хабов для текущего выбора",
+    rusCity_Placeholder_NoRailHubsForSeaDest: "Нет ж/д хабов для выбранного морского порта.",
+    destinationCityRail_NoRailCitiesMaster: "Нет ж/д городов в Excel",
+
+    stationRailPlaceholder_Loading: "Загрузка станций...",
     stationRailPlaceholder_NoData: "Загрузите Море + Ж/Д файл",
     stationRailPlaceholder_SelectDestCity: "Сначала выберите город назначения (Ж/Д)",
-    stationRailPlaceholder_NoStationsForCity: "Нет станций для этого города",
     stationRailPlaceholder_Select: "Выберите станцию (необязательно)",
+    stationRailPlaceholder_NoStationsForCity: "Нет станций для этого города",
+    stationRail_SelectDestCityFirst: "Сначала выберите город назначения (Ж/Д)",
+
     // PortPriceFinderForm Buttons
     getPriceAndCommentary: "Посчитать ставку",
     calculateBestPrice: "Лучшие ставки",
@@ -319,7 +354,7 @@ const translationsData: Record<Language, Partial<Translations>> = {
     processingButton: "Обработка...",
     placeholder_UploadSeaRailExcel: "Загрузите Море + Ж/Д файл",
     placeholder_UploadDirectRailExcel: "Загрузите Прямое ЖД файл",
-    // DirectRailFormFields Placeholders
+    // DirectRailFormFields Placeholders (will be detailed in a later step)
     directRail_CityOfDeparture: "Город отправления",
     directRail_DestCity: "Город назначения",
     directRail_AgentName: "Агент (необязательно)",
@@ -401,5 +436,3 @@ export const useLocalization = (): LocalizationContextType => {
   }
   return context;
 };
-
-    
