@@ -6,8 +6,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Ship, Anchor, Package, Train, MapPinned, Home } from 'lucide-react';
 import type { RouteFormValues, ShipmentType } from '@/types'; // Using consolidated types
-import { CONTAINER_TYPES_CONST, NONE_SEALINE_VALUE } from '@/lib/pricing/constants';
-import { getSeaLinePlaceholder, getArrivalStationPlaceholder } from '@/lib/pricing/ui-helpers';
+import { CONTAINER_TYPES_CONST, NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS } from '@/lib/pricing/constants';
+import { getSeaLinePlaceholder, getArrivalStationPlaceholder, getRussianCityPlaceholder } from '@/lib/pricing/ui-helpers';
 import { useLocalization } from '@/contexts/LocalizationContext'; // Import useLocalization
 
 interface SeaRailFormFieldsProps {
@@ -50,6 +50,14 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
     localAvailableSeaLines,
   };
 
+  const placeholderGetterArgsForRussianCity = {
+    isParsingSeaRailFile,
+    isSeaRailExcelDataLoaded,
+    formGetValues: getValues,
+    excelRussianDestinationCitiesMasterList,
+    localAvailableRussianDestinationCities,
+  };
+
   const placeholderGetterArgsForArrivalStation = {
     isParsingSeaRailFile,
     isSeaRailExcelDataLoaded,
@@ -57,25 +65,27 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
     localAvailableArrivalStations,
   };
 
-  const destinationPortPlaceholder = isParsingSeaRailFile
-    ? "Processing..."
-    : !isSeaRailExcelDataLoaded
-    ? "Upload Море + Ж/Д Excel"
-    : !watchedOriginPort
-    ? "Select Origin Port First"
-    : localAvailableDestinationPorts.length > 0
-    ? (localAvailableDestinationPorts.find(p => p.toLowerCase().includes("владивосток")) ? "Владивосток" : "Select sea destination port")
-    : "No destinations for origin";
+  const getOriginPortPlaceholderKey = (): keyof import('@/contexts/LocalizationContext').Translations => {
+    if (isParsingSeaRailFile) return "originPortPlaceholder_Loading";
+    if (!isSeaRailExcelDataLoaded) return "originPortPlaceholder_NoData";
+    if (excelOriginPorts.length > 0) return "originPortPlaceholder_Select";
+    return "originPort_NoOriginPortsInExcel";
+  };
+  
+  const getDestinationPortPlaceholderKey = (): keyof import('@/contexts/LocalizationContext').Translations => {
+    if (isParsingSeaRailFile) return "destinationPortSeaPlaceholder_Loading";
+    if (!isSeaRailExcelDataLoaded) return "destinationPortSeaPlaceholder_NoData";
+    if (!watchedOriginPort) return "destinationPortSeaPlaceholder_SelectOrigin";
+    if (localAvailableDestinationPorts.length > 0) {
+      return localAvailableDestinationPorts.find(p => VLADIVOSTOK_VARIANTS.some(v => p.startsWith(v.split(" ")[0]))) ? "destPort_Placeholder_Vladivostok" : "destinationPortSeaPlaceholder_Select";
+    }
+    return "destinationPortSeaPlaceholder_NoDestForOrigin";
+  };
 
-  const getRussianCityPlaceholderDynamic = (): string => {
-    if (isParsingSeaRailFile) return "Processing...";
-    if (!isSeaRailExcelDataLoaded) return "Upload Море + Ж/Д Excel";
-    if (excelRussianDestinationCitiesMasterList.length === 0) return "No rail destinations loaded";
-    if (!watchedOriginPort) return "Select Origin Port first";
-    if (!watchedContainerType) return "Select Container Type first";
-    // At this point, prerequisites are met for attempting to show options
-    if (localAvailableRussianDestinationCities.length > 0) return "Select city";
-    return "No rail hubs for current selection"; // This implies filtering by container type might have yielded no results
+  const getContainerTypePlaceholderKey = (): keyof import('@/contexts/LocalizationContext').Translations => {
+    if (isParsingSeaRailFile) return "containerTypePlaceholder_Loading";
+    if (!isSeaRailExcelDataLoaded) return "containerTypePlaceholder_NoData";
+    return "containerTypePlaceholder_Select";
   };
 
 
@@ -137,14 +147,14 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
               >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder={isParsingSeaRailFile ? "Processing..." : (isSeaRailExcelDataLoaded && excelOriginPorts.length > 0 ? "Select origin port" : "Upload Море + Ж/Д Excel")} />
+                    <SelectValue placeholder={translate(getOriginPortPlaceholderKey())} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
                   {isSeaRailExcelDataLoaded && excelOriginPorts.map((port) => (<SelectItem key={"origin-" + port} value={port}>{port}</SelectItem>))}
-                  {(!isSeaRailExcelDataLoaded && !isParsingSeaRailFile) && (<SelectItem value="placeholder_origin_disabled" disabled>Upload Море + Ж/Д Excel</SelectItem>)}
-                  {isSeaRailExcelDataLoaded && excelOriginPorts.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_origin_ports_loaded" disabled>No origin ports in Excel</SelectItem>)}
-                  {isParsingSeaRailFile && (<SelectItem value="parsing_origin_disabled" disabled>Loading ports...</SelectItem>)}
+                  {(!isSeaRailExcelDataLoaded && !isParsingSeaRailFile) && (<SelectItem value="placeholder_origin_disabled" disabled>{translate("originPortPlaceholder_NoData")}</SelectItem>)}
+                  {isSeaRailExcelDataLoaded && excelOriginPorts.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_origin_ports_loaded" disabled>{translate("originPort_NoOriginPortsInExcel")}</SelectItem>)}
+                  {isParsingSeaRailFile && (<SelectItem value="parsing_origin_disabled" disabled>{translate("originPortPlaceholder_Loading")}</SelectItem>)}
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -171,15 +181,15 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
               >
                 <FormControl>
                   <SelectTrigger>
-                     <SelectValue placeholder={destinationPortPlaceholder} />
+                     <SelectValue placeholder={translate(getDestinationPortPlaceholderKey())} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
                   {localAvailableDestinationPorts.map((port) => (<SelectItem key={"dest-" + port} value={port}>{port}</SelectItem>))}
-                  {(!isSeaRailExcelDataLoaded && !isParsingSeaRailFile) && (<SelectItem value="placeholder_dest_disabled" disabled>Upload Excel</SelectItem>)}
-                  {isParsingSeaRailFile && (<SelectItem value="parsing_dest_disabled" disabled>Loading ports...</SelectItem>)}
-                  {isSeaRailExcelDataLoaded && !watchedOriginPort && !isParsingSeaRailFile && (<SelectItem value="select_origin_first_disabled" disabled>Select Origin Port First</SelectItem>)}
-                  {isSeaRailExcelDataLoaded && watchedOriginPort && localAvailableDestinationPorts.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_dest_for_origin_disabled" disabled>No destinations for origin</SelectItem>)}
+                  {(!isSeaRailExcelDataLoaded && !isParsingSeaRailFile) && (<SelectItem value="placeholder_dest_disabled" disabled>{translate("destinationPortSeaPlaceholder_NoData")}</SelectItem>)}
+                  {isParsingSeaRailFile && (<SelectItem value="parsing_dest_disabled" disabled>{translate("destinationPortSeaPlaceholder_Loading")}</SelectItem>)}
+                  {isSeaRailExcelDataLoaded && !watchedOriginPort && !isParsingSeaRailFile && (<SelectItem value="select_origin_first_disabled" disabled>{translate("destinationPortSea_SelectOriginFirst")}</SelectItem>)}
+                  {isSeaRailExcelDataLoaded && watchedOriginPort && localAvailableDestinationPorts.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_dest_for_origin_disabled" disabled>{translate("destinationPortSea_NoDestForOrigin")}</SelectItem>)}
                 </SelectContent>
               </Select>
               {/* <FormMessage /> Removed to prevent error message for this field */}
@@ -199,14 +209,14 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
               value={field.value || NONE_SEALINE_VALUE}
               disabled={isParsingSeaRailFile || !isSeaRailExcelDataLoaded || (!watchedOriginPort || !watchedDestinationPort) || (localAvailableSeaLines.length === 0 && isSeaRailExcelDataLoaded && !!watchedOriginPort && !!watchedDestinationPort)}
             >
-              <FormControl><SelectTrigger><SelectValue placeholder={getSeaLinePlaceholder(placeholderGetterArgsForSeaLine)} /></SelectTrigger></FormControl>
+              <FormControl><SelectTrigger><SelectValue placeholder={translate(getSeaLinePlaceholder(placeholderGetterArgsForSeaLine))} /></SelectTrigger></FormControl>
               <SelectContent>
-                <SelectItem value={NONE_SEALINE_VALUE}>None (Get General Commentary)</SelectItem>
+                <SelectItem value={NONE_SEALINE_VALUE}>{translate("seaLineCompany_NoneOption")}</SelectItem>
                 {localAvailableSeaLines.map((line) => (<SelectItem key={"line-" + line} value={line}>{line}</SelectItem>))}
-                {isParsingSeaRailFile && (<SelectItem value="parsing_sealine_disabled" disabled>Loading...</SelectItem>)}
-                {!isSeaRailExcelDataLoaded && !isParsingSeaRailFile && (<SelectItem value="upload_excel_sealine_disabled" disabled>Upload Море + Ж/Д Excel</SelectItem>)}
-                {!isParsingSeaRailFile && isSeaRailExcelDataLoaded && (!watchedOriginPort || !watchedDestinationPort) && (<SelectItem value="select_od_sealine_disabled" disabled>Select Origin &amp; Dest</SelectItem>)}
-                {!isParsingSeaRailFile && isSeaRailExcelDataLoaded && watchedOriginPort && watchedDestinationPort && localAvailableSeaLines.length === 0 && (<SelectItem value="no_sea_lines_disabled" disabled>No lines for this O/D</SelectItem>)}
+                {isParsingSeaRailFile && (<SelectItem value="parsing_sealine_disabled" disabled>{translate("seaLineCompanyPlaceholder_Loading")}</SelectItem>)}
+                {!isSeaRailExcelDataLoaded && !isParsingSeaRailFile && (<SelectItem value="upload_excel_sealine_disabled" disabled>{translate("seaLineCompanyPlaceholder_NoData")}</SelectItem>)}
+                {!isParsingSeaRailFile && isSeaRailExcelDataLoaded && (!watchedOriginPort || !watchedDestinationPort) && (<SelectItem value="select_od_sealine_disabled" disabled>{translate("seaLineCompany_SelectODFirst")}</SelectItem>)}
+                {!isParsingSeaRailFile && isSeaRailExcelDataLoaded && watchedOriginPort && watchedDestinationPort && localAvailableSeaLines.length === 0 && (<SelectItem value="no_sea_lines_disabled" disabled>{translate("seaLineCompanyPlaceholder_NoLinesForOD")}</SelectItem>)}
               </SelectContent>
             </Select>
             <FormMessage />
@@ -231,11 +241,11 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
             value={field.value || ""} 
             disabled={isParsingSeaRailFile || !isSeaRailExcelDataLoaded}
             >
-              <FormControl><SelectTrigger><SelectValue placeholder={isParsingSeaRailFile ? "Processing..." : (isSeaRailExcelDataLoaded ? "Select container type" : "Upload Море + Ж/Д Excel")} /></SelectTrigger></FormControl>
+              <FormControl><SelectTrigger><SelectValue placeholder={translate(getContainerTypePlaceholderKey())} /></SelectTrigger></FormControl>
               <SelectContent>
                 {CONTAINER_TYPES_CONST.map((type) => (<SelectItem key={"container-" + type} value={type}>{type}</SelectItem>))}
-                {isParsingSeaRailFile && (<SelectItem value="parsing_container_disabled" disabled>Loading...</SelectItem>)}
-                {!isSeaRailExcelDataLoaded && !isParsingSeaRailFile && (<SelectItem value="upload_excel_container_disabled" disabled>Upload Море + Ж/Д Excel</SelectItem>)}
+                {isParsingSeaRailFile && (<SelectItem value="parsing_container_disabled" disabled>{translate("containerTypePlaceholder_Loading")}</SelectItem>)}
+                {!isSeaRailExcelDataLoaded && !isParsingSeaRailFile && (<SelectItem value="upload_excel_container_disabled" disabled>{translate("containerTypePlaceholder_NoData")}</SelectItem>)}
               </SelectContent>
             </Select>
             <FormMessage />
@@ -264,16 +274,16 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
                 (watchedOriginPort && watchedContainerType && localAvailableRussianDestinationCities.length === 0)
               }
             >
-              <FormControl><SelectTrigger><SelectValue placeholder={getRussianCityPlaceholderDynamic()} /></SelectTrigger></FormControl>
+              <FormControl><SelectTrigger><SelectValue placeholder={translate(getRussianCityPlaceholder(placeholderGetterArgsForRussianCity))} /></SelectTrigger></FormControl>
               <SelectContent>
-                {isParsingSeaRailFile && (<SelectItem value="parsing_rus_dest_disabled" disabled>Loading cities...</SelectItem>)}
-                {!isSeaRailExcelDataLoaded && !isParsingSeaRailFile && (<SelectItem value="upload_excel_rus_dest_disabled" disabled>Upload Море + Ж/Д Excel</SelectItem>)}
-                {isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_rail_cities_master_disabled" disabled>No rail cities in Excel</SelectItem>)}
+                {isParsingSeaRailFile && (<SelectItem value="parsing_rus_dest_disabled" disabled>{translate("destinationCityRailPlaceholder_Loading")}</SelectItem>)}
+                {!isSeaRailExcelDataLoaded && !isParsingSeaRailFile && (<SelectItem value="upload_excel_rus_dest_disabled" disabled>{translate("destinationCityRailPlaceholder_NoData")}</SelectItem>)}
+                {isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_rail_cities_master_disabled" disabled>{translate("destinationCityRail_NoRailCitiesMaster")}</SelectItem>)}
                 
-                {isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length > 0 && !watchedOriginPort && !isParsingSeaRailFile && (<SelectItem value="select_origin_first_for_rus_dest_disabled" disabled>{getRussianCityPlaceholderDynamic()}</SelectItem>)}
-                {isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length > 0 && watchedOriginPort && !watchedContainerType && !isParsingSeaRailFile && (<SelectItem value="select_container_first_for_rus_dest_disabled" disabled>{getRussianCityPlaceholderDynamic()}</SelectItem>)}
+                {isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length > 0 && !watchedOriginPort && !isParsingSeaRailFile && (<SelectItem value="select_origin_first_for_rus_dest_disabled" disabled>{translate(getRussianCityPlaceholder(placeholderGetterArgsForRussianCity))}</SelectItem>)}
+                {isSeaRailExcelDataLoaded && excelRussianDestinationCitiesMasterList.length > 0 && watchedOriginPort && !watchedContainerType && !isParsingSeaRailFile && (<SelectItem value="select_container_first_for_rus_dest_disabled" disabled>{translate(getRussianCityPlaceholder(placeholderGetterArgsForRussianCity))}</SelectItem>)}
                                 
-                {isSeaRailExcelDataLoaded && watchedOriginPort && watchedContainerType && localAvailableRussianDestinationCities.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_rail_cities_for_selection_disabled" disabled>{getRussianCityPlaceholderDynamic()}</SelectItem>)}
+                {isSeaRailExcelDataLoaded && watchedOriginPort && watchedContainerType && localAvailableRussianDestinationCities.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_rail_cities_for_selection_disabled" disabled>{translate(getRussianCityPlaceholder(placeholderGetterArgsForRussianCity))}</SelectItem>)}
                 
                 {isSeaRailExcelDataLoaded && localAvailableRussianDestinationCities.map((city) => (<SelectItem key={"rus-city-" + city} value={city}>{city}</SelectItem>))}
               </SelectContent>
@@ -294,12 +304,12 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
               value={field.value || ""}
               disabled={isParsingSeaRailFile || !isSeaRailExcelDataLoaded || !watchedRussianDestinationCity || localAvailableArrivalStations.length === 0}
             >
-              <FormControl><SelectTrigger><SelectValue placeholder={getArrivalStationPlaceholder(placeholderGetterArgsForArrivalStation)} /></SelectTrigger></FormControl>
+              <FormControl><SelectTrigger><SelectValue placeholder={translate(getArrivalStationPlaceholder(placeholderGetterArgsForArrivalStation))} /></SelectTrigger></FormControl>
               <SelectContent>
-                {isParsingSeaRailFile && (<SelectItem value="parsing_arrival_station_disabled" disabled>Loading...</SelectItem>)}
-                {!isSeaRailExcelDataLoaded && !isParsingSeaRailFile && (<SelectItem value="upload_excel_arrival_disabled" disabled>Upload Море + Ж/Д Excel</SelectItem>)}
-                {isSeaRailExcelDataLoaded && !watchedRussianDestinationCity && !isParsingSeaRailFile && (<SelectItem value="select_city_first_disabled" disabled>Select Destination City (Rail) first</SelectItem>)}
-                {isSeaRailExcelDataLoaded && watchedRussianDestinationCity && localAvailableArrivalStations.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_stations_for_city_disabled" disabled>No stations for this city</SelectItem>)}
+                {isParsingSeaRailFile && (<SelectItem value="parsing_arrival_station_disabled" disabled>{translate("stationRailPlaceholder_Loading")}</SelectItem>)}
+                {!isSeaRailExcelDataLoaded && !isParsingSeaRailFile && (<SelectItem value="upload_excel_arrival_disabled" disabled>{translate("stationRailPlaceholder_NoData")}</SelectItem>)}
+                {isSeaRailExcelDataLoaded && !watchedRussianDestinationCity && !isParsingSeaRailFile && (<SelectItem value="select_city_first_disabled" disabled>{translate("stationRail_SelectDestCityFirst")}</SelectItem>)}
+                {isSeaRailExcelDataLoaded && watchedRussianDestinationCity && localAvailableArrivalStations.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_stations_for_city_disabled" disabled>{translate("stationRailPlaceholder_NoStationsForCity")}</SelectItem>)}
                 {localAvailableArrivalStations.map((station) => (<SelectItem key={"arrival-station-" + station} value={station}>{station}</SelectItem>))}
               </SelectContent>
             </Select>
