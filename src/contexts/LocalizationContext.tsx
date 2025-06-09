@@ -102,25 +102,31 @@ export interface Translations {
   directRail_Incoterms: string;
   directRail_Border: string;
   
-  // DirectRailFormFields placeholders (to be added in later steps)
+  // DirectRailFormFields placeholders
   directRail_Placeholder_DepCity_Loading: string;
   directRail_Placeholder_DepCity_NoData: string;
   directRail_Placeholder_DepCity_Select: string;
+  directRail_Placeholder_DepCity_NoCitiesInExcel: string;
+
   directRail_Placeholder_DestCity_Loading: string;
   directRail_Placeholder_DestCity_NoData: string;
   directRail_Placeholder_DestCity_Select: string;
+  directRail_Placeholder_DestCity_NoCitiesInExcel: string;
+
   directRail_Placeholder_Agent_Loading: string;
   directRail_Placeholder_Agent_NoData: string;
   directRail_Placeholder_Agent_SelectCities: string;
   directRail_Placeholder_Agent_Select: string;
   directRail_Placeholder_Agent_NoAgentsForSelection: string;
   directRail_Placeholder_Agent_NoAgentsInExcel: string;
+
   directRail_Placeholder_Incoterms_Loading: string;
   directRail_Placeholder_Incoterms_NoData: string;
   directRail_Placeholder_Incoterms_SelectCities: string;
   directRail_Placeholder_Incoterms_Select: string;
   directRail_Placeholder_Incoterms_NoIncotermsForSelection: string;
   directRail_Placeholder_Incoterms_NoIncotermsInExcel: string;
+
   directRail_Placeholder_Border_Loading: string;
   directRail_Placeholder_Border_NoData: string;
   directRail_Placeholder_Border_SelectIncoterms: string;
@@ -239,27 +245,34 @@ const defaultEnTranslations: Translations = {
   directRail_Placeholder_DepCity_Loading: "Loading cities...",
   directRail_Placeholder_DepCity_NoData: "Upload Direct Rail Excel",
   directRail_Placeholder_DepCity_Select: "Select departure city",
+  directRail_Placeholder_DepCity_NoCitiesInExcel: "No departure cities in Excel",
+
   directRail_Placeholder_DestCity_Loading: "Loading cities...",
   directRail_Placeholder_DestCity_NoData: "Upload Direct Rail Excel",
   directRail_Placeholder_DestCity_Select: "Select destination city",
+  directRail_Placeholder_DestCity_NoCitiesInExcel: "No destination cities in Excel",
+
   directRail_Placeholder_Agent_Loading: "Loading agents...",
   directRail_Placeholder_Agent_NoData: "Upload Direct Rail Excel",
   directRail_Placeholder_Agent_SelectCities: "Select Departure & Destination Cities",
   directRail_Placeholder_Agent_Select: "Select agent (optional)",
   directRail_Placeholder_Agent_NoAgentsForSelection: "No agents for current selection",
   directRail_Placeholder_Agent_NoAgentsInExcel: "No agents in Excel",
+
   directRail_Placeholder_Incoterms_Loading: "Loading incoterms...",
   directRail_Placeholder_Incoterms_NoData: "Upload Direct Rail Excel",
   directRail_Placeholder_Incoterms_SelectCities: "Select Departure & Destination Cities",
   directRail_Placeholder_Incoterms_Select: "Select incoterms",
   directRail_Placeholder_Incoterms_NoIncotermsForSelection: "No incoterms for current selection",
   directRail_Placeholder_Incoterms_NoIncotermsInExcel: "No incoterms in Excel",
+
   directRail_Placeholder_Border_Loading: "Loading borders...",
   directRail_Placeholder_Border_NoData: "Upload Direct Rail Excel",
   directRail_Placeholder_Border_SelectIncoterms: "Select Incoterms first",
   directRail_Placeholder_Border_Select: "Select border",
   directRail_Placeholder_Border_NoBordersForSelection: "No borders for current selection",
   directRail_Placeholder_Border_NoBordersInExcel: "No borders in Excel",
+
   // SelectItem disabled states
   select_disabled_UploadExcel: "Upload Excel",
   select_disabled_LoadingOptions: "Loading options...",
@@ -363,31 +376,38 @@ const translationsData: Record<Language, Partial<Translations>> = {
     directRail_AgentName: "Агент (необязательно)",
     directRail_Incoterms: "Инкотермс",
     directRail_Border: "Граница",
-    // DirectRailFormFields Placeholders (will be detailed in a later step)
+    // DirectRailFormFields Placeholders
     directRail_Placeholder_DepCity_Loading: "Загрузка городов...",
     directRail_Placeholder_DepCity_NoData: "Загрузите Прямое ЖД файл",
     directRail_Placeholder_DepCity_Select: "Выберите город отправления",
+    directRail_Placeholder_DepCity_NoCitiesInExcel: "Нет городов отправления в Excel",
+
     directRail_Placeholder_DestCity_Loading: "Загрузка городов...",
     directRail_Placeholder_DestCity_NoData: "Загрузите Прямое ЖД файл",
     directRail_Placeholder_DestCity_Select: "Выберите город назначения",
+    directRail_Placeholder_DestCity_NoCitiesInExcel: "Нет городов назначения в Excel",
+
     directRail_Placeholder_Agent_Loading: "Загрузка агентов...",
     directRail_Placeholder_Agent_NoData: "Загрузите Прямое ЖД файл",
     directRail_Placeholder_Agent_SelectCities: "Выберите города Отправки и Назначения",
     directRail_Placeholder_Agent_Select: "Выберите агента (необязательно)",
     directRail_Placeholder_Agent_NoAgentsForSelection: "Нет агентов для текущего выбора",
     directRail_Placeholder_Agent_NoAgentsInExcel: "Нет агентов в файле Excel",
+
     directRail_Placeholder_Incoterms_Loading: "Загрузка инкотермс...",
     directRail_Placeholder_Incoterms_NoData: "Загрузите Прямое ЖД файл",
     directRail_Placeholder_Incoterms_SelectCities: "Выберите города Отправки и Назначения",
     directRail_Placeholder_Incoterms_Select: "Выберите инкотермс",
     directRail_Placeholder_Incoterms_NoIncotermsForSelection: "Нет инкотермс для текущего выбора",
     directRail_Placeholder_Incoterms_NoIncotermsInExcel: "Нет инкотермс в файле Excel",
+
     directRail_Placeholder_Border_Loading: "Загрузка границ...",
     directRail_Placeholder_Border_NoData: "Загрузите Прямое ЖД файл",
     directRail_Placeholder_Border_SelectIncoterms: "Сначала выберите Инкотермс",
     directRail_Placeholder_Border_Select: "Выберите границу",
     directRail_Placeholder_Border_NoBordersForSelection: "Нет границ для текущего выбора",
     directRail_Placeholder_Border_NoBordersInExcel: "Нет границ в файле Excel",
+
     // SelectItem disabled states
     select_disabled_UploadExcel: "Загрузите Excel",
     select_disabled_LoadingOptions: "Загрузка опций...",
@@ -440,6 +460,8 @@ export const useLocalization = (): LocalizationContextType => {
   }
   return context;
 };
+
+    
 
     
 
