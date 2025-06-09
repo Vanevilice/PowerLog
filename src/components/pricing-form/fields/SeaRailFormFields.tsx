@@ -8,6 +8,7 @@ import { Ship, Anchor, Package, Train, MapPinned, Home } from 'lucide-react';
 import type { RouteFormValues, ShipmentType } from '@/types'; // Using consolidated types
 import { CONTAINER_TYPES_CONST, NONE_SEALINE_VALUE } from '@/lib/pricing/constants';
 import { getSeaLinePlaceholder, getArrivalStationPlaceholder } from '@/lib/pricing/ui-helpers';
+import { useLocalization } from '@/contexts/LocalizationContext'; // Import useLocalization
 
 interface SeaRailFormFieldsProps {
   form: UseFormReturn<RouteFormValues>;
@@ -35,6 +36,8 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
   hasRestoredFromCache,
 }) => {
   const { control, watch, setValue, getValues } = form;
+  const { translate } = useLocalization(); // Get translate function
+
   const watchedOriginPort = watch("originPort");
   const watchedDestinationPort = watch("destinationPort"); // Sea port
   const watchedContainerType = watch("containerType");
@@ -83,7 +86,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
         name="shipmentType"
         render={({ field }) => (
           <FormItem className="space-y-3">
-            <FormLabel className="flex items-center"><Home className="mr-2 h-4 w-4 text-primary" /> Shipment Type</FormLabel>
+            <FormLabel className="flex items-center"><Home className="mr-2 h-4 w-4 text-primary" /> {translate('shipmentType')}</FormLabel>
             <FormControl>
               <RadioGroup
                 onValueChange={(value) => {
@@ -99,11 +102,11 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
               >
                 <FormItem className="flex items-center space-x-2 space-y-0">
                   <FormControl><RadioGroupItem value="COC" /></FormControl>
-                  <FormLabel className="font-normal">COC</FormLabel>
+                  <FormLabel className="font-normal">{translate('shipmentType_COC')}</FormLabel>
                 </FormItem>
                 <FormItem className="flex items-center space-x-2 space-y-0">
                   <FormControl><RadioGroupItem value="SOC" /></FormControl>
-                  <FormLabel className="font-normal">SOC</FormLabel>
+                  <FormLabel className="font-normal">{translate('shipmentType_SOC')}</FormLabel>
                 </FormItem>
               </RadioGroup>
             </FormControl>
@@ -118,7 +121,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
           name="originPort"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="flex items-center"><Ship className="mr-2 h-4 w-4 text-primary" /> Origin Port</FormLabel>
+              <FormLabel className="flex items-center"><Ship className="mr-2 h-4 w-4 text-primary" /> {translate('originPort')}</FormLabel>
               <Select
                 onValueChange={(value) => {
                   field.onChange(value);
@@ -153,7 +156,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
           name="destinationPort"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="flex items-center"><Ship className="mr-2 h-4 w-4 text-primary" /> Destination Port (Sea)</FormLabel>
+              <FormLabel className="flex items-center"><Ship className="mr-2 h-4 w-4 text-primary" /> {translate('destinationPortSea')}</FormLabel>
               <Select
                 onValueChange={(value) => {
                   field.onChange(value);
@@ -190,7 +193,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
         name="seaLineCompany"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="flex items-center"><Anchor className="mr-2 h-4 w-4 text-primary" /> Sea Line Company</FormLabel>
+            <FormLabel className="flex items-center"><Anchor className="mr-2 h-4 w-4 text-primary" /> {translate('seaLineCompany')}</FormLabel>
             <Select
               onValueChange={field.onChange}
               value={field.value || NONE_SEALINE_VALUE}
@@ -216,7 +219,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
         name="containerType"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="flex items-center"><Package className="mr-2 h-4 w-4 text-primary" /> Container Type</FormLabel>
+            <FormLabel className="flex items-center"><Package className="mr-2 h-4 w-4 text-primary" /> {translate('containerType')}</FormLabel>
             <Select 
              onValueChange={(value) => {
                 field.onChange(value);
@@ -245,7 +248,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
         name="russianDestinationCity"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="flex items-center"><Train className="mr-2 h-4 w-4 text-primary" /> Destination City (Rail)</FormLabel>
+            <FormLabel className="flex items-center"><Train className="mr-2 h-4 w-4 text-primary" /> {translate('destinationCityRail')}</FormLabel>
             <Select
               onValueChange={(value) => {
                 field.onChange(value);
@@ -285,7 +288,7 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
         name="arrivalStationSelection"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="flex items-center"><MapPinned className="mr-2 h-4 w-4 text-primary" /> Station (Rail)</FormLabel>
+            <FormLabel className="flex items-center"><MapPinned className="mr-2 h-4 w-4 text-primary" /> {translate('stationRail')}</FormLabel>
             <Select
               onValueChange={field.onChange}
               value={field.value || ""}
