@@ -7,6 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { UploadCloud, Loader2, AlertCircle } from 'lucide-react';
 import type { RouteFormValues, CalculationMode, PricingDataContextType } from '@/types'; // Using consolidated types
+import { useLocalization } from '@/contexts/LocalizationContext'; // Import useLocalization
 
 interface CommonFormFieldsProps {
   form: UseFormReturn<RouteFormValues>; // Use consolidated RouteFormValues
@@ -46,6 +47,7 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
   exchangeRate,
 }) => {
   const { control, getValues, setValue } = form;
+  const { translate } = useLocalization(); // Get translate function
 
   return (
     <>
@@ -58,7 +60,7 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
           disabled={isParsingSeaRailFile || isParsingDirectRailFile || isParsingSOCDropOffFile}
         >
           {isParsingSeaRailFile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-          {isParsingSeaRailFile ? "Processing..." : "Море + Ж/Д"}
+          {isParsingSeaRailFile ? translate('processingFile') : translate('uploadSeaRailExcel')}
         </Button>
         <input
           type="file"
@@ -77,7 +79,7 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
           disabled={isParsingDirectRailFile || isParsingSeaRailFile || isParsingSOCDropOffFile}
         >
           {isParsingDirectRailFile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-          {isParsingDirectRailFile ? "Processing..." : "Прямое ЖД"}
+          {isParsingDirectRailFile ? translate('processingFile') : translate('uploadDirectRailExcel')}
         </Button>
         <input
           type="file"
@@ -96,7 +98,7 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
           disabled={isParsingSOCDropOffFile || isParsingSeaRailFile || isParsingDirectRailFile} // Disable if any parsing is active
         >
           {isParsingSOCDropOffFile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-          {isParsingSOCDropOffFile ? "Processing..." : "SOC Drop-off"}
+          {isParsingSOCDropOffFile ? translate('processingFile') : translate('uploadSOCDropOffExcel')}
         </Button>
         <input
           type="file"
@@ -114,7 +116,7 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
         name="calculationModeToggle"
         render={({ field }) => (
           <FormItem className="space-y-3">
-            <FormLabel className="text-base font-semibold">Calculation Mode</FormLabel>
+            <FormLabel className="text-base font-semibold">{translate('calculationMode')}</FormLabel>
             <FormControl>
               <RadioGroup
                 onValueChange={(value: string) => {
@@ -128,13 +130,13 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
                   <FormControl>
                     <RadioGroupItem value="sea_plus_rail" id="mode_sea_plus_rail" />
                   </FormControl>
-                  <FormLabel htmlFor="mode_sea_plus_rail" className="font-normal">Море + ЖД</FormLabel>
+                  <FormLabel htmlFor="mode_sea_plus_rail" className="font-normal">{translate('calculationMode_SeaRail')}</FormLabel>
                 </FormItem>
                 <FormItem className="flex items-center space-x-2 space-y-0">
                   <FormControl>
                     <RadioGroupItem value="direct_rail" id="mode_direct_rail" />
                   </FormControl>
-                  <FormLabel htmlFor="mode_direct_rail" className="font-normal">Прямое ЖД</FormLabel>
+                  <FormLabel htmlFor="mode_direct_rail" className="font-normal">{translate('calculationMode_DirectRail')}</FormLabel>
                 </FormItem>
               </RadioGroup>
             </FormControl>
@@ -157,7 +159,7 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Input type="number" placeholder="Sea margin" {...field} className="h-10" />
+                    <Input type="number" placeholder={translate('seaMargin')} {...field} className="h-10" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -169,7 +171,7 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Input type="number" placeholder="Rail margin" {...field} className="h-10" />
+                    <Input type="number" placeholder={translate('railMargin')} {...field} className="h-10" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -181,3 +183,4 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
     </>
   );
 };
+

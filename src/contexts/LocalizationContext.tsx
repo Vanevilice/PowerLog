@@ -27,8 +27,8 @@ export interface Translations {
   calculationMode_SeaRail: string;
   calculationMode_DirectRail: string;
 
-  seaMargin: string;
-  railMargin: string;
+  seaMargin: string; // Placeholder for Sea Margin input
+  railMargin: string; // Placeholder for Rail Margin input
 
   shipmentType: string;
   shipmentType_COC: string;
@@ -164,8 +164,8 @@ const defaultEnTranslations: Translations = {
   calculationMode: "Calculation Mode",
   calculationMode_SeaRail: "Sea + Rail",
   calculationMode_DirectRail: "Direct Rail",
-  seaMargin: "Sea Margin",
-  railMargin: "Rail Margin",
+  seaMargin: "Sea Margin", // Placeholder
+  railMargin: "Rail Margin", // Placeholder
   shipmentType: "Shipment Type",
   shipmentType_COC: "COC",
   shipmentType_SOC: "SOC",
@@ -276,8 +276,8 @@ const translationsData: Record<Language, Partial<Translations>> = {
     calculationMode_SeaRail: "Море + ЖД",
     calculationMode_DirectRail: "Прямое ЖД",
     
-    seaMargin: "Море маржа",
-    railMargin: "Ж/Д маржа",
+    seaMargin: "Море маржа", // Placeholder
+    railMargin: "Ж/Д маржа", // Placeholder
     
     shipmentType: "Собственность контейнера",
     shipmentType_COC: "COC",
