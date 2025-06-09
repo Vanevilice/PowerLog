@@ -124,8 +124,6 @@ export async function handleCopyOutput(args: ActionHandlerArgs) {
   
   textToCopy += "Фрахт: " + formatDisplayCost(totalFreightCostUSD > 0 ? totalFreightCostUSD : null, 'USD') + "\n";
 
-  // The separate SOC Drop-off line is now removed as its cost is included in "Фрахт"
-
   let jdLine = "";
   if (isFurtherRailJourneyCopy) {
     jdLine = "Ж/Д Составляющая: ";
@@ -160,12 +158,7 @@ export async function handleCopyOutput(args: ActionHandlerArgs) {
   if (jdLine && jdLine !== "Ж/Д Составляющая: ") textToCopy += jdLine + "\n";
   textToCopy += "Прием и вывоз контейнера в режиме ГТД в пределах МКАД: 48 000 руб. с НДС 0%\n";
 
-  // SOC Comment and SOC Drop-off Comment are removed for SOC shipments
-  if (shipmentType === "COC") {
-    if (lastSuccessfulCalculation?.seaComment) textToCopy += `Sea Route Comment: ${lastSuccessfulCalculation.seaComment}\n`;
-    if (lastSuccessfulCalculation?.dropOffComment) textToCopy += `Drop Off Comment: ${lastSuccessfulCalculation.dropOffComment}\n`;
-  }
-
+  // Removed the block that appended Sea Route Comment and Drop Off Comment for COC shipments.
 
   try {
     await navigator.clipboard.writeText(textToCopy.trim());
