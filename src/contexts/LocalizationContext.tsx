@@ -44,24 +44,24 @@ export interface Translations {
   originPortPlaceholder_Loading: string;
   originPortPlaceholder_NoData: string;
   originPortPlaceholder_Select: string;
-  originPort_NoOriginPortsInExcel: string; // Specific disabled item message
+  originPort_NoOriginPortsInExcel: string;
 
   destinationPortSeaPlaceholder_Loading: string;
   destinationPortSeaPlaceholder_NoData: string;
   destinationPortSeaPlaceholder_SelectOrigin: string;
   destinationPortSeaPlaceholder_Select: string;
   destinationPortSeaPlaceholder_NoDestForOrigin: string;
-  destPort_Placeholder_Vladivostok: string; // For the specific "Владивосток" default
-  destinationPortSea_SelectOriginFirst: string; // Specific disabled item message
-  destinationPortSea_NoDestForOrigin: string; // Specific disabled item message
+  destPort_Placeholder_Vladivostok: string;
+  destinationPortSea_SelectOriginFirst: string;
+  destinationPortSea_NoDestForOrigin: string;
 
   seaLineCompanyPlaceholder_Loading: string;
   seaLineCompanyPlaceholder_NoData: string;
   seaLineCompanyPlaceholder_SelectOD: string;
   seaLineCompanyPlaceholder_Select: string;
   seaLineCompanyPlaceholder_NoLinesForOD: string;
-  seaLineCompany_NoneOption: string; // "None (Get General Commentary)"
-  seaLineCompany_SelectODFirst: string; // Specific disabled item message
+  seaLineCompany_NoneOption: string;
+  seaLineCompany_SelectODFirst: string;
 
   containerTypePlaceholder_Loading: string;
   containerTypePlaceholder_NoData: string;
@@ -72,24 +72,31 @@ export interface Translations {
   destinationCityRailPlaceholder_NoRailDestLoaded: string;
   destinationCityRailPlaceholder_SelectOrigin: string;
   destinationCityRailPlaceholder_SelectContainer: string;
-  destinationCityRailPlaceholder_SelectOriginContainer: string; // More specific
+  destinationCityRailPlaceholder_SelectOriginContainer: string;
   destinationCityRailPlaceholder_Select: string;
   destinationCityRailPlaceholder_NoHubsForSelection: string;
-  rusCity_Placeholder_NoRailHubsForSeaDest: string; // Specific placeholder
-  destinationCityRail_NoRailCitiesMaster: string; // Specific disabled item message
+  rusCity_Placeholder_NoRailHubsForSeaDest: string;
+  destinationCityRail_NoRailCitiesMaster: string;
 
   stationRailPlaceholder_Loading: string;
   stationRailPlaceholder_NoData: string;
   stationRailPlaceholder_SelectDestCity: string;
   stationRailPlaceholder_Select: string;
   stationRailPlaceholder_NoStationsForCity: string;
-  stationRail_SelectDestCityFirst: string; // Specific disabled item message
+  stationRail_SelectDestCityFirst: string;
 
   // PortPriceFinderForm Buttons
   getPriceAndCommentary: string;
   calculateBestPrice: string;
   calculating: string;
-  processingButton: string;
+  processingButton: string; // Used for button state, also for loading text
+
+  // PortPriceFinderForm Loading Indicator Texts
+  loading_CalculatingBestPrices: string;
+  loading_ProcessingFile: string;
+  loading_GettingInfo: string;
+  loading_MayTakeMoment: string;
+
 
   // Common placeholders for Excel upload buttons (already used in CommonFormFields)
   placeholder_UploadSeaRailExcel: string;
@@ -232,7 +239,14 @@ const defaultEnTranslations: Translations = {
   getPriceAndCommentary: "Get Price & Commentary",
   calculateBestPrice: "Calculate Best Price",
   calculating: "Calculating...",
-  processingButton: "Processing...",
+  processingButton: "Processing...", // Used for main button loading state text too
+
+  // PortPriceFinderForm Loading Indicator Texts
+  loading_CalculatingBestPrices: "Calculating best prices...",
+  loading_ProcessingFile: "Processing file...",
+  loading_GettingInfo: "Getting information...",
+  loading_MayTakeMoment: "This may take a moment.",
+
   placeholder_UploadSeaRailExcel: "Upload Sea+Rail Excel",
   placeholder_UploadDirectRailExcel: "Upload Direct Rail Excel",
   // DirectRailFormFields labels
@@ -367,7 +381,13 @@ const translationsData: Record<Language, Partial<Translations>> = {
     getPriceAndCommentary: "Посчитать ставку",
     calculateBestPrice: "Лучшие ставки",
     calculating: "Расчет...",
-    processingButton: "Обработка...",
+    processingButton: "Обработка...", // Also for loading text
+    // PortPriceFinderForm Loading Indicator Texts
+    loading_CalculatingBestPrices: "Расчет лучших цен...",
+    loading_ProcessingFile: "Обработка файла...",
+    loading_GettingInfo: "Получение информации...",
+    loading_MayTakeMoment: "Это может занять некоторое время.",
+
     placeholder_UploadSeaRailExcel: "Загрузите Море + Ж/Д файл",
     placeholder_UploadDirectRailExcel: "Загрузите Прямое ЖД файл",
     // DirectRailFormFields labels
@@ -460,9 +480,3 @@ export const useLocalization = (): LocalizationContextType => {
   }
   return context;
 };
-
-    
-
-    
-
-    
