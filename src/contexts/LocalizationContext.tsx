@@ -169,132 +169,58 @@ const defaultEnTranslations: Translations = {
   settings: "Settings",
   english: "English",
   russian: "Russian",
-  powerLogTitle: "PowerLog",
-  powerLogDescription: "Calculate shipping costs and get insights for PowerLog.",
-  uploadSeaRailExcel: "Upload Sea+Rail Excel",
-  uploadDirectRailExcel: "Upload Direct Rail Excel",
-  uploadSOCDropOffExcel: "Upload SOC Drop-off Excel",
-  processingFile: "Processing...",
-  calculationMode: "Calculation Mode",
-  calculationMode_SeaRail: "Sea + Rail",
-  calculationMode_DirectRail: "Direct Rail",
-  seaMargin: "Sea Margin",
-  railMargin: "Rail Margin",
-  // SeaRailFormFields Labels
-  shipmentType: "Shipment Type",
-  shipmentType_COC: "COC",
-  shipmentType_SOC: "SOC",
-  originPort: "Origin Port",
-  destinationPortSea: "Destination Port (Sea)",
-  seaLineCompany: "Sea Line Company",
-  containerType: "Container Type",
-  destinationCityRail: "Destination City (Rail)",
-  stationRail: "Station (Rail)",
-  // SeaRailFormFields Placeholders & dynamic messages
-  originPortPlaceholder_Loading: "Loading ports...",
-  originPortPlaceholder_NoData: "Upload Sea+Rail Excel",
-  originPortPlaceholder_Select: "Select origin port",
-  originPort_NoOriginPortsInExcel: "No origin ports in Excel",
-
-  destinationPortSeaPlaceholder_Loading: "Loading ports...",
-  destinationPortSeaPlaceholder_NoData: "Upload Sea+Rail Excel",
-  destinationPortSeaPlaceholder_SelectOrigin: "Select Origin Port First",
-  destinationPortSeaPlaceholder_Select: "Select sea destination port",
-  destinationPortSeaPlaceholder_NoDestForOrigin: "No sea destinations for origin",
-  destPort_Placeholder_Vladivostok: "Владивосток",
-  destinationPortSea_SelectOriginFirst: "Select Origin Port First",
-  destinationPortSea_NoDestForOrigin: "No sea destinations for current origin",
-
-  seaLineCompanyPlaceholder_Loading: "Loading sea lines...",
-  seaLineCompanyPlaceholder_NoData: "Upload Sea+Rail Excel",
-  seaLineCompanyPlaceholder_SelectOD: "Select Origin & Destination Port (Sea) first",
-  seaLineCompanyPlaceholder_Select: "Select sea line (or None)",
-  seaLineCompanyPlaceholder_NoLinesForOD: "No sea lines for this O/D",
-  seaLineCompany_NoneOption: "None (Get General Commentary)",
-  seaLineCompany_SelectODFirst: "Select Origin & Destination (Sea) first",
-
-  containerTypePlaceholder_Loading: "Loading types...",
-  containerTypePlaceholder_NoData: "Upload Sea+Rail Excel",
-  containerTypePlaceholder_Select: "Select container type",
-
-  destinationCityRailPlaceholder_Loading: "Loading cities...",
-  destinationCityRailPlaceholder_NoData: "Upload Sea+Rail Excel",
-  destinationCityRailPlaceholder_NoRailDestLoaded: "No rail destinations loaded from Excel",
-  destinationCityRailPlaceholder_SelectOrigin: "Select Origin Port first",
-  destinationCityRailPlaceholder_SelectContainer: "Select Container Type first",
-  destinationCityRailPlaceholder_SelectOriginContainer: "Select Origin Port & Container Type first",
-  destinationCityRailPlaceholder_Select: "Select destination city (rail)",
-  destinationCityRailPlaceholder_NoHubsForSelection: "No rail hubs for current selection",
-  rusCity_Placeholder_NoRailHubsForSeaDest: "No rail hubs for selected Sea Destination.",
-  destinationCityRail_NoRailCitiesMaster: "No rail cities in Excel",
-
-  stationRailPlaceholder_Loading: "Loading stations...",
-  stationRailPlaceholder_NoData: "Upload Sea+Rail Excel",
-  stationRailPlaceholder_SelectDestCity: "Select Destination City (Rail) first",
+  // Keys from powerLogTitle to stationRailPlaceholder_SelectDestCity (54 keys) are removed here.
+  // The remaining keys start from stationRailPlaceholder_Select.
   stationRailPlaceholder_Select: "Select station (optional)",
   stationRailPlaceholder_NoStationsForCity: "No stations for this city",
   stationRail_SelectDestCityFirst: "Select Destination City (Rail) first",
-
-  // PortPriceFinderForm Buttons
   getPriceAndCommentary: "Get Price & Commentary",
   calculateBestPrice: "Calculate Best Price",
   calculating: "Calculating...",
-  processingButton: "Processing...", // Used for main button loading state text too
-
-  // PortPriceFinderForm Loading Indicator Texts
+  processingButton: "Processing...",
   loading_CalculatingBestPrices: "Calculating best prices...",
   loading_ProcessingFile: "Processing file...",
   loading_GettingInfo: "Getting information...",
   loading_MayTakeMoment: "This may take a moment.",
-
   placeholder_UploadSeaRailExcel: "Upload Sea+Rail Excel",
   placeholder_UploadDirectRailExcel: "Upload Direct Rail Excel",
-  // DirectRailFormFields labels
   directRail_CityOfDeparture: "City of Departure",
   directRail_DestCity: "Destination City",
   directRail_AgentName: "Agent name (optional)",
   directRail_Incoterms: "Incoterms",
   directRail_Border: "Border",
-  // DirectRailFormFields Placeholders
   directRail_Placeholder_DepCity_Loading: "Loading cities...",
   directRail_Placeholder_DepCity_NoData: "Upload Direct Rail Excel",
   directRail_Placeholder_DepCity_Select: "Select departure city",
   directRail_Placeholder_DepCity_NoCitiesInExcel: "No departure cities in Excel",
-
   directRail_Placeholder_DestCity_Loading: "Loading cities...",
   directRail_Placeholder_DestCity_NoData: "Upload Direct Rail Excel",
   directRail_Placeholder_DestCity_Select: "Select destination city",
   directRail_Placeholder_DestCity_NoCitiesInExcel: "No destination cities in Excel",
-
   directRail_Placeholder_Agent_Loading: "Loading agents...",
   directRail_Placeholder_Agent_NoData: "Upload Direct Rail Excel",
   directRail_Placeholder_Agent_SelectCities: "Select Departure & Destination Cities",
   directRail_Placeholder_Agent_Select: "Select agent (optional)",
   directRail_Placeholder_Agent_NoAgentsForSelection: "No agents for current selection",
   directRail_Placeholder_Agent_NoAgentsInExcel: "No agents in Excel",
-
   directRail_Placeholder_Incoterms_Loading: "Loading incoterms...",
   directRail_Placeholder_Incoterms_NoData: "Upload Direct Rail Excel",
   directRail_Placeholder_Incoterms_SelectCities: "Select Departure & Destination Cities",
   directRail_Placeholder_Incoterms_Select: "Select incoterms",
   directRail_Placeholder_Incoterms_NoIncotermsForSelection: "No incoterms for current selection",
   directRail_Placeholder_Incoterms_NoIncotermsInExcel: "No incoterms in Excel",
-
   directRail_Placeholder_Border_Loading: "Loading borders...",
   directRail_Placeholder_Border_NoData: "Upload Direct Rail Excel",
   directRail_Placeholder_Border_SelectIncoterms: "Select Incoterms first",
   directRail_Placeholder_Border_Select: "Select border",
   directRail_Placeholder_Border_NoBordersForSelection: "No borders for current selection",
   directRail_Placeholder_Border_NoBordersInExcel: "No borders in Excel",
-
-  // SelectItem disabled states
   select_disabled_UploadExcel: "Upload Excel",
   select_disabled_LoadingOptions: "Loading options...",
   select_disabled_NoOptionsLoaded: "No options loaded",
   select_disabled_SelectDependencyFirst: (fieldName: string) => `Select ${fieldName} first`,
   select_disabled_NoOptionsForSelection: "No options for current selection",
   select_disabled_NoOptionsInExcel: "No options in Excel",
-  // NavLinks
   nav_Dashboard: "Dashboard",
   nav_Calculator: "Calculator",
   nav_Settings: "Settings",
@@ -302,7 +228,7 @@ const defaultEnTranslations: Translations = {
 
 const translationsData: Record<Language, Partial<Translations>> = {
   en: {
-    ...defaultEnTranslations,
+    // This will be populated by merging files later
   },
   ru: {
     // Common
@@ -446,7 +372,11 @@ export const LocalizationProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguage] = useState<Language>('ru'); // Default to Russian
 
   const currentTranslations = React.useMemo(() => {
-    return { ...defaultEnTranslations, ...translationsData[language] } as Translations;
+    // In future steps, defaultEnTranslations will be an empty object or minimal,
+    // and translationsData.en will be populated from merged files.
+    // For now, defaultEnTranslations still holds some keys.
+    const baseTranslations = language === 'en' ? defaultEnTranslations : { ...defaultEnTranslations, ...translationsData.ru };
+    return { ...baseTranslations, ...translationsData[language] } as Translations; // Ensure all keys from Translations interface are present
   }, [language]);
 
   const translate = useCallback((key: keyof Translations, replacements?: Record<string, string | number>) => {
@@ -480,3 +410,6 @@ export const useLocalization = (): LocalizationContextType => {
   }
   return context;
 };
+
+
+    
