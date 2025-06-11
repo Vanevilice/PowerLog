@@ -3,7 +3,7 @@ import type { Translations } from '@/contexts/LocalizationContext';
 
 export const portPriceFinderFormRuTranslations: Partial<Translations> = {
   powerLogTitle: "PowerLog",
-  powerLogDescription: " ", // Effectively remove for Russian
+  powerLogDescription: " ", 
   uploadSeaRailExcel: "Загрузите Море + Ж/Д файл",
   uploadDirectRailExcel: "Загрузите Прямое ЖД файл",
   uploadSOCDropOffExcel: "Загрузите SOC Drop-off файл",
@@ -77,4 +77,37 @@ export const portPriceFinderFormRuTranslations: Partial<Translations> = {
   directRail_Incoterms: "Инкотермс",
   directRail_Border: "Граница",
   // Batch 2 ends here
+  // Batch 3 starts here
+  directRail_Placeholder_DepCity_Loading: "Загрузка городов...",
+  directRail_Placeholder_DepCity_NoData: "Загрузите Прямое ЖД файл",
+  directRail_Placeholder_DepCity_Select: "Выберите город отправления",
+  directRail_Placeholder_DepCity_NoCitiesInExcel: "Нет городов отправления в Excel",
+  directRail_Placeholder_DestCity_Loading: "Загрузка городов...",
+  directRail_Placeholder_DestCity_NoData: "Загрузите Прямое ЖД файл",
+  directRail_Placeholder_DestCity_Select: "Выберите город назначения",
+  directRail_Placeholder_DestCity_NoCitiesInExcel: "Нет городов назначения в Excel",
+  directRail_Placeholder_Agent_Loading: "Загрузка агентов...",
+  directRail_Placeholder_Agent_NoData: "Загрузите Прямое ЖД файл",
+  directRail_Placeholder_Agent_SelectCities: "Выберите города Отправки и Назначения",
+  directRail_Placeholder_Agent_Select: "Выберите агента (необязательно)",
+  directRail_Placeholder_Agent_NoAgentsForSelection: "Нет агентов для текущего выбора",
+  directRail_Placeholder_Agent_NoAgentsInExcel: "Нет агентов в файле Excel",
+  directRail_Placeholder_Incoterms_Loading: "Загрузка инкотермс...",
+  directRail_Placeholder_Incoterms_NoData: "Загрузите Прямое ЖД файл",
+  directRail_Placeholder_Incoterms_SelectCities: "Выберите города Отправки и Назначения",
+  directRail_Placeholder_Incoterms_Select: "Выберите инкотермс",
+  directRail_Placeholder_Incoterms_NoIncotermsForSelection: "Нет инкотермс для текущего выбора",
+  directRail_Placeholder_Incoterms_NoIncotermsInExcel: "Нет инкотермс в файле Excel",
+  directRail_Placeholder_Border_Loading: "Загрузка границ...",
+  directRail_Placeholder_Border_NoData: "Загрузите Прямое ЖД файл",
+  directRail_Placeholder_Border_SelectIncoterms: "Сначала выберите Инкотермс",
+  directRail_Placeholder_Border_Select: "Выберите границу",
+  directRail_Placeholder_Border_NoBordersForSelection: "Нет границ для текущего выбора",
+  directRail_Placeholder_Border_NoBordersInExcel: "Нет границ в файле Excel",
+  select_disabled_UploadExcel: "Загрузите Excel",
+  select_disabled_LoadingOptions: "Загрузка опций...",
+  select_disabled_NoOptionsLoaded: "Опции не загружены",
+  select_disabled_NoOptionsForSelection: "Нет опций для текущего выбора",
+  select_disabled_NoOptionsInExcel: "Нет опций в Excel",
+  // Batch 3 ends here
 };
