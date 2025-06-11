@@ -11,11 +11,13 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertTriangle, FileText, UploadCloud, Info, Train, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { generateDashboardCopyText } from '@/lib/pricing/ui-helpers'; // Import the new utility
+import { generateDashboardCopyText } from '@/lib/pricing/ui-helpers';
+import { useLocalization } from '@/contexts/LocalizationContext'; // Import useLocalization
 
 export default function DashboardPage() {
   const { dashboardServiceSections, isSeaRailExcelDataLoaded } = usePricingData();
   const { toast } = useToast();
+  const { translate } = useLocalization(); // Use the hook
   const [railwaySelection, setRailwaySelection] = React.useState<Record<number, number | null>>({});
 
   React.useEffect(() => {
@@ -84,9 +86,9 @@ export default function DashboardPage() {
 
     try {
       await navigator.clipboard.writeText(textToCopy);
-      toast({ title: "Success!", description: "Rate copied to clipboard." });
+      toast({ title: translate('toast_Success_Title'), description: translate('toast_Dashboard_RateCopied') });
     } catch (err) {
-      toast({ variant: "destructive", title: "Copy Failed", description: "Could not copy to clipboard." });
+      toast({ variant: "destructive", title: translate('toast_CopyFailed_Title'), description: translate('toast_CopyFailed_Description') });
     }
   };
 
@@ -99,15 +101,15 @@ export default function DashboardPage() {
             <div className="flex justify-center items-center mb-3">
               <AlertTriangle className="h-12 w-12 text-primary" />
             </div>
-            <CardTitle className="text-2xl font-semibold text-primary">Dashboard Data Not Loaded</CardTitle>
+            <CardTitle className="text-2xl font-semibold text-primary">{translate('dashboard_DataNotLoaded_Title')}</CardTitle>
             <CardDescription className="text-muted-foreground">
-              Please upload the &quot;Море + Ж/Д&quot; Excel file on the Calculator page to view dashboard data.
+              {translate('dashboard_DataNotLoaded_Description')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild variant="default" className="w-full">
               <Link href="/">
-                <UploadCloud className="mr-2 h-4 w-4" /> Go to Calculator to Upload File
+                <UploadCloud className="mr-2 h-4 w-4" /> {translate('dashboard_DataNotLoaded_Button')}
               </Link>
             </Button>
           </CardContent>
@@ -124,15 +126,15 @@ export default function DashboardPage() {
             <div className="flex justify-center items-center mb-3">
               <Info className="h-12 w-12 text-primary" />
             </div>
-            <CardTitle className="text-2xl font-semibold text-primary">No Dashboard Data Found</CardTitle>
+            <CardTitle className="text-2xl font-semibold text-primary">{translate('dashboard_NoDataFound_Title')}</CardTitle>
             <CardDescription className="text-muted-foreground">
-              The &quot;Море + Ж/Д&quot; Excel file was loaded, but no dashboard sections were found or parsed from its first sheet. Please check the file format.
+              {translate('dashboard_NoDataFound_Description')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline" className="w-full">
               <Link href="/">
-                <UploadCloud className="mr-2 h-4 w-4" /> Back to Calculator
+                <UploadCloud className="mr-2 h-4 w-4" /> {translate('dashboard_BackToCalculator_Button')}
               </Link>
             </Button>
           </CardContent>
@@ -148,10 +150,10 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold text-primary flex items-center">
             <FileText className="mr-3 h-8 w-8 text-accent" />
-            Sea + Rail Services Dashboard
+            {translate('dashboard_MainTitle')}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Displaying data from the first sheet of the uploaded &quot;Море + Ж/Д&quot; Excel file.
+            {translate('dashboard_MainDescription')}
           </p>
         </div>
       </header>
@@ -161,7 +163,7 @@ export default function DashboardPage() {
         return (
         <Card key={`section-${sectionIndex}`} className="shadow-xl rounded-xl overflow-hidden bg-card border border-border hover:shadow-2xl transition-shadow duration-300">
           <CardHeader className="pb-4 bg-muted/30 border-b">
-            <CardTitle className="text-xl font-semibold text-primary">{section.serviceName || `Service Section ${sectionIndex + 1}`}</CardTitle>
+            <CardTitle className="text-xl font-semibold text-primary">{section.serviceName || translate('dashboard_ServiceSection_FallbackTitle', { sectionNumber: sectionIndex + 1 })}</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {section.dataRows && section.dataRows.length > 0 ? (
@@ -169,20 +171,20 @@ export default function DashboardPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[30%] pl-6">Route (Origin - Destination)</TableHead>
-                      <TableHead className="w-[15%]">Sea Rate</TableHead>
-                      <TableHead className="w-[15%]">Container Info</TableHead>
-                      <TableHead className="w-[25%]">Comments / Details</TableHead>
-                      <TableHead className="w-[15%] text-right pr-6">Actions</TableHead>
+                      <TableHead className="w-[30%] pl-6">{translate('dashboard_TableHead_Route')}</TableHead>
+                      <TableHead className="w-[15%]">{translate('dashboard_TableHead_SeaRate')}</TableHead>
+                      <TableHead className="w-[15%]">{translate('dashboard_TableHead_ContainerInfo')}</TableHead>
+                      <TableHead className="w-[25%]">{translate('dashboard_TableHead_CommentsDetails')}</TableHead>
+                      <TableHead className="w-[15%] text-right pr-6">{translate('dashboard_TableHead_Actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {section.dataRows.map((row, rowIndex) => (
                       <TableRow key={`row-${sectionIndex}-${rowIndex}`} className="hover:bg-muted/10">
-                        <TableCell className="font-medium pl-6 py-3">{row.route || 'N/A'}</TableCell>
-                        <TableCell className="py-3">{row.rate || 'N/A'}</TableCell>
-                        <TableCell className="py-3">{row.containerInfo || 'N/A'}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground py-3">{row.additionalComment || '-'}</TableCell>
+                        <TableCell className="font-medium pl-6 py-3">{row.route || translate('common_NA')}</TableCell>
+                        <TableCell className="py-3">{row.rate || translate('common_NA')}</TableCell>
+                        <TableCell className="py-3">{row.containerInfo || translate('common_NA')}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground py-3">{row.additionalComment || translate('common_Dash')}</TableCell>
                         <TableCell className="text-right pr-6 py-3">
                           <Button
                             variant="outline"
@@ -190,7 +192,7 @@ export default function DashboardPage() {
                             className="border-primary text-primary hover:bg-primary/10"
                             onClick={() => handleDashboardCopyRate(row, sectionIndex)}
                           >
-                            <Copy className="mr-2 h-3 w-3" /> Copy Rate
+                            <Copy className="mr-2 h-3 w-3" /> {translate('dashboard_CopyRate_Button')}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -201,16 +203,16 @@ export default function DashboardPage() {
                 {commonRailwayLegsForSection.length > 0 && (
                   <div className="p-4 border-t">
                     <h4 className="text-md font-semibold mb-2 text-primary flex items-center">
-                        <Train className="mr-2 h-5 w-5 text-accent" /> Available Railway Legs for this Section
+                        <Train className="mr-2 h-5 w-5 text-accent" /> {translate('dashboard_RailwayLegs_Title')}
                     </h4>
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-8"></TableHead> {/* Checkbox column */}
-                                <TableHead>Origin Info</TableHead>
-                                <TableHead>Cost</TableHead>
-                                <TableHead>Container</TableHead>
-                                <TableHead>Comment</TableHead>
+                                <TableHead>{translate('dashboard_RailwayLegs_OriginInfo')}</TableHead>
+                                <TableHead>{translate('dashboard_RailwayLegs_Cost')}</TableHead>
+                                <TableHead>{translate('dashboard_RailwayLegs_Container')}</TableHead>
+                                <TableHead>{translate('dashboard_RailwayLegs_Comment')}</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -223,10 +225,10 @@ export default function DashboardPage() {
                                             onCheckedChange={() => handleRailwayLegCheckboxChange(sectionIndex, legIndex)}
                                         />
                                     </TableCell>
-                                    <TableCell className="py-2 text-sm">{leg.originInfo || 'N/A'}</TableCell>
-                                    <TableCell className="py-2 text-sm font-semibold">{leg.cost || 'N/A'}</TableCell>
-                                    <TableCell className="py-2 text-sm">{leg.containerInfo || 'N/A'}</TableCell>
-                                    <TableCell className="py-2 text-xs text-muted-foreground">{leg.comment || '-'}</TableCell>
+                                    <TableCell className="py-2 text-sm">{leg.originInfo || translate('common_NA')}</TableCell>
+                                    <TableCell className="py-2 text-sm font-semibold">{leg.cost || translate('common_NA')}</TableCell>
+                                    <TableCell className="py-2 text-sm">{leg.containerInfo || translate('common_NA')}</TableCell>
+                                    <TableCell className="py-2 text-xs text-muted-foreground">{leg.comment || translate('common_Dash')}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -235,7 +237,7 @@ export default function DashboardPage() {
                 )}
               </>
             ) : (
-              <p className="p-6 text-muted-foreground">No data rows found for this service.</p>
+              <p className="p-6 text-muted-foreground">{translate('dashboard_NoDataRowsForService')}</p>
             )}
           </CardContent>
         </Card>
@@ -243,13 +245,16 @@ export default function DashboardPage() {
        {dashboardServiceSections.length === 0 && isSeaRailExcelDataLoaded && (
          <Card className="shadow-lg rounded-xl bg-card border border-border">
            <CardHeader>
-             <CardTitle className="text-xl font-semibold text-primary">No Services Found</CardTitle>
+             <CardTitle className="text-xl font-semibold text-primary">{translate('dashboard_NoServicesFound_Title')}</CardTitle>
            </CardHeader>
            <CardContent>
-             <p className="text-muted-foreground">The first sheet of your Excel file does not seem to contain data in the expected format for the dashboard.</p>
+             <p className="text-muted-foreground">{translate('dashboard_NoServicesFound_Description')}</p>
            </CardContent>
          </Card>
        )}
     </div>
   );
 }
+
+
+    
