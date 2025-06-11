@@ -30,6 +30,7 @@ export const portPriceFinderFormEnTranslations: Partial<Translations> = {
   destinationPortSeaPlaceholder_NoData: "Upload Sea+Rail Excel",
   destinationPortSeaPlaceholder_SelectOrigin: "Select Origin Port First",
   destinationPortSeaPlaceholder_Select: "Select sea destination port",
+  destPort_Placeholder_Vladivostok: "Vladivostok", // Added English translation
   destinationPortSeaPlaceholder_NoDestForOrigin: "No sea destinations for origin",
   destinationPortSea_SelectOriginFirst: "Select Origin Port First",
   destinationPortSea_NoDestForOrigin: "No sea destinations for current origin",
