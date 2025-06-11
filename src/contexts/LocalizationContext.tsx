@@ -14,24 +14,21 @@ export interface Translations {
   settings: string;
   english: string;
   russian: string;
+  common_NA: string;
+  common_Dash: string;
 
-  // PortPriceFinderForm specific
+  // PortPriceFinderForm specific (already moved to partials, but keys remain for type safety)
   powerLogTitle: string;
   powerLogDescription: string;
-  // powerLogDescription_RU_ONLY_REMOVED?: string; // Removed this special key
-
-  // CommonFormFields
   uploadSeaRailExcel: string;
   uploadDirectRailExcel: string;
   uploadSOCDropOffExcel: string;
-  processingFile: string; // For file parsing status
+  processingFile: string;
   calculationMode: string;
   calculationMode_SeaRail: string;
   calculationMode_DirectRail: string;
-  seaMargin: string; // Placeholder for Sea Margin input
-  railMargin: string; // Placeholder for Rail Margin input
-
-  // SeaRailFormFields Labels
+  seaMargin: string;
+  railMargin: string;
   shipmentType: string;
   shipmentType_COC: string;
   shipmentType_SOC: string;
@@ -41,13 +38,10 @@ export interface Translations {
   containerType: string;
   destinationCityRail: string;
   stationRail: string;
-
-  // SeaRailFormFields Placeholders and dynamic messages
   originPortPlaceholder_Loading: string;
   originPortPlaceholder_NoData: string;
   originPortPlaceholder_Select: string;
   originPort_NoOriginPortsInExcel: string;
-
   destinationPortSeaPlaceholder_Loading: string;
   destinationPortSeaPlaceholder_NoData: string;
   destinationPortSeaPlaceholder_SelectOrigin: string;
@@ -56,7 +50,6 @@ export interface Translations {
   destPort_Placeholder_Vladivostok: string;
   destinationPortSea_SelectOriginFirst: string;
   destinationPortSea_NoDestForOrigin: string;
-
   seaLineCompanyPlaceholder_Loading: string;
   seaLineCompanyPlaceholder_NoData: string;
   seaLineCompanyPlaceholder_SelectOD: string;
@@ -64,11 +57,9 @@ export interface Translations {
   seaLineCompanyPlaceholder_NoLinesForOD: string;
   seaLineCompany_NoneOption: string;
   seaLineCompany_SelectODFirst: string;
-
   containerTypePlaceholder_Loading: string;
   containerTypePlaceholder_NoData: string;
   containerTypePlaceholder_Select: string;
-
   destinationCityRailPlaceholder_Loading: string;
   destinationCityRailPlaceholder_NoData: string;
   destinationCityRailPlaceholder_NoRailDestLoaded: string;
@@ -79,82 +70,95 @@ export interface Translations {
   destinationCityRailPlaceholder_NoHubsForSelection: string;
   rusCity_Placeholder_NoRailHubsForSeaDest: string;
   destinationCityRail_NoRailCitiesMaster: string;
-
   stationRailPlaceholder_Loading: string;
   stationRailPlaceholder_NoData: string;
   stationRailPlaceholder_SelectDestCity: string;
   stationRailPlaceholder_Select: string;
   stationRailPlaceholder_NoStationsForCity: string;
   stationRail_SelectDestCityFirst: string;
-
-  // PortPriceFinderForm Buttons
   getPriceAndCommentary: string;
   calculateBestPrice: string;
   calculating: string;
-  processingButton: string; // Used for button state, also for loading text
-
-  // PortPriceFinderForm Loading Indicator Texts
+  processingButton: string;
   loading_CalculatingBestPrices: string;
   loading_ProcessingFile: string;
   loading_GettingInfo: string;
   loading_MayTakeMoment: string;
-
-
-  // Common placeholders for Excel upload buttons (already used in CommonFormFields)
   placeholder_UploadSeaRailExcel: string;
   placeholder_UploadDirectRailExcel: string;
-
-  // DirectRailFormFields labels
   directRail_CityOfDeparture: string;
   directRail_DestCity: string;
   directRail_AgentName: string;
   directRail_Incoterms: string;
   directRail_Border: string;
-  
-  // DirectRailFormFields placeholders
   directRail_Placeholder_DepCity_Loading: string;
   directRail_Placeholder_DepCity_NoData: string;
   directRail_Placeholder_DepCity_Select: string;
   directRail_Placeholder_DepCity_NoCitiesInExcel: string;
-
   directRail_Placeholder_DestCity_Loading: string;
   directRail_Placeholder_DestCity_NoData: string;
   directRail_Placeholder_DestCity_Select: string;
   directRail_Placeholder_DestCity_NoCitiesInExcel: string;
-
   directRail_Placeholder_Agent_Loading: string;
   directRail_Placeholder_Agent_NoData: string;
   directRail_Placeholder_Agent_SelectCities: string;
   directRail_Placeholder_Agent_Select: string;
   directRail_Placeholder_Agent_NoAgentsForSelection: string;
   directRail_Placeholder_Agent_NoAgentsInExcel: string;
-
   directRail_Placeholder_Incoterms_Loading: string;
   directRail_Placeholder_Incoterms_NoData: string;
   directRail_Placeholder_Incoterms_SelectCities: string;
   directRail_Placeholder_Incoterms_Select: string;
   directRail_Placeholder_Incoterms_NoIncotermsForSelection: string;
   directRail_Placeholder_Incoterms_NoIncotermsInExcel: string;
-
   directRail_Placeholder_Border_Loading: string;
   directRail_Placeholder_Border_NoData: string;
   directRail_Placeholder_Border_SelectIncoterms: string;
   directRail_Placeholder_Border_Select: string;
   directRail_Placeholder_Border_NoBordersForSelection: string;
   directRail_Placeholder_Border_NoBordersInExcel: string;
-
-  // SelectItem disabled states (can be functions if they need dynamic parts)
   select_disabled_UploadExcel: string;
   select_disabled_LoadingOptions: string;
-  select_disabled_NoOptionsLoaded: string; // More generic
-  select_disabled_SelectDependencyFirst: (fieldName: string) => string; // Example
+  select_disabled_NoOptionsLoaded: string;
+  select_disabled_SelectDependencyFirst: (fieldName: string) => `Select ${fieldName} first`,
   select_disabled_NoOptionsForSelection: string;
-  select_disabled_NoOptionsInExcel: string; // Generic
+  select_disabled_NoOptionsInExcel: string;
 
   // NavLinks
   nav_Dashboard: string;
   nav_Calculator: string;
   nav_Settings: string;
+
+  // Dashboard Page Translations
+  dashboard_DataNotLoaded_Title: string;
+  dashboard_DataNotLoaded_Description: string;
+  dashboard_DataNotLoaded_Button: string;
+  dashboard_NoDataFound_Title: string;
+  dashboard_NoDataFound_Description: string;
+  dashboard_BackToCalculator_Button: string;
+  dashboard_MainTitle: string;
+  dashboard_MainDescription: string;
+  dashboard_ServiceSection_FallbackTitle: string; // Expects {{sectionNumber}}
+  dashboard_TableHead_Route: string;
+  dashboard_TableHead_SeaRate: string;
+  dashboard_TableHead_ContainerInfo: string;
+  dashboard_TableHead_CommentsDetails: string;
+  dashboard_TableHead_Actions: string;
+  dashboard_CopyRate_Button: string;
+  dashboard_RailwayLegs_Title: string;
+  dashboard_RailwayLegs_OriginInfo: string;
+  dashboard_RailwayLegs_Cost: string;
+  dashboard_RailwayLegs_Container: string;
+  dashboard_RailwayLegs_Comment: string;
+  dashboard_NoServicesFound_Title: string;
+  dashboard_NoServicesFound_Description: string;
+  dashboard_NoDataRowsForService: string;
+
+  // Toast Messages (some might be reusable later)
+  toast_Success_Title: string;
+  toast_Dashboard_RateCopied: string;
+  toast_CopyFailed_Title: string;
+  toast_CopyFailed_Description: string;
 }
 
 interface LocalizationContextType {
@@ -171,25 +175,35 @@ const defaultEnTranslations: Partial<Translations> = {
   settings: "Settings",
   english: "English",
   russian: "Russian",
+  common_NA: "N/A",
+  common_Dash: "-",
   select_disabled_SelectDependencyFirst: (fieldName: string) => `Select ${fieldName} first`,
   nav_Dashboard: "Dashboard",
   nav_Calculator: "Calculator",
   nav_Settings: "Settings",
+  toast_Success_Title: "Success!",
+  toast_CopyFailed_Title: "Copy Failed",
+  toast_CopyFailed_Description: "Could not copy to clipboard.",
 };
 
 const translationsData: Record<Language, Partial<Translations>> = {
   en: {
-    // This is now effectively empty here, as form-specific keys come from partialEnTranslations
+    // Form-specific keys come from partialEnTranslations
   },
   ru: {
     // Common Russian translations remain
     settings: "Настройки",
-    english: "Английский", // Kept for consistency if a language switcher shows "English" in Russian UI
+    english: "Английский",
     russian: "Русский",
+    common_NA: "Н/Д",
+    common_Dash: "-",
     select_disabled_SelectDependencyFirst: (fieldName: string) => `Сначала выберите ${fieldName}`,
     nav_Dashboard: "Дашборд",
     nav_Calculator: "Калькулятор",
     nav_Settings: "Настройки",
+    toast_Success_Title: "Успех!",
+    toast_CopyFailed_Title: "Ошибка копирования",
+    toast_CopyFailed_Description: "Не удалось скопировать в буфер обмена.",
   },
 };
 
@@ -244,3 +258,5 @@ export const useLocalization = (): LocalizationContextType => {
   }
   return context;
 };
+
+    
