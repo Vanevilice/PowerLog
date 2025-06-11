@@ -120,7 +120,7 @@ export interface Translations {
   select_disabled_UploadExcel: string;
   select_disabled_LoadingOptions: string;
   select_disabled_NoOptionsLoaded: string;
-  select_disabled_SelectDependencyFirst: (fieldName: string) => `Select ${fieldName} first`,
+  select_disabled_SelectDependencyFirst: (fieldName: string) => string,
   select_disabled_NoOptionsForSelection: string;
   select_disabled_NoOptionsInExcel: string;
 
@@ -184,11 +184,13 @@ const defaultEnTranslations: Partial<Translations> = {
   toast_Success_Title: "Success!",
   toast_CopyFailed_Title: "Copy Failed",
   toast_CopyFailed_Description: "Could not copy to clipboard.",
+  // Dashboard specific keys are removed from here, they are in src/locales/en/dashboardPage.ts
 };
 
 const translationsData: Record<Language, Partial<Translations>> = {
   en: {
     // Form-specific keys come from partialEnTranslations
+    // Dashboard specific keys also come from partialEnTranslations via src/locales/en/index.ts
   },
   ru: {
     // Common Russian translations remain
@@ -204,6 +206,31 @@ const translationsData: Record<Language, Partial<Translations>> = {
     toast_Success_Title: "Успех!",
     toast_CopyFailed_Title: "Ошибка копирования",
     toast_CopyFailed_Description: "Не удалось скопировать в буфер обмена.",
+    // Dashboard specific keys will be removed in the next step
+    dashboard_DataNotLoaded_Title: "Данные дашборда не загружены",
+    dashboard_DataNotLoaded_Description: "Пожалуйста, загрузите Excel-файл \"Море + Ж/Д\" на странице Калькулятора для просмотра данных дашборда.",
+    dashboard_DataNotLoaded_Button: "Перейти к Калькулятору для загрузки файла",
+    dashboard_NoDataFound_Title: "Данные для дашборда не найдены",
+    dashboard_NoDataFound_Description: "Excel-файл \"Море + Ж/Д\" был загружен, но секции для дашборда не были найдены или обработаны с первого листа. Пожалуйста, проверьте формат файла.",
+    dashboard_BackToCalculator_Button: "Вернуться к Калькулятору",
+    dashboard_MainTitle: "Дашборд Море + Ж/Д Услуг",
+    dashboard_MainDescription: "Отображение данных с первого листа загруженного Excel-файла \"Море + Ж/Д\".",
+    dashboard_ServiceSection_FallbackTitle: "Секция услуг {{sectionNumber}}",
+    dashboard_TableHead_Route: "Маршрут (Отправление - Назначение)",
+    dashboard_TableHead_SeaRate: "Морская ставка",
+    dashboard_TableHead_ContainerInfo: "Инфо о контейнере",
+    dashboard_TableHead_CommentsDetails: "Комментарии / Детали",
+    dashboard_TableHead_Actions: "Действия",
+    dashboard_CopyRate_Button: "Копировать ставку",
+    dashboard_RailwayLegs_Title: "Доступные Ж/Д плечи для этой секции",
+    dashboard_RailwayLegs_OriginInfo: "Инфо об отправлении",
+    dashboard_RailwayLegs_Cost: "Стоимость",
+    dashboard_RailwayLegs_Container: "Контейнер",
+    dashboard_RailwayLegs_Comment: "Комментарий",
+    dashboard_NoServicesFound_Title: "Услуги не найдены",
+    dashboard_NoServicesFound_Description: "Первый лист вашего Excel-файла, похоже, не содержит данных в ожидаемом формате для дашборда.",
+    dashboard_NoDataRowsForService: "Для данной услуги не найдено строк данных.",
+    toast_Dashboard_RateCopied: "Ставка скопирована в буфер обмена.",
   },
 };
 
@@ -215,13 +242,13 @@ export const LocalizationProvider = ({ children }: { children: ReactNode }) => {
     if (language === 'en') {
       mergedTranslations = {
         ...defaultEnTranslations,     // Common EN keys and the function
-        ...partialEnTranslations,   // PortPriceFinderForm specific EN keys
+        ...partialEnTranslations,   // PortPriceFinderForm specific EN keys & Dashboard EN Keys
       };
     } else { // language === 'ru'
       mergedTranslations = {
         ...defaultEnTranslations,     // Base: Common EN keys and the function
-        ...translationsData.ru,     // Override common keys with RU versions
-        ...partialRuTranslations,   // PortPriceFinderForm specific RU keys
+        ...translationsData.ru,     // Override common keys with RU versions, still contains Dashboard RU for now
+        ...partialRuTranslations,   // PortPriceFinderForm specific RU keys & Dashboard RU Keys
       };
     }
     return mergedTranslations as Translations; // Assume all keys are covered by the merge
