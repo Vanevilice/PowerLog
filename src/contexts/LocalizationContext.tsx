@@ -2,6 +2,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { partialEnTranslations } from '@/locales/en'; // Import partial English translations
+import { partialRuTranslations } from '@/locales/ru'; // Import partial Russian translations
 
 // Define available languages
 export type Language = 'en' | 'ru';
@@ -16,7 +18,7 @@ export interface Translations {
   // PortPriceFinderForm specific
   powerLogTitle: string;
   powerLogDescription: string;
-  powerLogDescription_RU_ONLY_REMOVED?: string; // Special key for RU
+  // powerLogDescription_RU_ONLY_REMOVED?: string; // Removed this special key
 
   // CommonFormFields
   uploadSeaRailExcel: string;
@@ -164,195 +166,27 @@ interface LocalizationContextType {
 
 const LocalizationContext = createContext<LocalizationContextType | undefined>(undefined);
 
-// Default English translations to ensure all keys are present.
-const defaultEnTranslations: Translations = {
+// Default English translations - now only common keys and the function.
+const defaultEnTranslations: Partial<Translations> = {
   settings: "Settings",
   english: "English",
   russian: "Russian",
-  // Keys from powerLogTitle to stationRailPlaceholder_SelectDestCity (54 keys) are removed here.
-  // The remaining keys start from stationRailPlaceholder_Select.
-  stationRailPlaceholder_Select: "Select station (optional)",
-  stationRailPlaceholder_NoStationsForCity: "No stations for this city",
-  stationRail_SelectDestCityFirst: "Select Destination City (Rail) first",
-  getPriceAndCommentary: "Get Price & Commentary",
-  calculateBestPrice: "Calculate Best Price",
-  calculating: "Calculating...",
-  processingButton: "Processing...",
-  loading_CalculatingBestPrices: "Calculating best prices...",
-  loading_ProcessingFile: "Processing file...",
-  loading_GettingInfo: "Getting information...",
-  loading_MayTakeMoment: "This may take a moment.",
-  placeholder_UploadSeaRailExcel: "Upload Sea+Rail Excel",
-  placeholder_UploadDirectRailExcel: "Upload Direct Rail Excel",
-  directRail_CityOfDeparture: "City of Departure",
-  directRail_DestCity: "Destination City",
-  directRail_AgentName: "Agent name (optional)",
-  directRail_Incoterms: "Incoterms",
-  directRail_Border: "Border",
-  directRail_Placeholder_DepCity_Loading: "Loading cities...",
-  directRail_Placeholder_DepCity_NoData: "Upload Direct Rail Excel",
-  directRail_Placeholder_DepCity_Select: "Select departure city",
-  directRail_Placeholder_DepCity_NoCitiesInExcel: "No departure cities in Excel",
-  directRail_Placeholder_DestCity_Loading: "Loading cities...",
-  directRail_Placeholder_DestCity_NoData: "Upload Direct Rail Excel",
-  directRail_Placeholder_DestCity_Select: "Select destination city",
-  directRail_Placeholder_DestCity_NoCitiesInExcel: "No destination cities in Excel",
-  directRail_Placeholder_Agent_Loading: "Loading agents...",
-  directRail_Placeholder_Agent_NoData: "Upload Direct Rail Excel",
-  directRail_Placeholder_Agent_SelectCities: "Select Departure & Destination Cities",
-  directRail_Placeholder_Agent_Select: "Select agent (optional)",
-  directRail_Placeholder_Agent_NoAgentsForSelection: "No agents for current selection",
-  directRail_Placeholder_Agent_NoAgentsInExcel: "No agents in Excel",
-  directRail_Placeholder_Incoterms_Loading: "Loading incoterms...",
-  directRail_Placeholder_Incoterms_NoData: "Upload Direct Rail Excel",
-  directRail_Placeholder_Incoterms_SelectCities: "Select Departure & Destination Cities",
-  directRail_Placeholder_Incoterms_Select: "Select incoterms",
-  directRail_Placeholder_Incoterms_NoIncotermsForSelection: "No incoterms for current selection",
-  directRail_Placeholder_Incoterms_NoIncotermsInExcel: "No incoterms in Excel",
-  directRail_Placeholder_Border_Loading: "Loading borders...",
-  directRail_Placeholder_Border_NoData: "Upload Direct Rail Excel",
-  directRail_Placeholder_Border_SelectIncoterms: "Select Incoterms first",
-  directRail_Placeholder_Border_Select: "Select border",
-  directRail_Placeholder_Border_NoBordersForSelection: "No borders for current selection",
-  directRail_Placeholder_Border_NoBordersInExcel: "No borders in Excel",
-  select_disabled_UploadExcel: "Upload Excel",
-  select_disabled_LoadingOptions: "Loading options...",
-  select_disabled_NoOptionsLoaded: "No options loaded",
   select_disabled_SelectDependencyFirst: (fieldName: string) => `Select ${fieldName} first`,
-  select_disabled_NoOptionsForSelection: "No options for current selection",
-  select_disabled_NoOptionsInExcel: "No options in Excel",
   nav_Dashboard: "Dashboard",
   nav_Calculator: "Calculator",
   nav_Settings: "Settings",
-  // These are now empty as they are moved to portPriceFinderFormEnTranslations
-  // and will be merged in the LocalizationProvider.
-  powerLogTitle: "",
-  powerLogDescription: "",
-  uploadSeaRailExcel: "",
-  uploadDirectRailExcel: "",
-  uploadSOCDropOffExcel: "",
-  processingFile: "",
-  calculationMode: "",
-  calculationMode_SeaRail: "",
-  calculationMode_DirectRail: "",
-  seaMargin: "",
-  railMargin: "",
-  shipmentType: "",
-  shipmentType_COC: "",
-  shipmentType_SOC: "",
-  originPort: "",
-  destinationPortSea: "",
-  seaLineCompany: "",
-  containerType: "",
-  destinationCityRail: "",
-  stationRail: "",
-  originPortPlaceholder_Loading: "",
-  originPortPlaceholder_NoData: "",
-  originPortPlaceholder_Select: "",
-  originPort_NoOriginPortsInExcel: "",
-  destinationPortSeaPlaceholder_Loading: "",
-  destinationPortSeaPlaceholder_NoData: "",
-  destinationPortSeaPlaceholder_SelectOrigin: "",
-  destinationPortSeaPlaceholder_Select: "",
-  destinationPortSeaPlaceholder_NoDestForOrigin: "",
-  destPort_Placeholder_Vladivostok: "",
-  destinationPortSea_SelectOriginFirst: "",
-  destinationPortSea_NoDestForOrigin: "",
-  seaLineCompanyPlaceholder_Loading: "",
-  seaLineCompanyPlaceholder_NoData: "",
-  seaLineCompanyPlaceholder_SelectOD: "",
-  seaLineCompanyPlaceholder_Select: "",
-  seaLineCompanyPlaceholder_NoLinesForOD: "",
-  seaLineCompany_NoneOption: "",
-  seaLineCompany_SelectODFirst: "",
-  containerTypePlaceholder_Loading: "",
-  containerTypePlaceholder_NoData: "",
-  containerTypePlaceholder_Select: "",
-  destinationCityRailPlaceholder_Loading: "",
-  destinationCityRailPlaceholder_NoData: "",
-  destinationCityRailPlaceholder_NoRailDestLoaded: "",
-  destinationCityRailPlaceholder_SelectOrigin: "",
-  destinationCityRailPlaceholder_SelectContainer: "",
-  destinationCityRailPlaceholder_SelectOriginContainer: "",
-  destinationCityRailPlaceholder_Select: "",
-  destinationCityRailPlaceholder_NoHubsForSelection: "",
-  rusCity_Placeholder_NoRailHubsForSeaDest: "",
-  destinationCityRail_NoRailCitiesMaster: "",
-  stationRailPlaceholder_Loading: "",
-  stationRailPlaceholder_NoData: "",
-  stationRailPlaceholder_SelectDestCity: "",
 };
 
 const translationsData: Record<Language, Partial<Translations>> = {
   en: {
-    // This will be populated by merging files later
+    // This is now effectively empty here, as form-specific keys come from partialEnTranslations
   },
   ru: {
-    // Common
+    // Common Russian translations remain
     settings: "Настройки",
-    english: "Английский",
+    english: "Английский", // Kept for consistency if a language switcher shows "English" in Russian UI
     russian: "Русский",
-    // PortPriceFinderForm specific keys removed up to stationRail_SelectDestCityFirst
-    
-    // PortPriceFinderForm Buttons
-    getPriceAndCommentary: "Посчитать ставку",
-    calculateBestPrice: "Лучшие ставки",
-    calculating: "Расчет...",
-    processingButton: "Обработка...", // Also for loading text
-    // PortPriceFinderForm Loading Indicator Texts
-    loading_CalculatingBestPrices: "Расчет лучших цен...",
-    loading_ProcessingFile: "Обработка файла...",
-    loading_GettingInfo: "Получение информации...",
-    loading_MayTakeMoment: "Это может занять некоторое время.",
-
-    placeholder_UploadSeaRailExcel: "Загрузите Море + Ж/Д файл",
-    placeholder_UploadDirectRailExcel: "Загрузите Прямое ЖД файл",
-    // DirectRailFormFields labels
-    directRail_CityOfDeparture: "Город отправления",
-    directRail_DestCity: "Город назначения",
-    directRail_AgentName: "Агент (необязательно)",
-    directRail_Incoterms: "Инкотермс",
-    directRail_Border: "Граница",
-    // DirectRailFormFields Placeholders
-    directRail_Placeholder_DepCity_Loading: "Загрузка городов...",
-    directRail_Placeholder_DepCity_NoData: "Загрузите Прямое ЖД файл",
-    directRail_Placeholder_DepCity_Select: "Выберите город отправления",
-    directRail_Placeholder_DepCity_NoCitiesInExcel: "Нет городов отправления в Excel",
-
-    directRail_Placeholder_DestCity_Loading: "Загрузка городов...",
-    directRail_Placeholder_DestCity_NoData: "Загрузите Прямое ЖД файл",
-    directRail_Placeholder_DestCity_Select: "Выберите город назначения",
-    directRail_Placeholder_DestCity_NoCitiesInExcel: "Нет городов назначения в Excel",
-
-    directRail_Placeholder_Agent_Loading: "Загрузка агентов...",
-    directRail_Placeholder_Agent_NoData: "Загрузите Прямое ЖД файл",
-    directRail_Placeholder_Agent_SelectCities: "Выберите города Отправки и Назначения",
-    directRail_Placeholder_Agent_Select: "Выберите агента (необязательно)",
-    directRail_Placeholder_Agent_NoAgentsForSelection: "Нет агентов для текущего выбора",
-    directRail_Placeholder_Agent_NoAgentsInExcel: "Нет агентов в файле Excel",
-
-    directRail_Placeholder_Incoterms_Loading: "Загрузка инкотермс...",
-    directRail_Placeholder_Incoterms_NoData: "Загрузите Прямое ЖД файл",
-    directRail_Placeholder_Incoterms_SelectCities: "Выберите города Отправки и Назначения",
-    directRail_Placeholder_Incoterms_Select: "Выберите инкотермс",
-    directRail_Placeholder_Incoterms_NoIncotermsForSelection: "Нет инкотермс для текущего выбора",
-    directRail_Placeholder_Incoterms_NoIncotermsInExcel: "Нет инкотермс в файле Excel",
-
-    directRail_Placeholder_Border_Loading: "Загрузка границ...",
-    directRail_Placeholder_Border_NoData: "Загрузите Прямое ЖД файл",
-    directRail_Placeholder_Border_SelectIncoterms: "Сначала выберите Инкотермс",
-    directRail_Placeholder_Border_Select: "Выберите границу",
-    directRail_Placeholder_Border_NoBordersForSelection: "Нет границ для текущего выбора",
-    directRail_Placeholder_Border_NoBordersInExcel: "Нет границ в файле Excel",
-
-    // SelectItem disabled states
-    select_disabled_UploadExcel: "Загрузите Excel",
-    select_disabled_LoadingOptions: "Загрузка опций...",
-    select_disabled_NoOptionsLoaded: "Опции не загружены",
-    select_disabled_SelectDependencyFirst: (fieldName: string) => `Сначала выберите ${fieldName}`, // Example implementation
-    select_disabled_NoOptionsForSelection: "Нет опций для текущего выбора",
-    select_disabled_NoOptionsInExcel: "Нет опций в Excel",
-    // NavLinks
+    select_disabled_SelectDependencyFirst: (fieldName: string) => `Сначала выберите ${fieldName}`,
     nav_Dashboard: "Дашборд",
     nav_Calculator: "Калькулятор",
     nav_Settings: "Настройки",
@@ -363,17 +197,26 @@ export const LocalizationProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguage] = useState<Language>('ru'); // Default to Russian
 
   const currentTranslations = React.useMemo(() => {
-    // In future steps, defaultEnTranslations will be an empty object or minimal,
-    // and translationsData.en will be populated from merged files.
-    // For now, defaultEnTranslations still holds some keys.
-    const baseTranslations = language === 'en' ? defaultEnTranslations : { ...defaultEnTranslations, ...translationsData.ru };
-    return { ...baseTranslations, ...translationsData[language] } as Translations; // Ensure all keys from Translations interface are present
+    let mergedTranslations: Partial<Translations>;
+    if (language === 'en') {
+      mergedTranslations = {
+        ...defaultEnTranslations,     // Common EN keys and the function
+        ...partialEnTranslations,   // PortPriceFinderForm specific EN keys
+      };
+    } else { // language === 'ru'
+      mergedTranslations = {
+        ...defaultEnTranslations,     // Base: Common EN keys and the function
+        ...translationsData.ru,     // Override common keys with RU versions
+        ...partialRuTranslations,   // PortPriceFinderForm specific RU keys
+      };
+    }
+    return mergedTranslations as Translations; // Assume all keys are covered by the merge
   }, [language]);
 
   const translate = useCallback((key: keyof Translations, replacements?: Record<string, string | number>) => {
     let translationValue = currentTranslations[key] || key;
     if (typeof translationValue === 'function') {
-        const depKey = replacements && Object.keys(replacements)[0]; // Simplistic, assumes first replacement is the dependency
+        const depKey = replacements && Object.keys(replacements)[0];
         const depValue = depKey && replacements ? String(replacements[depKey]) : '';
         return (translationValue as (dep: string) => string)(depValue || 'field');
     }
@@ -401,4 +244,3 @@ export const useLocalization = (): LocalizationContextType => {
   }
   return context;
 };
-
