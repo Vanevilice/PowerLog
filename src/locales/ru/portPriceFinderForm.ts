@@ -1,5 +1,47 @@
+
 import type { Translations } from '@/contexts/LocalizationContext';
 
 export const portPriceFinderFormRuTranslations: Partial<Translations> = {
-  // Russian translations for PortPriceFinderForm will be moved here
+  powerLogTitle: "PowerLog",
+  powerLogDescription: " ", // Effectively remove for Russian
+  uploadSeaRailExcel: "Загрузите Море + Ж/Д файл",
+  uploadDirectRailExcel: "Загрузите Прямое ЖД файл",
+  uploadSOCDropOffExcel: "Загрузите SOC Drop-off файл",
+  processingFile: "Обработка...",
+  calculationMode: "Тип просчета",
+  calculationMode_SeaRail: "Море + ЖД",
+  calculationMode_DirectRail: "Прямое ЖД",
+  seaMargin: "Море маржа",
+  railMargin: "Ж/Д маржа",
+  shipmentType: "Собственность контейнера",
+  shipmentType_COC: "COC",
+  shipmentType_SOC: "SOC",
+  originPort: "Порт отправки",
+  destinationPortSea: "Порт назначения",
+  seaLineCompany: "Название Морской Линии",
+  containerType: "Тип Контейнера",
+  destinationCityRail: "Город назначения",
+  stationRail: "Станция",
+  originPortPlaceholder_Loading: "Загрузка портов...",
+  originPortPlaceholder_NoData: "Загрузите Море + Ж/Д файл",
+  originPortPlaceholder_Select: "Выберите порт отправки",
+  originPort_NoOriginPortsInExcel: "Нет портов отправки в Excel",
+  destinationPortSeaPlaceholder_Loading: "Загрузка портов...",
+  destinationPortSeaPlaceholder_NoData: "Загрузите Море + Ж/Д файл",
+  destinationPortSeaPlaceholder_SelectOrigin: "Сначала выберите порт отправки",
+  destinationPortSeaPlaceholder_Select: "Выберите морской порт назначения",
+  destinationPortSeaPlaceholder_NoDestForOrigin: "Нет морских назначений для этого порта",
+  destPort_Placeholder_Vladivostok: "Владивосток", // This was previously in EN defaults, now correctly in RU
+  destinationPortSea_SelectOriginFirst: "Сначала выберите порт отправки",
+  destinationPortSea_NoDestForOrigin: "Нет морских назначений для текущего порта отправки",
+  seaLineCompanyPlaceholder_Loading: "Загрузка морских линий...",
+  seaLineCompanyPlaceholder_NoData: "Загрузите Море + Ж/Д файл",
+  seaLineCompanyPlaceholder_SelectOD: "Сначала выберите порт отправки и назначения (морской)",
+  seaLineCompanyPlaceholder_Select: "Выберите линию (или Пусто)",
+  seaLineCompanyPlaceholder_NoLinesForOD: "Нет линий для этого О/Н",
+  seaLineCompany_NoneOption: "Пусто (Общий комментарий)",
+  seaLineCompany_SelectODFirst: "Сначала выберите порт отправки и назначения (морской)",
+  containerTypePlaceholder_Loading: "Загрузка типов...",
+  containerTypePlaceholder_NoData: "Загрузите Море + Ж/Д файл",
+  containerTypePlaceholder_Select: "Выберите тип контейнера",
 };
