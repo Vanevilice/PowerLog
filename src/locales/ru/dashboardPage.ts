@@ -24,4 +24,27 @@ export const dashboardPageRuTranslations: Partial<Translations> = {
   dashboard_TableHead_SeaRate: "Морская ставка",
   dashboard_TableHead_ContainerInfo: "Инфо о контейнере",
   dashboard_TableHead_CommentsDetails: "Комментарии / Детали",
+  dashboard_TableHead_Actions: "Действия",
+
+  // Buttons in Table
+  dashboard_CopyRate_Button: "Копировать ставку",
+
+  // Railway Legs Section
+  dashboard_RailwayLegs_Title: "Доступные Ж/Д плечи для этой секции",
+
+  // Railway Legs Table Headers
+  dashboard_RailwayLegs_OriginInfo: "Инфо об отправлении",
+  dashboard_RailwayLegs_Cost: "Стоимость",
+  dashboard_RailwayLegs_Container: "Контейнер",
+  dashboard_RailwayLegs_Comment: "Комментарий",
+
+  // Card: No Services Found
+  dashboard_NoServicesFound_Title: "Услуги не найдены",
+  dashboard_NoServicesFound_Description: "Первый лист вашего Excel-файла, похоже, не содержит данных в ожидаемом формате для дашборда.",
+
+  // Toasts (dashboard specific)
+  toast_Dashboard_RateCopied: "Ставка скопирована в буфер обмена.",
+
+  // Fallback Text
+  dashboard_NoDataRowsForService: "Для данной услуги не найдено строк данных.",
 };
