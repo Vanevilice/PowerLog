@@ -4,9 +4,9 @@ import type { Translations } from '@/contexts/LocalizationContext';
 export const portPriceFinderFormRuTranslations: Partial<Translations> = {
   powerLogTitle: "PowerLog",
   powerLogDescription: " ", 
-  uploadSeaRailExcel: "Загрузите Море + Ж/Д файл",
-  uploadDirectRailExcel: "Загрузите Прямое ЖД файл",
-  uploadSOCDropOffExcel: "Загрузите SOC Drop-off файл",
+  uploadSeaRailExcel: "Море + Ж/Д",
+  uploadDirectRailExcel: "Прямое ЖД",
+  uploadSOCDropOffExcel: "SOC Drop-Off",
   processingFile: "Обработка...",
   calculationMode: "Тип просчета",
   calculationMode_SeaRail: "Море + ЖД",
