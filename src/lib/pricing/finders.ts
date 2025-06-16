@@ -63,10 +63,10 @@ export function parseFirstNumberFromString(priceString: string | number | null):
 }
 
 export interface ParsedDashboardRoute {
-  originPort: string | null;
+  originPort: string[] | null; // Changed to string[]
   seaDestinationPort: string | null;
   containerType: ContainerType | null;
-  finalRussianDestination: string | null;
+  finalRussianDestination: string | null; // This will be the station name
 }
 
 export function parseDashboardRouteString(routeString: string): ParsedDashboardRoute {
@@ -91,46 +91,64 @@ export function parseDashboardRouteString(routeString: string): ParsedDashboardR
     }
   }
 
-  // Remove FOB/FI
+  // Remove FOB/FI prefixes
   tempRouteString = tempRouteString.replace(/^(FOB|FI)\s*/, "").trim();
 
-  const parts = tempRouteString.split(/\s*-\s*/).map(part => part.trim());
+  // Split the main parts by " - "
+  // We need to handle cases like "Shanghai/Ningbo/Qingdao - LO ПЛ/ТА - FOR MOSCOW"
+  // The " - LO " part or similar often signifies the end of origin ports / start of sea destination context
+  // The " - FOR " part signifies the start of the final Russian destination (station)
+  
+  let forPart = "";
+  if (tempRouteString.includes(" - FOR ")) {
+    const forSplit = tempRouteString.split(" - FOR ");
+    tempRouteString = forSplit[0].trim();
+    forPart = forSplit[1]?.trim() || "";
+    result.finalRussianDestination = forPart; // Station name
+  }
 
-  if (parts.length === 0) return result;
+  // Now, tempRouteString contains "ORIGIN_PORTS_PART - SEA_DEST_PART"
+  // Or just "ORIGIN_PORTS_PART" if no sea destination was before "FOR"
+  // Or "ORIGIN_PORTS_PART - SEA_DEST_PART - SOME_OTHER_PART"
+  
+  const mainParts = tempRouteString.split(/\s*-\s*(LO|L0)?\s*/i); // Split by " - " or " - LO " or " - L0 "
+  
+  const originSegment = mainParts[0]?.trim();
 
-  result.originPort = parts.shift() || null;
+  if (originSegment) {
+    // Split by slash if multiple origins are listed
+    result.originPort = originSegment.split('/').map(p => p.trim()).filter(p => p.length > 0);
+    if (result.originPort.length === 0) result.originPort = null;
+  }
 
-  if (parts.length > 0) {
-    const lastPart = parts[parts.length - 1];
-    const forMatch = lastPart.match(/^FOR\s+(.+)/);
-    if (forMatch && forMatch[1]) {
-      result.finalRussianDestination = forMatch[1].trim();
-      parts.pop(); // Remove the "FOR CITY" part
-      if (parts.length > 0) {
-        result.seaDestinationPort = parts.pop() || null;
+  // The part after the first " - " or " - LO " (if it exists and is not the FOR part) is the sea destination.
+  if (mainParts.length > 1 && mainParts[1] && (!forPart || tempRouteString.includes(mainParts[1]))) {
+      // Filter out empty strings or "LO"/"L0" that might result from the split regex
+      let potentialSeaDest = mainParts.filter((part, index) => index > 0 && part && !/^(LO|L0)$/i.test(part.trim()));
+      if (potentialSeaDest.length > 0) {
+        result.seaDestinationPort = potentialSeaDest[0].trim();
       }
-    } else {
-      result.seaDestinationPort = parts.pop() || null;
-    }
   }
   
   // If originPort still contains container type (e.g. if regex didn't catch it initially due to spacing)
-  if (result.originPort && !result.containerType) {
-    const containerInOriginMatch = result.originPort.match(/(20DC|40HC|20GP|40GP)/);
-    if (containerInOriginMatch && containerInOriginMatch[0]) {
-        const matchedContainerType = containerInOriginMatch[0] as ContainerType;
-        if (CONTAINER_TYPES_CONST.includes(matchedContainerType)) {
-            result.containerType = matchedContainerType;
-            result.originPort = result.originPort.replace(matchedContainerType, "").trim();
-        }
-    }
+  if (result.originPort && result.originPort.length > 0 && !result.containerType) {
+      const firstOrigin = result.originPort[0];
+      const containerInOriginMatch = firstOrigin.match(/(20DC|40HC|20GP|40GP)/);
+      if (containerInOriginMatch && containerInOriginMatch[0]) {
+          const matchedContainerType = containerInOriginMatch[0] as ContainerType;
+          if (CONTAINER_TYPES_CONST.includes(matchedContainerType)) {
+              result.containerType = matchedContainerType;
+              result.originPort[0] = firstOrigin.replace(matchedContainerType, "").trim();
+              if(result.originPort[0] === "") result.originPort.shift(); // Remove if empty after stripping
+              if(result.originPort.length === 0) result.originPort = null;
+          }
+      }
   }
   
   // Normalize extracted port/city names if needed or ensure they are not empty strings
-  if (result.originPort === "") result.originPort = null;
+  if (result.originPort && result.originPort.every(p => p === "")) result.originPort = null;
   if (result.seaDestinationPort === "") result.seaDestinationPort = null;
   if (result.finalRussianDestination === "") result.finalRussianDestination = null;
-
 
   return result;
 }
@@ -526,3 +544,5 @@ export function findDirectRailEntry(values: RouteFormValues, context: PricingDat
   );
 }
 
+
+    
