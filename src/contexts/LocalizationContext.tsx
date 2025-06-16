@@ -207,6 +207,7 @@ export interface Translations {
   bestPrices_CostBreakdown_ExcelCommentary: string;
   bestPrices_RouteCard_Button_CopyRate: string;
   bestPrices_RouteCard_Button_CreateInstructions: string;
+  bestPrices_DashboardRecommendationLabel: string; // New key for "Из Лучшего"
 }
 
 interface LocalizationContextType {
@@ -307,7 +308,3 @@ export const useLocalization = (): LocalizationContextType => {
   }
   return context;
 };
-
-    
-
-    

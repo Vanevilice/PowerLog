@@ -216,6 +216,9 @@ export interface BestPriceRoute {
   directRailPriceRUB?: number | null; // Specific field for direct rail price
   directRailETD?: string;
   directRailExcelCommentary?: string;
+
+  isDashboardRecommendation?: boolean; // Flag for dashboard sourced routes
+  dashboardSourceService?: string; // Name of the dashboard service section
 }
 
 
@@ -356,4 +359,11 @@ export interface RateData {
     thcSea: number;
     thcRail: number;
   };
+}
+
+// Translations type defined in LocalizationContext should be the single source of truth
+// For now, keeping this stub here for reference if specific keys needed to be added to it for this feature.
+// It will be updated/populated in the LocalizationContext.tsx
+export interface Translations extends Partial<import('@/contexts/LocalizationContext').Translations> {
+  bestPrices_DashboardRecommendationLabel?: string;
 }
