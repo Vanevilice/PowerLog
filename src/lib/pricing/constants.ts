@@ -5,7 +5,7 @@ export const SHIPMENT_TYPES_CONST = ["COC", "SOC"] as const;
 export const CALCULATION_MODES_CONST = ["sea_plus_rail", "direct_rail"] as const;
 
 export const VLADIVOSTOK_VARIANTS = ['Владивосток (ВМПП)', 'Владивосток (ПЛ)', 'Владивосток (ВМКТ)', 'Владивосток'];
-export const VOSTOCHNIY_VARIANTS = ['Восточный', 'Порт Восточный', 'ст. Восточный', 'Восточный порт пк']; // Added 'Восточный порт пк' based on typical naming
+export const VOSTOCHNIY_VARIANTS = ['Восточный', 'Порт Восточный', 'ст. Восточный', 'Восточный порт пк', 'Восточный (ВСК)']; // Added 'Восточный (ВСК)'
 export const USD_RUB_CONVERSION_RATE = 78.62;
 
 export const DROP_OFF_TRIGGER_PHRASES = [
@@ -29,3 +29,4 @@ export const DEFAULT_DIRECT_RAIL_FORM_VALUES = {
   directRailIncoterms: "",
   directRailBorder: "",
 };
+

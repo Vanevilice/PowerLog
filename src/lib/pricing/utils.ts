@@ -17,17 +17,18 @@ export function appendCommentary(existingComment: string, newMessage: string | n
 }
 
 /**
- * Normalizes a city name for consistent matching.
+ * Normalizes a city or port name for consistent matching.
  * - Converts to lowercase.
  * - Trims whitespace from ends.
  * - Removes "г. " (with space) from the beginning.
  * - Removes " г." (with space) or " г" or "г." from the end.
- * @param cityName The city name string to normalize.
- * @returns The normalized city name string, or an empty string if input is null/undefined.
+ * - Removes common parenthetical suffixes like (ВСК), (ВМПП), (ПЛ), (ТА), etc.
+ * @param name The city or port name string to normalize.
+ * @returns The normalized name string, or an empty string if input is null/undefined.
  */
-export function normalizeCityName(cityName: string | null | undefined): string {
-  if (!cityName) return "";
-  let normalized = String(cityName).toLowerCase().trim();
+export function normalizeCityName(name: string | null | undefined): string {
+  if (!name) return "";
+  let normalized = String(name).toLowerCase().trim();
 
   // Remove "г. " (cyrillic g, dot, space) from the beginning
   if (normalized.startsWith("г. ")) {
@@ -40,15 +41,20 @@ export function normalizeCityName(cityName: string | null | undefined): string {
   } else if (normalized.endsWith(" г")) {
     normalized = normalized.substring(0, normalized.length - 2).trim();
   } else if (normalized.endsWith("г.")) {
-    // Handles case like "Москваг." without a space before г.
     normalized = normalized.substring(0, normalized.length - 2).trim();
   }
   
-  // Fallback for "г." not at start/end but as a standalone prefix to the city name part
-  // e.g. if somehow "г.Москва" was passed without initial trim removing leading space
   if (normalized.startsWith("г.")) {
      normalized = normalized.substring(2).trim();
   }
 
+  // Remove common parenthetical suffixes (e.g., (ВСК), (ВМПП), (ПЛ), (ТА))
+  // This regex matches a space followed by parentheses containing any characters.
+  normalized = normalized.replace(/\s*\([^)]*\)\s*$/, "").trim();
+  // If the suffix was directly attached without a space, e.g. "Город(Суффикс)"
+  normalized = normalized.replace(/\([^)]*\)$/, "").trim();
+
+
   return normalized;
 }
+
