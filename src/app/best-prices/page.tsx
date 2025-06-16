@@ -230,7 +230,8 @@ export default function BestPricesPage() {
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-primary flex items-center">
-            <ListOrdered className="mr-3 h-8 w-8 text-accent" />
+            {/* Using original theme's primary for icon color, not accent */}
+            <ListOrdered className="mr-3 h-8 w-8 text-primary" /> 
             {translate('bestPrices_Header_Title', { count: bestPriceResults.length, mode: formModeText })}
           </h1>
           {cachedFormValues && (
@@ -277,24 +278,34 @@ export default function BestPricesPage() {
             const isDashboardRec = route.isDashboardRecommendation;
             const cardClasses = `shadow-xl rounded-xl overflow-hidden flex flex-col bg-card border border-border hover:shadow-2xl transition-shadow duration-300`;
             
-            const headerClasses = `pb-4 border-b ${isDashboardRec ? 'bg-accent text-accent-foreground border-accent-foreground/20' : 'bg-muted/30'}`;
+            // Use hsl(var(--chart-2)) for background, text-primary-foreground for text
+            const headerStyle = isDashboardRec ? { backgroundColor: 'hsl(var(--chart-2))', borderColor: 'hsl(var(--chart-2))' } : {};
+            const headerTextStyle = isDashboardRec ? 'text-primary-foreground' : 'text-primary';
+            const headerDescriptionStyle = isDashboardRec ? 'text-primary-foreground/80' : '';
+            const badgeStyle = isDashboardRec ? { borderColor: 'hsl(var(--primary-foreground))', color: 'hsl(var(--primary-foreground))', backgroundColor: 'hsla(var(--chart-2), 0.1)'} : {};
 
 
             return (
           <Card key={route.id} className={cardClasses}>
-            <CardHeader className={headerClasses}>
+            <CardHeader 
+              className={`pb-4 border-b ${isDashboardRec ? '' : 'bg-muted/30'}`}
+              style={headerStyle}
+            >
               <div className="flex justify-between items-start">
-                <CardTitle className={`text-xl font-semibold ${isDashboardRec ? 'text-accent-foreground' : 'text-primary'}`}>
+                <CardTitle className={`text-xl font-semibold ${headerTextStyle}`}>
                   {translate('bestPrices_RouteCard_OptionTitle', { optionNumber: index + 1 })}
                 </CardTitle>
                 {isDashboardRec && (
-                    <Badge variant="outline" className="border-accent-foreground text-accent-foreground bg-accent/30 font-semibold ml-2 flex items-center">
+                    <Badge variant="outline" 
+                           className="font-semibold ml-2 flex items-center"
+                           style={badgeStyle}
+                    >
                         <Star className="mr-1.5 h-3.5 w-3.5" /> 
                         {translate('bestPrices_DashboardRecommendationLabel')}
                     </Badge>
                 )}
               </div>
-              <CardDescription className={`text-xs mt-1 ${isDashboardRec ? 'text-accent-foreground/80' : ''}`}>
+              <CardDescription className={`text-xs mt-1 ${headerDescriptionStyle}`}>
                 {route.mode === 'sea_plus_rail' ? (
                     <>
                     {translate('bestPrices_RouteCard_Desc_SeaRail_RouteBase', { originPort: route.originPort || '', seaDestPort: route.seaDestinationPort || '' })}
