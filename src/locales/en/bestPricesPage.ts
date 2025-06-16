@@ -1,3 +1,4 @@
+
 // src/locales/en/bestPricesPage.ts
 import type { Translations } from '@/contexts/LocalizationContext';
 
@@ -48,4 +49,6 @@ export const bestPricesPageEnTranslations: Partial<Translations> = {
   bestPrices_CostBreakdown_ExcelCommentary: "Excel Commentary:",
   bestPrices_RouteCard_Button_CopyRate: "Copy Rate",
   bestPrices_RouteCard_Button_CreateInstructions: "Create Instructions",
+  bestPrices_DashboardRecommendationLabel: "From Our Best",
 };
+

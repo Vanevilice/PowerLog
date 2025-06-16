@@ -6,7 +6,9 @@ import type {
   BestPriceRoute,
   ShipmentType,
   ContainerType,
-  ExcelSOCDropOffEntry
+  ExcelSOCDropOffEntry,
+  DashboardServiceDataRow, // Added for generateDashboardCandidates
+  DashboardServiceSection, // Added for generateDashboardCandidates
 } from '@/types';
 import { USD_RUB_CONVERSION_RATE, VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS, NONE_SEALINE_VALUE } from './constants';
 import {
@@ -14,6 +16,8 @@ import {
   findDropOffDetails,
   findSOCDropOffDetails,
   parseFirstNumberFromString,
+  parseDashboardRouteString,    // Added for generateDashboardCandidates
+  parseDashboardMonetaryValue, // Added for generateDashboardCandidates
   type RailLegInfo,
   type DropOffInfo,
   type SOCDropOffInfo
@@ -320,6 +324,25 @@ export function generateDirectRailCandidates(values: RouteFormValues, context: P
   });
   return candidates;
 }
-    
 
+export function generateDashboardCandidates(values: RouteFormValues, context: PricingDataContextType): BestPriceRoute[] {
+  const { dashboardServiceSections, isSeaRailExcelDataLoaded } = context;
+  const candidates: BestPriceRoute[] = [];
+  let routeIdCounter = 0;
+
+  if (!isSeaRailExcelDataLoaded || !dashboardServiceSections || dashboardServiceSections.length === 0) {
+    return candidates;
+  }
+
+  // Iterate through dashboard data
+  dashboardServiceSections.forEach(section => {
+    section.dataRows.forEach(row => {
+      // Logic to parse row.route, row.rate etc. using parseDashboardRouteString, parseDashboardMonetaryValue
+      // This will be implemented in Step 3.2
+      // For now, this function just sets up the iteration structure.
+    });
+  });
+
+  return candidates;
+}
     

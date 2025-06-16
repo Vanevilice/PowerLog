@@ -1,3 +1,4 @@
+
 // src/locales/ru/bestPricesPage.ts
 import type { Translations } from '@/contexts/LocalizationContext';
 
@@ -48,4 +49,6 @@ export const bestPricesPageRuTranslations: Partial<Translations> = {
   bestPrices_CostBreakdown_ExcelCommentary: "Комментарий из Excel:",
   bestPrices_RouteCard_Button_CopyRate: "Копировать ставку",
   bestPrices_RouteCard_Button_CreateInstructions: "Создать инструкции",
+  bestPrices_DashboardRecommendationLabel: "Из Лучшего",
 };
+
