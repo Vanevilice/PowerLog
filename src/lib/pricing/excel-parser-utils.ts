@@ -1,5 +1,5 @@
-
 // src/lib/pricing/excel-parser-utils.ts
+import { normalizeCityName } from './utils'; // Import normalizeCityName
 
 export function parsePortsCell(cellValue: string | undefined, isDestination: boolean): string[] {
   if (!cellValue) return [];
@@ -75,8 +75,10 @@ export function parseRailStationsCell(cellValue: string | undefined): string[] {
 
 export function parseDropOffCitiesCell(cellValue: string | undefined): string[] {
   if (!cellValue) return [];
-  // Split by slash or comma
-  return String(cellValue).trim().split(/[,/]/g).map(city => city.trim()).filter(city => city);
+  // Split by slash or comma, then normalize each city name
+  return String(cellValue).trim().split(/[,/]/g)
+    .map(city => normalizeCityName(city.trim())) // Use normalizeCityName here
+    .filter(city => city); // Filter out any empty strings that might result from normalization
 }
 
 export function parseGenericListCell(cellValue: string | undefined): string[] {
@@ -116,4 +118,3 @@ export function parsePriceCell(cellValue: any): number | null {
     return null; // If not a number after cleaning, return null
   }
 }
-
