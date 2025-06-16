@@ -12,7 +12,7 @@ import type {
   ContainerType,
   ShipmentType,
 } from '@/types';
-import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS, DROP_OFF_TRIGGER_PHRASES } from './constants';
+import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS, DROP_OFF_TRIGGER_PHRASES, CONTAINER_TYPES_CONST } from './constants';
 import { appendCommentary, normalizeCityName } from './utils';
 
 // --- Helper Interfaces (can be moved to types if they become more widely used) ---
@@ -61,6 +61,131 @@ export function parseFirstNumberFromString(priceString: string | number | null):
   }
   return null;
 }
+
+export interface ParsedDashboardRoute {
+  originPort: string | null;
+  seaDestinationPort: string | null;
+  containerType: ContainerType | null;
+  finalRussianDestination: string | null;
+}
+
+export function parseDashboardRouteString(routeString: string): ParsedDashboardRoute {
+  const result: ParsedDashboardRoute = {
+    originPort: null,
+    seaDestinationPort: null,
+    containerType: null,
+    finalRussianDestination: null,
+  };
+
+  if (!routeString) return result;
+
+  let tempRouteString = routeString.toUpperCase();
+
+  // Extract Container Type
+  const containerMatch = tempRouteString.match(/(20DC|40HC|20GP|40GP)/);
+  if (containerMatch && containerMatch[0]) {
+    const matchedContainerType = containerMatch[0] as ContainerType;
+    if (CONTAINER_TYPES_CONST.includes(matchedContainerType)) {
+        result.containerType = matchedContainerType;
+        tempRouteString = tempRouteString.replace(matchedContainerType, "").trim();
+    }
+  }
+
+  // Remove FOB/FI
+  tempRouteString = tempRouteString.replace(/^(FOB|FI)\s*/, "").trim();
+
+  const parts = tempRouteString.split(/\s*-\s*/).map(part => part.trim());
+
+  if (parts.length === 0) return result;
+
+  result.originPort = parts.shift() || null;
+
+  if (parts.length > 0) {
+    const lastPart = parts[parts.length - 1];
+    const forMatch = lastPart.match(/^FOR\s+(.+)/);
+    if (forMatch && forMatch[1]) {
+      result.finalRussianDestination = forMatch[1].trim();
+      parts.pop(); // Remove the "FOR CITY" part
+      if (parts.length > 0) {
+        result.seaDestinationPort = parts.pop() || null;
+      }
+    } else {
+      result.seaDestinationPort = parts.pop() || null;
+    }
+  }
+  
+  // If originPort still contains container type (e.g. if regex didn't catch it initially due to spacing)
+  if (result.originPort && !result.containerType) {
+    const containerInOriginMatch = result.originPort.match(/(20DC|40HC|20GP|40GP)/);
+    if (containerInOriginMatch && containerInOriginMatch[0]) {
+        const matchedContainerType = containerInOriginMatch[0] as ContainerType;
+        if (CONTAINER_TYPES_CONST.includes(matchedContainerType)) {
+            result.containerType = matchedContainerType;
+            result.originPort = result.originPort.replace(matchedContainerType, "").trim();
+        }
+    }
+  }
+  
+  // Normalize extracted port/city names if needed or ensure they are not empty strings
+  if (result.originPort === "") result.originPort = null;
+  if (result.seaDestinationPort === "") result.seaDestinationPort = null;
+  if (result.finalRussianDestination === "") result.finalRussianDestination = null;
+
+
+  return result;
+}
+
+export interface ParsedMonetaryValue {
+  amount: number | null;
+  currency: 'USD' | 'RUB' | null;
+}
+
+export function parseDashboardMonetaryValue(valueString: string | undefined | null): ParsedMonetaryValue {
+  const result: ParsedMonetaryValue = { amount: null, currency: null };
+  if (valueString === null || valueString === undefined) return result;
+
+  let sValue = String(valueString).trim();
+  if (sValue === "" || sValue.toLowerCase() === "n/a" || sValue === "-") return result;
+
+  if (sValue.includes('$') || sValue.toUpperCase().includes('USD')) {
+    result.currency = "USD";
+  } else if (sValue.toLowerCase().includes('rub') || sValue.includes('₽') || sValue.toLowerCase().includes('руб')) {
+    result.currency = "RUB";
+  }
+
+  // Remove currency symbols/units and spaces. Standardize decimal separator.
+  let numericPart = sValue
+    .replace(/\$|€|₽|USD|EUR|RUB|P|р\.|руб\./gi, '')
+    .replace(/\s/g, '')
+    .replace(',', '.');
+  
+  // Handle cases like "1 500 / 1 600" - take the first number
+  if (numericPart.includes('/') && numericPart.match(/\d[\d.]*\/\d[\d.]*/)) {
+    numericPart = numericPart.split('/')[0].trim();
+  }
+  
+  // Remove trailing .0 or .00
+  numericPart = numericPart.replace(/\.(0+|0)$/, '');
+  // If rate was like "1000.-", remove the trailing ".-"
+  numericPart = numericPart.replace(/\.-$/, '');
+
+  const num = parseFloat(numericPart);
+
+  if (!isNaN(num)) {
+    result.amount = num;
+    // If currency wasn't explicitly found but it's a large number, assume RUB
+    if (!result.currency && num > 50000) { // Heuristic: numbers > 50k likely RUB if not specified
+        result.currency = "RUB";
+    } else if (!result.currency) {
+        result.currency = "USD"; // Default to USD for smaller numbers if unspecified
+    }
+  } else {
+      // If parsing fails, keep amount null and potentially clear currency if it was a bad heuristic
+      result.currency = null; 
+  }
+  return result;
+}
+
 
 // --- Finder Functions ---
 export function findSeaPriceAndDetails(
