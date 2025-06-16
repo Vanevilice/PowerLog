@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,7 +9,7 @@ body {
 
 @layer base {
   :root {
-    --background: 220 17% 95%; /* Light grey #F0F2F5 */
+    --background: 213 33% 95%; /* Light gray #F0F4F8 (was 220 17% 95%) */
     --foreground: 220 10% 20%; /* Dark grey for text */
 
     --card: 0 0% 100%; /* White */
@@ -17,8 +18,8 @@ body {
     --popover: 0 0% 100%; /* White */
     --popover-foreground: 220 10% 20%; /* Dark grey for text on popover */
 
-    --primary: 231 48% 48%; /* Deep blue #3F51B5 */
-    --primary-foreground: 231 48% 98%; /* Light color for text on primary */
+    --primary: 210 46% 65%; /* Desaturated blue #79A8D3 (was 231 48% 48%) */
+    --primary-foreground: 210 46% 98%; /* Light color for text on primary (was 231 48% 98%) */
 
     --secondary: 220 15% 90%; /* Slightly darker grey than background */
     --secondary-foreground: 220 10% 20%; /* Dark grey for text on secondary */
@@ -26,15 +27,15 @@ body {
     --muted: 220 15% 85%; /* Lighter grey for muted text/elements */
     --muted-foreground: 220 10% 45%; /* Medium grey for muted foreground */
 
-    --accent: 0 75% 55%; /* Red */
-    --accent-foreground: 0 0% 98%; /* Light color for text on accent */
+    --accent: 98 58% 73%; /* Yellow-green #B0E293 (was 0 75% 55% Red) */
+    --accent-foreground: 98 40% 25%; /* Darker text for light green accent (was 0 0% 98%) */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 220 10% 88%; /* Light grey for borders */
     --input: 220 10% 88%; /* Light grey for input backgrounds */
-    --ring: 231 48% 48%; /* Primary color for focus rings */
+    --ring: 210 46% 65%; /* Primary color for focus rings (was 231 48% 48%) */
 
     --radius: 0.5rem;
 
@@ -64,8 +65,8 @@ body {
     --popover: 220 10% 15%;
     --popover-foreground: 220 10% 95%;
 
-    --primary: 231 48% 58%; /* Lighter blue for dark mode */
-    --primary-foreground: 231 48% 15%;
+    --primary: 210 46% 70%; /* Lighter desaturated blue for dark mode */
+    --primary-foreground: 210 40% 15%; /* Dark text for dark mode primary */
 
     --secondary: 220 10% 25%;
     --secondary-foreground: 220 10% 95%;
@@ -73,15 +74,15 @@ body {
     --muted: 220 10% 20%;
     --muted-foreground: 220 10% 65%;
 
-    --accent: 0 75% 65%; /* Lighter Red for dark mode */
-    --accent-foreground: 0 0% 98%; /* Light color for text on accent */
+    --accent: 98 58% 68%; /* Dark mode Yellow-green */
+    --accent-foreground: 98 40% 20%; /* Dark text for dark mode accent */
 
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 220 10% 30%;
     --input: 220 10% 30%;
-    --ring: 231 48% 58%;
+    --ring: 210 46% 70%; /* Dark mode Primary color for focus rings */
 
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;

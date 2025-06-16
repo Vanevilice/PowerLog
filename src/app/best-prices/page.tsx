@@ -7,17 +7,18 @@ import { useRouter } from 'next/navigation';
 import { usePricingData, type BestPriceRoute } from '@/contexts/PricingDataContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Ship, Train, Copy, Edit3, Info, ListOrdered, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Ship, Train, Copy, Edit3, Info, ListOrdered, AlertTriangle, CheckCircle, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDisplayCost } from '@/lib/pricing/ui-helpers';
 import { VLADIVOSTOK_VARIANTS } from '@/lib/pricing/constants';
-import { useLocalization } from '@/contexts/LocalizationContext'; // Import useLocalization
+import { useLocalization } from '@/contexts/LocalizationContext';
+import { Badge } from '@/components/ui/badge'; // Import Badge
 
 export default function BestPricesPage() {
   const router = useRouter();
   const { bestPriceResults, cachedFormValues } = usePricingData();
   const { toast } = useToast();
-  const { translate } = useLocalization(); // Use the hook
+  const { translate } = useLocalization();
 
   const handleCopyRate = async (route: BestPriceRoute, index: number) => {
     let textToCopy = "";
@@ -44,7 +45,7 @@ export default function BestPricesPage() {
       if (route.shipmentType === "COC") {
         totalFreightCostUSD += dropOffCostForSum;
       } else if (route.shipmentType === "SOC" && route.socDropOffCostUSD !== null) {
-        totalFreightCostUSD += route.socDropOffCostUSD; // SOC Drop-off cost is USD
+        totalFreightCostUSD += route.socDropOffCostUSD;
       }
 
       textToCopy += "Фрахт: " + formatDisplayCost(totalFreightCostUSD > 0 ? totalFreightCostUSD : null, 'USD') + "\n";
@@ -67,7 +68,7 @@ export default function BestPricesPage() {
                 jdLine += translate('common_NA');
               }
 
-              if (route.shipmentType === "COC") { // Guard cost only for COC
+              if (route.shipmentType === "COC") {
                 const guardCostFormatted = formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB');
                 if (route.railGuardCost20DC_RUB !== null) {
                     jdLine += " + " + translate('bestPrices_CostBreakdown_Rail_GuardPrefix') + guardCostFormatted;
@@ -81,7 +82,7 @@ export default function BestPricesPage() {
           } else if (route.containerType === "40HC") {
               if (route.railCost40HC_RUB !== null) {
                 jdLine += formatDisplayCost(route.railCost40HC_RUB, 'RUB');
-                if (route.shipmentType === "COC") { // Guard cost only for COC
+                if (route.shipmentType === "COC") { 
                     const guardCostFormatted = formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB');
                     if (route.railGuardCost40HC_RUB !== null) {
                         jdLine += " + " + translate('bestPrices_CostBreakdown_Rail_GuardPrefix') + guardCostFormatted;
@@ -92,7 +93,7 @@ export default function BestPricesPage() {
                         jdLine += translate('bestPrices_CostBreakdown_Rail_GuardNA');
                     }
                 }
-              } else if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) { // Base is null but guard exists for COC
+              } else if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) {
                 jdLine += `${translate('bestPrices_CostBreakdown_Rail_GuardPrefix')}${formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB')}`;
                 if (route.railGuardCost40HC_RUB > 0) jdLine += " " + translate('bestPrices_CostBreakdown_Rail_GuardSuffixIfCodeProtected');
               } else {
@@ -109,7 +110,6 @@ export default function BestPricesPage() {
         if (route.seaComment) textToCopy += `${translate('bestPrices_CostBreakdown_SeaRouteComment')} ${route.seaComment}\n`;
         if (route.dropOffComment) textToCopy += `${translate('bestPrices_CostBreakdown_DropOffComment')} ${route.dropOffComment}\n`;
       }
-      // Removed SOC Comment and SOC Drop-off Comment from copy text
 
     } else if (route.mode === 'direct_rail') {
       textToCopy += translate('bestPrices_RouteCard_Desc_DirectRail_Route', { originPort: route.originPort || translate('common_NA'), destPort: route.seaDestinationPort || translate('common_NA') }) + "\n";
@@ -162,14 +162,14 @@ export default function BestPricesPage() {
     queryParams.set('seaMarginApplied', '0');
     queryParams.set('railMarginApplied', '0');
 
-    if (route.containerType === "20DC") { // Applies to COC and potentially SOC if rail costs are populated
+    if (route.containerType === "20DC") { 
         if (route.railCost20DC_24t_RUB !== null) queryParams.set('railCostBase24t', route.railCost20DC_24t_RUB.toString());
         if (route.railCost20DC_28t_RUB !== null) queryParams.set('railCostBase28t', route.railCost20DC_28t_RUB.toString());
         if (route.shipmentType === "COC" && route.railGuardCost20DC_RUB !== null) queryParams.set('railGuardCost20DC', route.railGuardCost20DC_RUB.toString());
 
         if (route.railCost20DC_24t_RUB !== null) queryParams.set('railCostFinal24t', route.railCost20DC_24t_RUB.toString());
         if (route.railCost20DC_28t_RUB !== null) queryParams.set('railCostFinal28t', route.railCost20DC_28t_RUB.toString());
-    } else if (route.containerType === "40HC") { // Applies to COC and potentially SOC
+    } else if (route.containerType === "40HC") { 
         if (route.railCost40HC_RUB !== null) queryParams.set('railCostBase40HC', route.railCost40HC_RUB.toString());
         if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) queryParams.set('railGuardCost40HC', route.railGuardCost40HC_RUB.toString());
 
@@ -186,7 +186,7 @@ export default function BestPricesPage() {
     }
     
     if (route.shipmentType === "SOC") {
-        if (route.socDropOffCostUSD !== null && route.socDropOffCostUSD !== undefined) queryParams.set('socDropOffCost', route.socDropOffCostUSD.toString()); // This is USD
+        if (route.socDropOffCostUSD !== null && route.socDropOffCostUSD !== undefined) queryParams.set('socDropOffCost', route.socDropOffCostUSD.toString());
         if (route.socDropOffComment) queryParams.set('socDropOffComment', route.socDropOffComment);
     }
 
@@ -273,13 +273,24 @@ export default function BestPricesPage() {
                 (route.containerType === "20DC" && (route.railCost20DC_24t_RUB !== null || route.railCost20DC_28t_RUB !== null || (route.shipmentType === "COC" && route.railGuardCost20DC_RUB !== null) )) ||
                 (route.containerType === "40HC" && (route.railCost40HC_RUB !== null || (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) ))
               );
+            
+            const isDashboardRec = route.isDashboardRecommendation;
+            const cardClasses = `shadow-xl rounded-xl overflow-hidden flex flex-col bg-card border hover:shadow-2xl transition-shadow duration-300 ${isDashboardRec ? 'border-accent ring-2 ring-accent/50 shadow-accent/20' : 'border-border'}`;
 
             return (
-          <Card key={route.id} className="shadow-xl rounded-xl overflow-hidden flex flex-col bg-card border border-border hover:shadow-2xl transition-shadow duration-300">
+          <Card key={route.id} className={cardClasses}>
             <CardHeader className="pb-4 bg-muted/30 border-b">
-              <CardTitle className="text-xl font-semibold text-primary">
-                {translate('bestPrices_RouteCard_OptionTitle', { optionNumber: index + 1 })}
-              </CardTitle>
+              <div className="flex justify-between items-start">
+                <CardTitle className="text-xl font-semibold text-primary">
+                  {translate('bestPrices_RouteCard_OptionTitle', { optionNumber: index + 1 })}
+                </CardTitle>
+                {isDashboardRec && (
+                    <Badge variant="outline" className="border-accent text-accent font-semibold ml-2 flex items-center">
+                        <Star className="mr-1.5 h-3.5 w-3.5" /> 
+                        {translate('bestPrices_DashboardRecommendationLabel')}
+                    </Badge>
+                )}
+              </div>
               <CardDescription className="text-xs mt-1">
                 {route.mode === 'sea_plus_rail' ? (
                     <>
@@ -291,7 +302,7 @@ export default function BestPricesPage() {
                       })
                     }
                     </>
-                ) : ( // Direct Rail
+                ) : ( 
                     <>
                     {translate('bestPrices_RouteCard_Desc_DirectRail_Route', { originPort: route.originPort || '', destPort: route.seaDestinationPort || '' })}
                     </>
@@ -301,7 +312,6 @@ export default function BestPricesPage() {
             </CardHeader>
             <CardContent className="p-4 space-y-3 text-sm flex-grow flex flex-col justify-between">
               <div>
-                {/* Route Details Section */}
                 <div className="grid grid-cols-[max-content_1fr] gap-x-2 gap-y-0.5 mb-3">
                   <p className="font-medium text-muted-foreground">{route.mode === 'direct_rail' ? translate('bestPrices_RouteDetails_DepCityLabel_DR') : translate('bestPrices_RouteDetails_OriginPortLabel_SR')}</p><p className="text-right">{route.originPort || translate('common_NA')}</p>
                   <p className="font-medium text-muted-foreground">{route.mode === 'direct_rail' ? translate('bestPrices_RouteDetails_DestCityLabel_DR') : translate('bestPrices_RouteDetails_SeaDestLabel_SR')}</p><p className="text-right">{route.seaDestinationPort || translate('common_NA')}</p>
@@ -339,7 +349,6 @@ export default function BestPricesPage() {
                   )}
                 </div>
 
-                {/* Cost Breakdown Section */}
                 <div className="pt-3 border-t border-border/50">
                   <h4 className="font-semibold text-md mb-2 text-primary">
                     {translate('bestPrices_CostBreakdown_Title')}
@@ -366,7 +375,6 @@ export default function BestPricesPage() {
                                 </p>
                             )}
 
-                            {/* Combined Railway Leg Cost Display */}
                             {hasRailComponentToShow && (
                               <p className="flex justify-between">
                                 <span>{translate('bestPrices_CostBreakdown_RailComponent')}</span>
@@ -421,8 +429,6 @@ export default function BestPricesPage() {
                                 </span>
                               </p>
                             )}
-                            {/* End Combined Railway Leg Cost Display */}
-
 
                             {dropOffToDisplay && route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line') && (
                                 <p className="flex justify-between">
@@ -436,7 +442,6 @@ export default function BestPricesPage() {
                                 <span className="text-xs text-destructive text-right ml-2">{route.dropOffComment}</span>
                             </p>
                             )}
-                            {/* Display SOC Drop Off Cost only if rail component is NOT shown for SOC */}
                             {!hasRailComponentToShow && route.shipmentType === "SOC" && route.socDropOffCostUSD !== null && (
                               <p className="flex justify-between">
                                 <span>{translate('bestPrices_CostBreakdown_SOCDropOffCost', { containerType: route.containerType || '' })}</span>
@@ -510,7 +515,3 @@ export default function BestPricesPage() {
     </div>
   );
 }
-
-    
-
-      
