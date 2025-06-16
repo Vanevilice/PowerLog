@@ -1,3 +1,4 @@
+
 // src/lib/pricing/calculation-processors.ts
 import type { UseFormReturn } from 'react-hook-form';
 import { useToast } from '@/hooks/use-toast';
@@ -22,7 +23,7 @@ import {
   type DropOffInfo,
   type SOCDropOffInfo
 } from './finders';
-import { generateSeaPlusRailCandidates, generateDirectRailCandidates } from './best-price-generators';
+import { generateSeaPlusRailCandidates, generateDirectRailCandidates, generateDashboardCandidates } from './best-price-generators';
 
 
 // --- Helper Types ---
@@ -309,7 +310,7 @@ export function calculateBestPrice({
   setBestPriceResults, setCachedFormValues, setIsNavigatingToBestPrices
 }: BestPriceArgs) {
   const values = form.getValues();
-  const { calculationMode, excelRussianDestinationCitiesMasterList, isSeaRailExcelDataLoaded, isDirectRailExcelDataLoaded, isSOCDropOffExcelDataLoaded } = context;
+  const { calculationMode, excelRussianDestinationCitiesMasterList, isSeaRailExcelDataLoaded, isDirectRailExcelDataLoaded, isSOCDropOffExcelDataLoaded, dashboardServiceSections } = context;
 
   setIsCalculatingBestPrice(true);
   setShippingInfo(null);
@@ -323,12 +324,10 @@ export function calculateBestPrice({
       setIsCalculatingBestPrice(false); return;
     }
     if (excelRussianDestinationCitiesMasterList.length > 0 && !values.russianDestinationCity && values.shipmentType === "COC") { 
-      // For COC, if rail hubs exist, russianDestCity is required
       toast({ title: "Missing Info", description: "Select Destination City for Best Price (Sea+Rail COC)." });
       setIsCalculatingBestPrice(false); return;
     }
     if (values.shipmentType === "SOC" && !values.russianDestinationCity) {
-        // For SOC, russianDestCity is always required for drop-off lookup
         toast({ title: "Missing Info", description: "Select Destination City for Best Price (Sea+Rail SOC)." });
         setIsCalculatingBestPrice(false); return;
     }
@@ -341,6 +340,13 @@ export function calculateBestPrice({
         setIsCalculatingBestPrice(false); return;
     }
     potentialRoutes = generateSeaPlusRailCandidates(values, context);
+    
+    // Add Dashboard Candidates for COC Sea+Rail mode
+    if (values.shipmentType === "COC" && isSeaRailExcelDataLoaded && dashboardServiceSections && dashboardServiceSections.length > 0) {
+        const dashboardCandidates = generateDashboardCandidates(values, context);
+        potentialRoutes = [...potentialRoutes, ...dashboardCandidates];
+    }
+
   } else if (calculationMode === "direct_rail") {
     if (!values.directRailCityOfDeparture || !values.directRailDestinationCityDR || !values.directRailIncoterms) {
       toast({ title: "Missing Info", description: "Select City of Departure, Destination City, and Incoterms for Direct Rail Best Price." });
@@ -366,3 +372,4 @@ export function calculateBestPrice({
   }
   setIsCalculatingBestPrice(false);
 }
+
