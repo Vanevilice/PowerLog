@@ -159,6 +159,54 @@ export interface Translations {
   toast_Dashboard_RateCopied: string;
   toast_CopyFailed_Title: string;
   toast_CopyFailed_Description: string;
+
+  // Best Prices Page Translations
+  toast_BestPrices_RateCopied: string;
+  toast_BestPrices_NotAvailable_Title: string;
+  toast_BestPrices_NotAvailable_DirectRailInstructions: string;
+  bestPrices_NoResults_Title: string;
+  bestPrices_NoResults_Description: string;
+  bestPrices_BackToCalculator_Button: string;
+  bestPrices_Header_Title: string;
+  bestPrices_Header_BasedOn_DirectRail: string;
+  bestPrices_Header_BasedOn_SeaRail_Base: string;
+  bestPrices_Header_BasedOn_SeaRail_FinalDest: string;
+  bestPrices_RouteCard_OptionTitle: string;
+  bestPrices_RouteCard_Desc_SeaRail_RouteBase: string;
+  bestPrices_RouteCard_Desc_SeaRail_FurtherRail: string;
+  bestPrices_RouteCard_Desc_DirectRail_Route: string;
+  bestPrices_RouteCard_AgentLabel: string;
+  bestPrices_RouteCard_SeaLineLabel: string;
+  bestPrices_RouteDetails_DepCityLabel_DR: string;
+  bestPrices_RouteDetails_OriginPortLabel_SR: string;
+  bestPrices_RouteDetails_DestCityLabel_DR: string;
+  bestPrices_RouteDetails_SeaDestLabel_SR: string;
+  bestPrices_RouteDetails_ContainerTypeLabel: string;
+  bestPrices_RouteDetails_ShipmentTypeLabel: string;
+  bestPrices_RouteDetails_BorderLabel_DR: string;
+  bestPrices_RouteDetails_IncotermsLabel_DR: string;
+  bestPrices_RouteDetails_FinalDestCityLabel_SR: string;
+  bestPrices_RouteDetails_RailDepStationLabel_SR: string;
+  bestPrices_RouteDetails_RailArrStationLabel_SR: string;
+  bestPrices_CostBreakdown_Title: string;
+  bestPrices_CostBreakdown_SeaFreightCost: string;
+  bestPrices_CostBreakdown_SeaRouteComment: string;
+  bestPrices_CostBreakdown_SOCComment: string;
+  bestPrices_CostBreakdown_RailComponent: string;
+  bestPrices_CostBreakdown_Rail_lt24t: string;
+  bestPrices_CostBreakdown_Rail_lt28t: string;
+  bestPrices_CostBreakdown_Rail_GuardPrefix: string;
+  bestPrices_CostBreakdown_Rail_GuardSuffixIfCodeProtected: string;
+  bestPrices_CostBreakdown_Rail_GuardNA: string;
+  bestPrices_CostBreakdown_DropOffCost: string;
+  bestPrices_CostBreakdown_DropOffComment: string;
+  bestPrices_CostBreakdown_SOCDropOffCost: string;
+  bestPrices_CostBreakdown_SOCDropOffComment: string;
+  bestPrices_CostBreakdown_DirectRailCost: string;
+  bestPrices_CostBreakdown_ETD: string;
+  bestPrices_CostBreakdown_ExcelCommentary: string;
+  bestPrices_RouteCard_Button_CopyRate: string;
+  bestPrices_RouteCard_Button_CreateInstructions: string;
 }
 
 interface LocalizationContextType {
@@ -259,5 +307,7 @@ export const useLocalization = (): LocalizationContextType => {
   }
   return context;
 };
+
+    
 
     
