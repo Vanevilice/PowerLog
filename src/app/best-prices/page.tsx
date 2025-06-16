@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDisplayCost } from '@/lib/pricing/ui-helpers';
 import { VLADIVOSTOK_VARIANTS } from '@/lib/pricing/constants';
 import { useLocalization } from '@/contexts/LocalizationContext';
-import { Badge } from '@/components/ui/badge'; // Import Badge
+import { Badge } from '@/components/ui/badge';
 
 export default function BestPricesPage() {
   const router = useRouter();
@@ -275,23 +275,26 @@ export default function BestPricesPage() {
               );
             
             const isDashboardRec = route.isDashboardRecommendation;
-            const cardClasses = `shadow-xl rounded-xl overflow-hidden flex flex-col bg-card border hover:shadow-2xl transition-shadow duration-300 ${isDashboardRec ? 'border-accent ring-2 ring-accent/50 shadow-accent/20' : 'border-border'}`;
+            const cardClasses = `shadow-xl rounded-xl overflow-hidden flex flex-col bg-card border border-border hover:shadow-2xl transition-shadow duration-300`;
+            
+            const headerClasses = `pb-4 border-b ${isDashboardRec ? 'bg-accent text-accent-foreground border-accent-foreground/20' : 'bg-muted/30'}`;
+
 
             return (
           <Card key={route.id} className={cardClasses}>
-            <CardHeader className="pb-4 bg-muted/30 border-b">
+            <CardHeader className={headerClasses}>
               <div className="flex justify-between items-start">
-                <CardTitle className="text-xl font-semibold text-primary">
+                <CardTitle className={`text-xl font-semibold ${isDashboardRec ? 'text-accent-foreground' : 'text-primary'}`}>
                   {translate('bestPrices_RouteCard_OptionTitle', { optionNumber: index + 1 })}
                 </CardTitle>
                 {isDashboardRec && (
-                    <Badge variant="outline" className="border-accent text-accent font-semibold ml-2 flex items-center">
+                    <Badge variant="outline" className="border-accent-foreground text-accent-foreground bg-accent/30 font-semibold ml-2 flex items-center">
                         <Star className="mr-1.5 h-3.5 w-3.5" /> 
                         {translate('bestPrices_DashboardRecommendationLabel')}
                     </Badge>
                 )}
               </div>
-              <CardDescription className="text-xs mt-1">
+              <CardDescription className={`text-xs mt-1 ${isDashboardRec ? 'text-accent-foreground/80' : ''}`}>
                 {route.mode === 'sea_plus_rail' ? (
                     <>
                     {translate('bestPrices_RouteCard_Desc_SeaRail_RouteBase', { originPort: route.originPort || '', seaDestPort: route.seaDestinationPort || '' })}
@@ -515,3 +518,5 @@ export default function BestPricesPage() {
     </div>
   );
 }
+
+    
