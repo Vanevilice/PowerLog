@@ -9,8 +9,8 @@ import type {
   ExcelSOCDropOffEntry,
   DashboardServiceDataRow,
   DashboardServiceSection,
-  RailLegInfo, // Ensure RailLegInfo is imported
-  RailwayLegData, // Import for preParsedRailwayLegs
+  RailLegInfo,
+  RailwayLegData,
 } from '@/types';
 import { USD_RUB_CONVERSION_RATE, VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS, NONE_SEALINE_VALUE } from './constants';
 import {
@@ -20,11 +20,12 @@ import {
   parseFirstNumberFromString,
   parseDashboardRouteString,
   parseDashboardMonetaryValue,
-  type DropOffInfo, // Ensure this is imported
-  type SOCDropOffInfo // Ensure this is imported
+  type DropOffInfo,
+  type SOCDropOffInfo
 } from './finders';
 import { getCityFromStationName } from './city-station-mapper';
-import { parseContainerInfoCell } from '@/lib/dashboard/utils'; // For parsing container from dashboard rail leg
+import { parseContainerInfoCell } from '@/lib/dashboard/utils';
+import { normalizeCityName } from './utils'; // Import normalizeCityName
 
 // Interface for the return type of _getRailAndDropOffDetailsForCandidate
 interface RailAndDropOffCandidateDetails {
@@ -41,13 +42,13 @@ interface RailAndDropOffCandidateDetails {
 function _getRailAndDropOffDetailsForCandidate(
   values: RouteFormValues,
   context: PricingDataContextType,
-  seaDestPort: string,
+  seaDestPort: string, // This is the specific port from the Excel row, e.g., "Восточный (ВСК)"
   seaLineCompanyIt: string | undefined,
   currentSeaComment: string | null,
   originPortForSeaRoute: string,
-  preParsedRailwayLegs?: RailwayLegData[] // Optional parameter for pre-parsed railway legs
+  preParsedRailwayLegs?: RailwayLegData[]
 ): RailAndDropOffCandidateDetails {
-  const { shipmentType, containerType, russianDestinationCity: formRussianDestinationCity } = values; // formRussianDestinationCity can be the mapped city
+  const { shipmentType, containerType, russianDestinationCity: formRussianDestinationCity } = values;
   let railLegDetails: RailLegInfo | null = null;
   let cocDropOffDetails: DropOffInfo | null = null;
   let socDropOffDetails: SOCDropOffInfo | null = null;
@@ -57,11 +58,11 @@ function _getRailAndDropOffDetailsForCandidate(
 
   const isFurtherRailJourney = formRussianDestinationCity &&
     seaDestPort &&
-    (VLADIVOSTOK_VARIANTS.some(v => seaDestPort.startsWith(v.split(" ")[0])) || VOSTOCHNIY_VARIANTS.some(v => seaDestPort.startsWith(v.split(" ")[0]))) &&
-    !VLADIVOSTOK_VARIANTS.some(v => v === formRussianDestinationCity && seaDestPort.startsWith(v.split(" ")[0])) &&
-    !VOSTOCHNIY_VARIANTS.some(v => v === formRussianDestinationCity && seaDestPort.startsWith(v.split(" ")[0]));
+    (VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(seaDestPort) === normalizeCityName(v)) || VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(seaDestPort) === normalizeCityName(v))) &&
+    !VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(formRussianDestinationCity) === normalizeCityName(v) && normalizeCityName(seaDestPort) === normalizeCityName(v)) &&
+    !VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(formRussianDestinationCity) === normalizeCityName(v) && normalizeCityName(seaDestPort) === normalizeCityName(v));
 
-  // Prioritize pre-parsed railway legs if available and relevant
+
   let railFoundInPreParsed = false;
   if (isFurtherRailJourney && formRussianDestinationCity && containerType && preParsedRailwayLegs && preParsedRailwayLegs.length > 0) {
     for (const leg of preParsedRailwayLegs) {
@@ -74,20 +75,23 @@ function _getRailAndDropOffDetailsForCandidate(
       if (stationNameFromLeg) {
         const mappedCityFromLeg = getCityFromStationName(stationNameFromLeg);
         const { containerType: legContainerType } = parseContainerInfoCell(leg.containerInfo);
+        const normalizedFormRussianDestCity = normalizeCityName(formRussianDestinationCity);
+        const normalizedMappedCityFromLeg = mappedCityFromLeg ? normalizeCityName(mappedCityFromLeg) : null;
 
-        if (mappedCityFromLeg && mappedCityFromLeg.toLowerCase() === formRussianDestinationCity.toLowerCase() && legContainerType === containerType) {
+
+        if (normalizedMappedCityFromLeg && normalizedMappedCityFromLeg === normalizedFormRussianDestCity && legContainerType === containerType) {
           const parsedLegCost = parseDashboardMonetaryValue(leg.cost);
           if (parsedLegCost.amount !== null && parsedLegCost.currency === 'RUB') {
             costToAddForRailRUB = parsedLegCost.amount;
             railLegDetails = {
               railLegFailed: false, commentaryReason: "",
-              arrivalStation: stationNameFromLeg,
-              departureStation: seaDestPort,
+              arrivalStation: stationNameFromLeg, // Use the actual station name from "FOR"
+              departureStation: seaDestPort, // The sea port where this rail leg originates
               baseCost24t: containerType === "20DC" ? parsedLegCost.amount : null,
-              baseCost28t: null, // Dashboard format might not specify this breakdown, assume N/A for now
-              guardCost20DC: 0,  // Assume bundled or N/A from dashboard simple format
+              baseCost28t: null,
+              guardCost20DC: 0,
               baseCost40HC: containerType === "40HC" ? parsedLegCost.amount : null,
-              guardCost40HC: 0,   // Assume bundled or N/A
+              guardCost40HC: 0,
             };
             railFoundInPreParsed = true;
             break;
@@ -97,12 +101,12 @@ function _getRailAndDropOffDetailsForCandidate(
     }
   }
 
-  // If rail not found in pre-parsed or not applicable, try finding from excelRailData (Sheet 5)
+
   if (isFurtherRailJourney && formRussianDestinationCity && containerType && !railFoundInPreParsed) {
     const genericRailDetails = findRailLegDetails(
       { ...values, destinationPort: seaDestPort, seaLineCompany: seaLineCompanyIt, originPort: originPortForSeaRoute, russianDestinationCity: formRussianDestinationCity, containerType } as RouteFormValues,
       context,
-      seaDestPort,
+      seaDestPort, // Pass the specific sea port like "Восточный (ВСК)"
       ""
     );
     if (!genericRailDetails.railLegFailed) {
@@ -115,15 +119,15 @@ function _getRailAndDropOffDetailsForCandidate(
     }
   }
 
-  // Determine derivedRussianDestinationCityForCandidate
+
   if (formRussianDestinationCity) {
       derivedRussianDestinationCityForCandidate = formRussianDestinationCity;
-  } else if (seaDestPort && (VLADIVOSTOK_VARIANTS.some(v => seaDestPort.startsWith(v.split(" ")[0])) || VOSTOCHNIY_VARIANTS.some(v => seaDestPort.startsWith(v.split(" ")[0])))) {
+  } else if (seaDestPort && (VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(seaDestPort) === normalizeCityName(v)) || VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(seaDestPort) === normalizeCityName(v)))) {
       derivedRussianDestinationCityForCandidate = seaDestPort;
   }
 
 
-  // Drop-off calculation logic (COC and SOC)
+
   if (shipmentType === "COC") {
     let cityForDropOffLookup = seaDestPort;
     if (isFurtherRailJourney && formRussianDestinationCity && railLegDetails && !railLegDetails.railLegFailed) {
@@ -151,7 +155,7 @@ function _getRailAndDropOffDetailsForCandidate(
         values,
         context,
         formRussianDestinationCity,
-        seaDestPort, // Corrected: seaDestPort is the SOC departure city for drop-off
+        seaDestPort,
         currentSeaComment || ""
       );
 
@@ -175,6 +179,39 @@ function _getRailAndDropOffDetailsForCandidate(
     costToAddForDropOffRUB,
     derivedRussianDestinationCityForCandidate,
   };
+}
+
+// Helper function to check if portA is a match or variant of portB
+function isMatchingSeaPortHub(portFromExcelCell: string, targetPortToMatch: string): boolean {
+    const normExcelPort = normalizeCityName(portFromExcelCell);
+    const normTargetPort = normalizeCityName(targetPortToMatch);
+
+    if (normExcelPort === normTargetPort) {
+        return true;
+    }
+
+    const isExcelPortVladivostok = VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normExcelPort);
+    const isTargetPortVladivostok = VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normTargetPort);
+    if (isExcelPortVladivostok && isTargetPortVladivostok) {
+        return true;
+    }
+
+    const isExcelPortVostochniy = VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normExcelPort);
+    const isTargetPortVostochniy = VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normTargetPort);
+    if (isExcelPortVostochniy && isTargetPortVostochniy) {
+        return true;
+    }
+    
+    // Check if normalized target is a prefix of normalized excel port (e.g. target "восточный", excel "восточный (вск)")
+    if (normExcelPort.startsWith(normTargetPort) && (isTargetPortVostochniy || isTargetPortVladivostok)) {
+        return true;
+    }
+    // Check if normalized excel port is a prefix of normalized target port (e.g. target "восточный (вск)", excel "восточный")
+    if (normTargetPort.startsWith(normExcelPort) && (isExcelPortVostochniy || isExcelPortVladivostok)) {
+        return true;
+    }
+
+    return false;
 }
 
 
@@ -203,37 +240,48 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
   const price40HCKey = "price40HC";
 
   let seaPortsToConsiderForBestPrice: string[];
-  const isFormRequestingFurtherRail = russianDestinationCity &&
-                                  !VLADIVOSTOK_VARIANTS.some(v => russianDestinationCity.startsWith(v.split(" ")[0])) &&
-                                  !VOSTOCHNIY_VARIANTS.some(v => russianDestinationCity.startsWith(v.split(" ")[0])) &&
-                                  (VLADIVOSTOK_VARIANTS.some(v => excelDestinationPorts.some(edp => edp.startsWith(v.split(" ")[0]))) ||
-                                   VOSTOCHNIY_VARIANTS.some(v => excelDestinationPorts.some(edp => edp.startsWith(v.split(" ")[0]))));
+  const normalizedFormRussianDestinationCity = russianDestinationCity ? normalizeCityName(russianDestinationCity) : null;
+  const normalizedFormDestinationPort = destinationPort ? normalizeCityName(destinationPort) : null;
+
+  const isFormRequestingFurtherRail = normalizedFormRussianDestinationCity &&
+                                  !VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normalizedFormRussianDestinationCity) &&
+                                  !VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normalizedFormRussianDestinationCity) &&
+                                  (VLADIVOSTOK_VARIANTS.some(v => excelDestinationPorts.some(edp => normalizeCityName(edp) === normalizeCityName(v))) ||
+                                   VOSTOCHNIY_VARIANTS.some(v => excelDestinationPorts.some(edp => normalizeCityName(edp) === normalizeCityName(v))));
 
   if (isFormRequestingFurtherRail) {
     seaPortsToConsiderForBestPrice = excelDestinationPorts.filter(dp =>
-      VLADIVOSTOK_VARIANTS.some(v => dp.startsWith(v.split(" ")[0])) ||
-      VOSTOCHNIY_VARIANTS.some(v => dp.startsWith(v.split(" ")[0]))
+      VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(dp) === normalizeCityName(v)) ||
+      VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(dp) === normalizeCityName(v))
     );
-  } else if (russianDestinationCity && (VLADIVOSTOK_VARIANTS.some(v => russianDestinationCity.startsWith(v.split(" ")[0])) || VOSTOCHNIY_VARIANTS.some(v => russianDestinationCity.startsWith(v.split(" ")[0])))) {
-    seaPortsToConsiderForBestPrice = [russianDestinationCity];
-  } else if (destinationPort) {
+  } else if (normalizedFormRussianDestinationCity && (VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normalizedFormRussianDestinationCity) || VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normalizedFormRussianDestinationCity))) {
+    // User selected a hub (like Vladivostok) as the final Russian city. So, sea leg must end there.
+    seaPortsToConsiderForBestPrice = [russianDestinationCity!]; // Use original form input
+  } else if (destinationPort) { // User specified a sea destination port in the form
     seaPortsToConsiderForBestPrice = [destinationPort];
-  } else {
+  } else { // Broad search: consider all destination ports from Excel
     seaPortsToConsiderForBestPrice = excelDestinationPorts;
   }
 
 
-  seaPortsToConsiderForBestPrice.forEach(seaDestPortCandidate => {
-    if (shipmentType === "SOC" && russianDestinationCity &&
-        !(VLADIVOSTOK_VARIANTS.some(v => seaDestPortCandidate.startsWith(v.split(" ")[0])) || VOSTOCHNIY_VARIANTS.some(v => seaDestPortCandidate.startsWith(v.split(" ")[0])))
-       ) {
-      return;
-    }
-
+  seaPortsToConsiderForBestPrice.forEach(seaDestPortCandidateToMatch => {
     seaDataset.forEach(seaRoute => {
       const routeOrigins = seaRoute[originFieldKey as keyof typeof seaRoute] as string[] | undefined;
       if (!Array.isArray(routeOrigins) || !routeOrigins.includes(originPort)) return;
-      if (!Array.isArray(seaRoute.destinationPorts) || !seaRoute.destinationPorts.includes(seaDestPortCandidate)) return;
+      if (!Array.isArray(seaRoute.destinationPorts)) return;
+
+      let actualSeaPortForThisRouteAndCandidate: string | null = null;
+      for (const portInExcelCell of seaRoute.destinationPorts) {
+        if (isMatchingSeaPortHub(portInExcelCell, seaDestPortCandidateToMatch)) {
+          actualSeaPortForThisRouteAndCandidate = portInExcelCell;
+          break;
+        }
+      }
+
+      if (!actualSeaPortForThisRouteAndCandidate) {
+        return;
+      }
+      // Now actualSeaPortForThisRouteAndCandidate is the specific port string from the Excel cell (e.g., "Восточный (ВСК)")
 
       const seaPriceForContainerRaw = containerType === "20DC" ? seaRoute[price20DCKey] : seaRoute[price40HCKey];
       const seaPriceForContainerNumeric = parseFirstNumberFromString(seaPriceForContainerRaw);
@@ -245,9 +293,9 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
         const currentSocComment = shipmentType === "SOC" ? (seaRoute as any).socComment || null : null;
 
         const details = _getRailAndDropOffDetailsForCandidate(
-          values,
+          values, // values contains the user's form input, including potentially generic russianDestinationCity
           context,
-          seaDestPortCandidate,
+          actualSeaPortForThisRouteAndCandidate, // This is CRITICAL: use the specific port from Excel for rail/drop-off lookup
           seaLineCompanyIt,
           currentSeaComment,
           originPort
@@ -260,10 +308,10 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
             return;
         }
 
-        const isRailLegApplicableForCandidate = details.derivedRussianDestinationCityForCandidate !== "N/A" &&
-            (VLADIVOSTOK_VARIANTS.some(v => seaDestPortCandidate.startsWith(v.split(" ")[0])) || VOSTOCHNIY_VARIANTS.some(v => seaDestPortCandidate.startsWith(v.split(" ")[0]))) &&
-            !VLADIVOSTOK_VARIANTS.some(v => v === details.derivedRussianDestinationCityForCandidate && seaDestPortCandidate.startsWith(v.split(" ")[0])) &&
-            !VOSTOCHNIY_VARIANTS.some(v => v === details.derivedRussianDestinationCityForCandidate && seaDestPortCandidate.startsWith(v.split(" ")[0]));
+        const isRailLegApplicableForCandidate = details.derivedRussianDestinationCityForCandidate && details.derivedRussianDestinationCityForCandidate !== "N/A" &&
+            (VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(actualSeaPortForThisRouteAndCandidate!) === normalizeCityName(v)) || VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(actualSeaPortForThisRouteAndCandidate!) === normalizeCityName(v))) &&
+            !VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(details.derivedRussianDestinationCityForCandidate) === normalizeCityName(v) && normalizeCityName(actualSeaPortForThisRouteAndCandidate!) === normalizeCityName(v)) &&
+            !VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(details.derivedRussianDestinationCityForCandidate) === normalizeCityName(v) && normalizeCityName(actualSeaPortForThisRouteAndCandidate!) === normalizeCityName(v));
 
 
         if (shipmentType === "COC" && isRailLegApplicableForCandidate && details.railLegDetails?.railLegFailed) {
@@ -271,7 +319,7 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
         }
 
         totalComparisonCostRUB += details.costToAddForDropOffRUB;
-        if (shipmentType === "COC" && isRailLegApplicableForCandidate) {
+        if (isRailLegApplicableForCandidate) { // Check if rail is part of this specific candidate path
              totalComparisonCostRUB += details.costToAddForRailRUB;
         }
 
@@ -281,7 +329,7 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
           mode: 'sea_plus_rail',
           shipmentType: shipmentType!,
           originPort: originPort!,
-          seaDestinationPort: seaDestPortCandidate,
+          seaDestinationPort: actualSeaPortForThisRouteAndCandidate, // Use the specific port from Excel
           seaLineCompany: seaLineCompanyIt,
           containerType: containerType!,
           russianDestinationCity: details.derivedRussianDestinationCityForCandidate,
@@ -321,11 +369,16 @@ export function generateDirectRailCandidates(values: RouteFormValues, context: P
   if (!isDirectRailExcelDataLoaded) return candidates;
   if (!directRailCityOfDeparture || !directRailDestinationCityDR || !directRailIncoterms) return candidates;
 
+  const normalizedDepCity = normalizeCityName(directRailCityOfDeparture);
+  const normalizedDestCityDR = normalizeCityName(directRailDestinationCityDR);
+  const normalizedIncoterms = directRailIncoterms.toLowerCase().trim();
+
+
   excelDirectRailData.forEach(entry => {
     if (
-      entry.cityOfDeparture.toLowerCase() === directRailCityOfDeparture.toLowerCase() &&
-      entry.destinationCity.toLowerCase() === directRailDestinationCityDR.toLowerCase() &&
-      entry.incoterms.toLowerCase() === directRailIncoterms.toLowerCase() &&
+      normalizeCityName(entry.cityOfDeparture) === normalizedDepCity &&
+      normalizeCityName(entry.destinationCity) === normalizedDestCityDR &&
+      entry.incoterms.toLowerCase().trim() === normalizedIncoterms &&
       entry.price !== null
     ) {
       candidates.push({
@@ -334,7 +387,7 @@ export function generateDirectRailCandidates(values: RouteFormValues, context: P
         shipmentType: 'N/A',
         originPort: entry.cityOfDeparture,
         seaDestinationPort: entry.destinationCity,
-        containerType: '40HC', // Default or parse if available
+        containerType: '40HC',
         russianDestinationCity: entry.destinationCity,
         totalComparisonCostRUB: entry.price,
 
@@ -366,10 +419,10 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
 
   dashboardServiceSections.forEach(section => {
     section.dataRows.forEach(row => {
-      const parsedRoute = parseDashboardRouteString(row.route); // Contains string[] for originPort
+      const parsedRoute = parseDashboardRouteString(row.route);
       const parsedRate = parseDashboardMonetaryValue(row.rate);
 
-      if (!parsedRoute.originPort || !parsedRoute.originPort.some(op => op.toUpperCase().includes(formOriginPortFromUser.toUpperCase()))) {
+      if (!parsedRoute.originPort || !parsedRoute.originPort.some(op => normalizeCityName(op) === normalizeCityName(formOriginPortFromUser))) {
         return;
       }
       if (parsedRoute.containerType !== formContainerTypeFromUser) {
@@ -381,53 +434,42 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
 
       const actualSeaDestinationPort = parsedRoute.seaDestinationPort || "N/A";
       let mappedCityFromDashboardStation: string | null = null;
-      if (parsedRoute.finalRussianDestination) { // This is the station name from "FOR" clause
+      if (parsedRoute.finalRussianDestination) {
           mappedCityFromDashboardStation = getCityFromStationName(parsedRoute.finalRussianDestination);
       }
 
-      // Effective Russian Destination City for this dashboard candidate:
-      // 1. User's input if provided.
-      // 2. Mapped city from dashboard's "FOR [station]" if user didn't specify.
-      // 3. Null if neither above.
       const effectiveRussianDestCityForCandidateLogic = formRussianDestinationCityFromUser || mappedCityFromDashboardStation;
 
-      // Filtering logic based on destination match
-      if (formRussianDestinationCityFromUser) { // User specified a final Russian destination
-        if (!effectiveRussianDestCityForCandidateLogic || effectiveRussianDestCityForCandidateLogic.toLowerCase() !== formRussianDestinationCityFromUser.toLowerCase()) {
-          // If dashboard's FOR clause led to a *different* city than user explicitly wants, OR if dashboard had no FOR clause, skip.
-          // Unless, the dashboard sea port itself is the target city (and no FOR clause on dashboard)
-           if (!(!parsedRoute.finalRussianDestination && actualSeaDestinationPort.toLowerCase() === formRussianDestinationCityFromUser.toLowerCase())) {
+      if (formRussianDestinationCityFromUser) {
+        if (!effectiveRussianDestCityForCandidateLogic || normalizeCityName(effectiveRussianDestCityForCandidateLogic) !== normalizeCityName(formRussianDestinationCityFromUser)) {
+           if (!(!parsedRoute.finalRussianDestination && normalizeCityName(actualSeaDestinationPort) === normalizeCityName(formRussianDestinationCityFromUser))) {
                 return;
            }
         }
-      } else { // User did NOT specify a final Russian destination. Use what dashboard provides.
-          // If dashboard has a FOR clause, effectiveRussianDestCityForCandidateLogic is already set to the mapped city.
-          // If dashboard has NO FOR clause, effectiveRussianDestCityForCandidateLogic is null.
-          // In this case, the final destination is implied by the sea port.
       }
       
       const tempFormValuesForHelper: RouteFormValues = {
-        ...values, // Includes formShipmentType, formOriginPortFromUser, formContainerTypeFromUser
-        russianDestinationCity: effectiveRussianDestCityForCandidateLogic || undefined, // Pass mapped city or undefined
-        destinationPort: actualSeaDestinationPort,
-        seaLineCompany: section.serviceName,
+        ...values,
+        russianDestinationCity: effectiveRussianDestCityForCandidateLogic || undefined,
+        destinationPort: actualSeaDestinationPort, // This is the sea port from dashboard
+        seaLineCompany: section.serviceName, // Using service name as sea line for this context
       };
 
       const additionalDetails = _getRailAndDropOffDetailsForCandidate(
           tempFormValuesForHelper,
           context,
-          actualSeaDestinationPort,
+          actualSeaDestinationPort, // Pass the specific sea port from dashboard row
           section.serviceName,
           row.additionalComment !== '-' ? row.additionalComment : null,
-          formOriginPortFromUser, // The specific origin port from the form that matched
-          row.railwayLegs
+          formOriginPortFromUser, 
+          row.railwayLegs // Pass pre-parsed railway legs from dashboard
       );
 
       const isFurtherRailNeededForThisDashboardCandidate = additionalDetails.derivedRussianDestinationCityForCandidate &&
           additionalDetails.derivedRussianDestinationCityForCandidate !== "N/A" &&
-          (VLADIVOSTOK_VARIANTS.some(v => actualSeaDestinationPort.startsWith(v.split(" ")[0])) || VOSTOCHNIY_VARIANTS.some(v => actualSeaDestinationPort.startsWith(v.split(" ")[0]))) &&
-          !VLADIVOSTOK_VARIANTS.some(v => v === additionalDetails.derivedRussianDestinationCityForCandidate && actualSeaDestinationPort.startsWith(v.split(" ")[0])) &&
-          !VOSTOCHNIY_VARIANTS.some(v => v === additionalDetails.derivedRussianDestinationCityForCandidate && actualSeaDestinationPort.startsWith(v.split(" ")[0]));
+          (VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(actualSeaDestinationPort) === normalizeCityName(v)) || VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(actualSeaDestinationPort) === normalizeCityName(v))) &&
+          !VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(details.derivedRussianDestinationCityForCandidate) === normalizeCityName(v) && normalizeCityName(actualSeaDestinationPort) === normalizeCityName(v)) &&
+          !VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(details.derivedRussianDestinationCityForCandidate) === normalizeCityName(v) && normalizeCityName(actualSeaDestinationPort) === normalizeCityName(v));
 
 
       if (isFurtherRailNeededForThisDashboardCandidate && additionalDetails.railLegDetails?.railLegFailed) {
@@ -445,7 +487,7 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
         id: `dash-${section.serviceName.replace(/\s+/g, '-')}-${formOriginPortFromUser}-${routeIdCounter++}`,
         mode: 'sea_plus_rail',
         shipmentType: "COC",
-        originPort: formOriginPortFromUser, // Use the user's input origin that matched
+        originPort: formOriginPortFromUser,
         seaDestinationPort: actualSeaDestinationPort,
         seaLineCompany: section.serviceName,
         containerType: formContainerTypeFromUser,
@@ -475,3 +517,5 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
 
   return candidates;
 }
+
+    
