@@ -11,11 +11,11 @@ import type {
   ShipmentType,
   ContainerType,
 } from '@/types';
-import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, USD_RUB_CONVERSION_RATE } from './constants';
-import { 
-  findSeaPriceAndDetails, 
-  findRailLegDetails, 
-  findDropOffDetails, 
+import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS, USD_RUB_CONVERSION_RATE } from './constants'; // Added VOSTOCHNIY_VARIANTS
+import {
+  findSeaPriceAndDetails,
+  findRailLegDetails,
+  findDropOffDetails,
   findSOCDropOffDetails,
   findDirectRailEntry,
   type SeaPriceInfo,
@@ -24,7 +24,7 @@ import {
   type SOCDropOffInfo
 } from './finders';
 import { generateSeaPlusRailCandidates, generateDirectRailCandidates, generateDashboardCandidates } from './best-price-generators';
-
+import { normalizeCityName } from './utils'; // Added normalizeCityName
 
 // --- Helper Types ---
 interface CalculationArgsBase {
@@ -52,33 +52,33 @@ interface BestPriceArgs {
 
 // --- AI Interaction and State Setting ---
 async function callAiAndSetState(
-  aiInputData: CombinedAiOutput, 
+  aiInputData: CombinedAiOutput,
   toast: ReturnType<typeof useToast>['toast'],
   setShippingInfo: React.Dispatch<React.SetStateAction<CombinedAiOutput | null>>,
   setCachedShippingInfo: PricingDataContextType['setCachedShippingInfo'],
   calcDetails: CalculationDetailsForInstructions | null,
   setLastSuccessfulCalculation: React.Dispatch<React.SetStateAction<CalculationDetailsForInstructions | null>> | undefined,
   setCachedLastSuccessfulCalculation: PricingDataContextType['setCachedLastSuccessfulCalculation'] | undefined,
-  finalCommentaryReason: string, 
+  finalCommentaryReason: string,
   partialPricing: boolean,
   noPricedComponents: boolean
 ) {
-  let displayOutput: CombinedAiOutput = { ...aiInputData }; 
+  let displayOutput: CombinedAiOutput = { ...aiInputData };
 
   if (noPricedComponents && finalCommentaryReason && aiInputData.originCity && (aiInputData.destinationCity || aiInputData.russianDestinationCity) ) {
     toast({ title: "Pricing Not Available", description: finalCommentaryReason, variant: "destructive" });
-    
+
     if (aiInputData.shipmentType && aiInputData.originCity && (aiInputData.destinationCity || aiInputData.russianDestinationCity) ) {
         const pricingCommentaryInput: PricingCommentaryInput = {
             originCity: aiInputData.originCity,
-            destinationCity: aiInputData.destinationCity || aiInputData.russianDestinationCity!, 
+            destinationCity: aiInputData.destinationCity || aiInputData.russianDestinationCity!,
             containerType: aiInputData.containerType,
             russianDestinationCity: aiInputData.russianDestinationCity
         };
         try {
-            displayOutput.commentary = finalCommentaryReason; 
+            displayOutput.commentary = finalCommentaryReason;
         } catch (e) {
-            displayOutput.commentary = finalCommentaryReason; 
+            displayOutput.commentary = finalCommentaryReason;
         }
     } else {
         displayOutput.commentary = finalCommentaryReason;
@@ -90,7 +90,7 @@ async function callAiAndSetState(
     if (setCachedLastSuccessfulCalculation) setCachedLastSuccessfulCalculation(null);
 
   } else if (aiInputData.originCity || (aiInputData.directRailCityOfDeparture && aiInputData.directRailDestinationCity)) {
-    displayOutput.commentary = finalCommentaryReason; 
+    displayOutput.commentary = finalCommentaryReason;
     setShippingInfo(displayOutput);
     setCachedShippingInfo(displayOutput);
 
@@ -126,7 +126,7 @@ export async function processSeaPlusRailCalculation({
   const { shipmentType, originPort, destinationPort, seaLineCompany, containerType, russianDestinationCity } = values;
 
   if (calculationMode === "sea_plus_rail") {
-    if (!originPort || !containerType) { 
+    if (!originPort || !containerType) {
       toast({ variant: "destructive", title: "Missing Information", description: "Origin Port and Container Type are required for Sea+Rail." });
       setIsLoading(false); return;
     }
@@ -141,9 +141,9 @@ export async function processSeaPlusRailCalculation({
   }
 
   setIsLoading(true);
-  setShippingInfo(null); 
+  setShippingInfo(null);
   if (setLastSuccessfulCalculation) setLastSuccessfulCalculation(null);
-  setCachedShippingInfo(null); 
+  setCachedShippingInfo(null);
   if (setCachedLastSuccessfulCalculation) setCachedLastSuccessfulCalculation(null);
 
   const actualSeaLine = seaLineCompany === NONE_SEALINE_VALUE ? undefined : seaLineCompany;
@@ -155,14 +155,24 @@ export async function processSeaPlusRailCalculation({
   let railDetails: RailLegInfo | null = null;
   let cocDropOffDetails: DropOffInfo | null = null;
   let socDropOffDetails: SOCDropOffInfo | null = null;
-  
-  const isFurtherRailJourney = russianDestinationCity && destinationPort && 
-                             VLADIVOSTOK_VARIANTS.some(v => destinationPort.startsWith(v.split(" ")[0])) && 
-                             !VLADIVOSTOK_VARIANTS.some(v => v === russianDestinationCity && destinationPort.startsWith(v.split(" ")[0]));
+
+  let isFurtherRailJourney = false;
+  if (russianDestinationCity && destinationPort) {
+    const normSeaDest = normalizeCityName(destinationPort);
+    const normRussianDest = normalizeCityName(russianDestinationCity);
+
+    const seaDestIsVladHub = VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normSeaDest);
+    const seaDestIsVostHub = VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normSeaDest);
+
+    if ((seaDestIsVladHub || seaDestIsVostHub) && normRussianDest !== normSeaDest) {
+      isFurtherRailJourney = true;
+    }
+  }
+
 
   if (seaInfo.seaPriceNumeric !== null && seaInfo.matchedSeaRouteInfo && isFurtherRailJourney && destinationPort) {
     railDetails = findRailLegDetails(values, context, destinationPort, finalCommentary);
-    finalCommentary = railDetails.commentaryReason; 
+    finalCommentary = railDetails.commentaryReason;
   } else if (seaInfo.seaPriceNumeric === null && isFurtherRailJourney) {
     finalCommentary += (finalCommentary ? " " : "") + `Cannot price rail to ${russianDestinationCity} as sea pricing failed.`;
     if (!railDetails) railDetails = { railLegFailed: true, commentaryReason: finalCommentary } as RailLegInfo; else railDetails.railLegFailed = true;
@@ -174,16 +184,16 @@ export async function processSeaPlusRailCalculation({
   } else if (shipmentType === "COC") {
     if (isFurtherRailJourney && railDetails && !railDetails.railLegFailed && russianDestinationCity) {
         cityForDropOffLookup = russianDestinationCity;
-    } else if (destinationPort && VLADIVOSTOK_VARIANTS.some(v => destinationPort.startsWith(v.split(" ")[0]))) {
+    } else if (destinationPort && (VLADIVOSTOK_VARIANTS.some(variant => destinationPort.startsWith(variant.split(" ")[0])) || VOSTOCHNIY_VARIANTS.some(variant => destinationPort.startsWith(variant.split(" ")[0])) ) ) {
         cityForDropOffLookup = destinationPort;
     }
   }
 
 
   if (shipmentType === "COC" && seaInfo.matchedSeaRouteInfo && cityForDropOffLookup &&
-      (seaInfo.seaPriceNumeric !== null || (isFurtherRailJourney && railDetails && !railDetails.railLegFailed) || (!isFurtherRailJourney && destinationPort && VLADIVOSTOK_VARIANTS.some(variant => destinationPort.startsWith(variant.split(" ")[0]))))) {
+      (seaInfo.seaPriceNumeric !== null || (isFurtherRailJourney && railDetails && !railDetails.railLegFailed) || (!isFurtherRailJourney && destinationPort && (VLADIVOSTOK_VARIANTS.some(variant => destinationPort.startsWith(variant.split(" ")[0])) || VOSTOCHNIY_VARIANTS.some(variant => destinationPort.startsWith(variant.split(" ")[0])) ) ) ) ) {
     cocDropOffDetails = findDropOffDetails(values, context, cityForDropOffLookup, seaInfo.seaComment, finalCommentary);
-    finalCommentary = cocDropOffDetails.commentaryReason; 
+    finalCommentary = cocDropOffDetails.commentaryReason;
   } else if (shipmentType === "SOC" && seaInfo.matchedSeaRouteInfo && cityForDropOffLookup && originPort && containerType && context.isSOCDropOffExcelDataLoaded) {
     socDropOffDetails = findSOCDropOffDetails(values, context, cityForDropOffLookup, originPort, finalCommentary);
     finalCommentary = socDropOffDetails.commentaryReason;
@@ -199,49 +209,49 @@ export async function processSeaPlusRailCalculation({
     const hasAnyPricedSeaLeg = finalSeaPriceWithMargin !== null;
     const hasAnyPricedRailLeg = (containerType === "20DC" && (finalRailBaseCost24tWithMargin !== null || finalRailBaseCost28tWithMargin !== null)) || (containerType === "40HC" && finalRailBaseCost40HCWithMargin !== null);
     const isPandaLineForCOCDropOff = actualSeaLine?.toLowerCase().includes('panda express line');
-    
+
     const hasPricedCOCDropOff = shipmentType === "COC" && (cocDropOffDetails?.costNumeric !== null || (cocDropOffDetails?.displayValue !== null && cocDropOffDetails?.displayValue.trim() !== "" && cocDropOffDetails?.displayValue.toLowerCase() !== "n/a") ) && !isPandaLineForCOCDropOff;
     const hasPricedSOCDropOff = shipmentType === "SOC" && (socDropOffDetails?.costNumeric !== null || (socDropOffDetails?.displayValue !== null && socDropOffDetails?.displayValue.trim() !== "" && socDropOffDetails?.displayValue.toLowerCase() !== "n/a"));
 
     const hasAnyPricedComponent = hasAnyPricedSeaLeg || (isFurtherRailJourney && hasAnyPricedRailLeg) || hasPricedCOCDropOff || hasPricedSOCDropOff;
-    
-    const aiInputData: CombinedAiOutput = { 
+
+    const aiInputData: CombinedAiOutput = {
       shipmentType, originCity: originPort!, destinationCity: destinationPort!, seaLineCompany: actualSeaLine, containerType: containerType!, seaCost: finalSeaPriceWithMargin, seaComment: seaInfo.seaComment,
       railCost20DC_24t: containerType === "20DC" ? finalRailBaseCost24tWithMargin : null, railCost20DC_28t: containerType === "20DC" ? finalRailBaseCost28tWithMargin : null, railGuardCost20DC: containerType === "20DC" ? railDetails?.guardCost20DC : null,
       railCost40HC: containerType === "40HC" ? finalRailBaseCost40HCWithMargin : null, railGuardCost40HC: containerType === "40HC" ? railDetails?.guardCost40HC : null,
       railArrivalStation: railDetails?.arrivalStation, railDepartureStation: railDetails?.departureStation,
-      
-      dropOffCost: shipmentType === "COC" ? cocDropOffDetails?.costNumeric : null, 
-      dropOffDisplayValue: shipmentType === "COC" ? cocDropOffDetails?.displayValue : null, 
+
+      dropOffCost: shipmentType === "COC" ? cocDropOffDetails?.costNumeric : null,
+      dropOffDisplayValue: shipmentType === "COC" ? cocDropOffDetails?.displayValue : null,
       dropOffComment: shipmentType === "COC" ? cocDropOffDetails?.comment : null,
-      
+
       socDropOffCost: shipmentType === "SOC" ? socDropOffDetails?.costNumeric : null,
       socDropOffComment: shipmentType === "SOC" ? socDropOffDetails?.comment : null,
 
       socComment: seaInfo.socComment, russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : (shipmentType === 'SOC' ? russianDestinationCity : undefined),
-      commentary: '', 
+      commentary: '',
     };
 
     const calcDetails: CalculationDetailsForInstructions | null = hasAnyPricedComponent ? {
-      shipmentType, originPort: originPort!, destinationPort: destinationPort!, seaLineCompany: actualSeaLine, containerType, 
-      russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : (shipmentType === 'SOC' ? russianDestinationCity : undefined), 
+      shipmentType, originPort: originPort!, destinationPort: destinationPort!, seaLineCompany: actualSeaLine, containerType,
+      russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : (shipmentType === 'SOC' ? russianDestinationCity : undefined),
       railArrivalStation: railDetails?.arrivalStation ?? undefined, railDepartureStation: railDetails?.departureStation ?? undefined,
       seaCostBase: seaInfo.seaPriceNumeric, seaMarginApplied: seaMargin, seaCostFinal: finalSeaPriceWithMargin, seaComment: seaInfo.seaComment,
       railCostBase24t: containerType === "20DC" ? railDetails?.baseCost24t : null, railCostBase28t: containerType === "20DC" ? railDetails?.baseCost28t : null, railGuardCost20DC: containerType === "20DC" ? railDetails?.guardCost20DC : null,
       railCostBase40HC: containerType === "40HC" ? railDetails?.baseCost40HC : null, railGuardCost40HC: containerType === "40HC" ? railDetails?.guardCost40HC : null,
       railMarginApplied: railMargin, railCostFinal24t: containerType === "20DC" ? finalRailBaseCost24tWithMargin : null, railCostFinal28t: containerType === "20DC" ? finalRailBaseCost28tWithMargin : null, railCostFinal40HC: containerType === "40HC" ? finalRailBaseCost40HCWithMargin : null,
-      
-      dropOffCost: shipmentType === "COC" ? cocDropOffDetails?.costNumeric : null, 
-      dropOffDisplayValue: shipmentType === "COC" ? cocDropOffDetails?.displayValue : null, 
+
+      dropOffCost: shipmentType === "COC" ? cocDropOffDetails?.costNumeric : null,
+      dropOffDisplayValue: shipmentType === "COC" ? cocDropOffDetails?.displayValue : null,
       dropOffComment: shipmentType === "COC" ? cocDropOffDetails?.comment : null,
-      
+
       socDropOffCost: shipmentType === "SOC" ? socDropOffDetails?.costNumeric : null,
       socDropOffComment: shipmentType === "SOC" ? socDropOffDetails?.comment : null,
       socComment: seaInfo.socComment,
     } : null;
 
     const partialPricing = (
-        railDetails?.railLegFailed || 
+        railDetails?.railLegFailed ||
         (shipmentType === "COC" && cocDropOffDetails?.dropOffLegFailed && !isPandaLineForCOCDropOff) ||
         (shipmentType === "SOC" && socDropOffDetails?.socDropOffLegFailed)
       ) ?? false;
@@ -250,7 +260,7 @@ export async function processSeaPlusRailCalculation({
 
   } catch (error) {
     console.error("Error processing Sea+Rail request:", error);
-    if (setLastSuccessfulCalculation) setLastSuccessfulCalculation(null); 
+    if (setLastSuccessfulCalculation) setLastSuccessfulCalculation(null);
     if (setCachedLastSuccessfulCalculation) setCachedLastSuccessfulCalculation(null);
     toast({ variant: "destructive", title: "Error", description: "Failed to process Sea+Rail request." });
   } finally {
@@ -280,18 +290,18 @@ export async function processDirectRailCalculation({
       directRailCityOfDeparture: matchedEntry.cityOfDeparture, directRailDepartureStation: matchedEntry.departureStation,
       directRailDestinationCity: matchedEntry.destinationCity, directRailBorder: matchedEntry.border,
       directRailCost: matchedEntry.price, directRailETD: matchedEntry.etd,
-      directRailCommentary: matchedEntry.commentary, 
+      directRailCommentary: matchedEntry.commentary,
       directRailAgentName: matchedEntry.agentName,
       directRailIncoterms: matchedEntry.incoterms,
-      commentary: matchedEntry.commentary || '' 
+      commentary: matchedEntry.commentary || ''
     };
     setShippingInfo(displayOutput);
     setCachedShippingInfo(displayOutput);
     toast({ title: "Direct Rail Price Found", description: "Details displayed below." });
   } else {
-    displayOutput = { 
+    displayOutput = {
         commentary: "No matching direct rail route found.",
-        directRailCityOfDeparture: directRailCityOfDeparture, 
+        directRailCityOfDeparture: directRailCityOfDeparture,
         directRailDestinationCity: directRailDestinationCityDR,
         directRailAgentName: directRailAgentName,
         directRailIncoterms: directRailIncoterms,
@@ -323,7 +333,7 @@ export function calculateBestPrice({
       toast({ title: "Missing Info", description: "Select Origin Port & Container Type for Best Price (Sea+Rail)." });
       setIsCalculatingBestPrice(false); return;
     }
-    if (excelRussianDestinationCitiesMasterList.length > 0 && !values.russianDestinationCity && values.shipmentType === "COC") { 
+    if (excelRussianDestinationCitiesMasterList.length > 0 && !values.russianDestinationCity && values.shipmentType === "COC") {
       toast({ title: "Missing Info", description: "Select Destination City for Best Price (Sea+Rail COC)." });
       setIsCalculatingBestPrice(false); return;
     }
@@ -335,12 +345,12 @@ export function calculateBestPrice({
       toast({ title: "Data Not Loaded", description: "Please load the Море + Ж/Д Excel file first." });
       setIsCalculatingBestPrice(false); return;
     }
-    if (values.shipmentType === "SOC" && !isSOCDropOffExcelDataLoaded) { 
+    if (values.shipmentType === "SOC" && !isSOCDropOffExcelDataLoaded) {
         toast({ title: "Data Not Loaded", description: "Please load the SOC Drop-off Excel file for SOC Best Price calculation." });
         setIsCalculatingBestPrice(false); return;
     }
     potentialRoutes = generateSeaPlusRailCandidates(values, context);
-    
+
     // Add Dashboard Candidates for COC Sea+Rail mode
     if (values.shipmentType === "COC" && isSeaRailExcelDataLoaded && dashboardServiceSections && dashboardServiceSections.length > 0) {
         const dashboardCandidates = generateDashboardCandidates(values, context);
@@ -361,15 +371,14 @@ export function calculateBestPrice({
 
   potentialRoutes.sort((a, b) => a.totalComparisonCostRUB - b.totalComparisonCostRUB);
   const top6Routes = potentialRoutes.slice(0, 6);
-  
+
   setBestPriceResults(top6Routes);
 
   if (top6Routes.length > 0) {
-    setCachedFormValues(values); 
-    setIsNavigatingToBestPrices(true); 
+    setCachedFormValues(values);
+    setIsNavigatingToBestPrices(true);
   } else {
     toast({ title: "No Routes Found", description: "Could not find valid shipping routes for best price with the selected criteria." });
   }
   setIsCalculatingBestPrice(false);
 }
-
