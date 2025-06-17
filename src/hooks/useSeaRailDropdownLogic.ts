@@ -5,21 +5,8 @@ import type {
   RouteFormValues, PricingDataContextType, ShipmentType, ContainerType,
   ExcelRoute, ExcelSOCRoute, RailDataEntry,
 } from '@/types';
-import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS } from '@/lib/pricing/constants';
-
-interface UseSeaRailDropdownLogicProps {
-  form: UseFormReturn<RouteFormValues>;
-  context: PricingDataContextType;
-  hasRestoredFromCache: boolean;
-  setLocalAvailableDestinationPorts: React.Dispatch<React.SetStateAction<string[]>>;
-  localAvailableDestinationPorts: string[];
-  setLocalAvailableSeaLines: React.Dispatch<React.SetStateAction<string[]>>;
-  localAvailableSeaLines: string[];
-  setLocalAvailableRussianDestinationCities: React.Dispatch<React.SetStateAction<string[]>>;
-  localAvailableRussianDestinationCities: string[];
-  setLocalAvailableArrivalStations: React.Dispatch<React.SetStateAction<string[]>>;
-  localAvailableArrivalStations: string[];
-}
+import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS } from '../lib/pricing/constants';
+import { normalizeCityName } from '../lib/pricing/utils'; // Import normalizeCityName
 
 // Helper function for Destination Ports effect
 function useEffectForDestinationPorts(
@@ -58,19 +45,65 @@ function useEffectForDestinationPorts(
         if (hasSeaLines && Array.isArray(route.destinationPorts)) route.destinationPorts.forEach(dp => newAvailableDestinations.add(dp));
       });
     }
-    const newAvailableArray = Array.from(newAvailableDestinations).sort((a, b) => {
-      if (VLADIVOSTOK_VARIANTS.includes(a) && !VLADIVOSTOK_VARIANTS.includes(b)) return -1;
-      if (!VLADIVOSTOK_VARIANTS.includes(a) && VLADIVOSTOK_VARIANTS.includes(b)) return 1;
-      return a.localeCompare(b);
+
+    // Consolidate display for Vladivostok and Vostochny variants
+    const displayDestinations = new Set<string>();
+    const processedNormalizedHubs = new Set<string>(); // To track if canonical hub form is added
+
+    newAvailableDestinations.forEach(port => {
+        const normalized = normalizeCityName(port);
+        if (normalized === "восточный") {
+            if (!processedNormalizedHubs.has("восточный")) {
+                displayDestinations.add("Восточный");
+                processedNormalizedHubs.add("восточный");
+            }
+        } else if (normalized === "владивосток") {
+            if (!processedNormalizedHubs.has("владивосток")) {
+                displayDestinations.add("Владивосток");
+                processedNormalizedHubs.add("владивосток");
+            }
+        } else {
+            displayDestinations.add(port); // Add other ports as is
+        }
     });
+
+    const newAvailableArray = Array.from(displayDestinations).sort((a, b) => {
+        const aIsVlad = a === "Владивосток";
+        const bIsVlad = b === "Владивосток";
+        const aIsVost = a === "Восточный";
+        const bIsVost = b === "Восточный";
+
+        if (aIsVlad && !bIsVlad) return -1;
+        if (!aIsVlad && bIsVlad) return 1;
+
+        if (aIsVost && !bIsVost) return -1; // Comes after Vladivostok
+        if (!aIsVost && bIsVost) return 1;
+
+        return a.localeCompare(b);
+    });
+
 
     if (JSON.stringify(localAvailableDestinationPorts) !== JSON.stringify(newAvailableArray)) {
       setLocalAvailableDestinationPorts(newAvailableArray);
     }
     if (hasRestoredFromCache) {
       const currentFormDestinationPort = getValues("destinationPort");
-      if (currentOriginPort && currentFormDestinationPort && !newAvailableArray.includes(currentFormDestinationPort)) {
-        if (getValues("destinationPort") !== "") setValue("destinationPort", "", { shouldValidate: true });
+      // If the selected port (potentially a variant like "Восточный (ВСК)") is now consolidated
+      // to its base form ("Восточный") and that base form is in the new list,
+      // update the form value to the canonical base form.
+      if (currentOriginPort && currentFormDestinationPort) {
+        const normalizedCurrentFormDest = normalizeCityName(currentFormDestinationPort);
+        let canonicalFormForCurrentSelection: string | undefined = undefined;
+
+        if (normalizedCurrentFormDest === "восточный") canonicalFormForCurrentSelection = "Восточный";
+        else if (normalizedCurrentFormDest === "владивосток") canonicalFormForCurrentSelection = "Владивосток";
+        
+        if (canonicalFormForCurrentSelection && newAvailableArray.includes(canonicalFormForCurrentSelection) && currentFormDestinationPort !== canonicalFormForCurrentSelection) {
+          setValue("destinationPort", canonicalFormForCurrentSelection, { shouldValidate: true });
+        } else if (!newAvailableArray.includes(currentFormDestinationPort) && getValues("destinationPort") !== "") {
+          // If the exact selection is no longer valid and it wasn't a variant that got consolidated
+           setValue("destinationPort", "", { shouldValidate: true });
+        }
       }
     }
   }, [watchedOriginPort, watchedShipmentType, isSeaRailExcelDataLoaded, excelRouteData, excelSOCRouteData, setValue, getValues, hasRestoredFromCache, localAvailableDestinationPorts, setLocalAvailableDestinationPorts]);
@@ -101,10 +134,20 @@ function useEffectForSeaLines(
     const currentDataset = watchedShipmentType === "COC" ? excelRouteData : excelSOCRouteData;
     const originFieldKey = watchedShipmentType === "COC" ? "originPorts" : "departurePorts";
     const filteredSeaLines = new Set<string>();
+
+    const normalizedWatchedDestPort = normalizeCityName(watchedDestinationPort);
+
     currentDataset.forEach(route => {
       const routeOrigins = route[originFieldKey as keyof ExcelRoute | keyof ExcelSOCRoute] as string[] | undefined;
-      if (Array.isArray(routeOrigins) && routeOrigins.includes(watchedOriginPort) &&
-          Array.isArray(route.destinationPorts) && route.destinationPorts.includes(watchedDestinationPort)) {
+      const isOriginMatch = Array.isArray(routeOrigins) && routeOrigins.includes(watchedOriginPort);
+      
+      const isDestinationMatch = Array.isArray(route.destinationPorts) && route.destinationPorts.some(dp => {
+        const normalizedRouteDestPort = normalizeCityName(dp);
+        // Direct match or if user selected "Восточный" and route has "Восточный (ВСК)" (or vice versa after normalization)
+        return normalizedRouteDestPort === normalizedWatchedDestPort;
+      });
+
+      if (isOriginMatch && isDestinationMatch) {
         if (Array.isArray(route.seaLines)) route.seaLines.forEach(sl => filteredSeaLines.add(sl));
       }
     });
@@ -124,7 +167,7 @@ function useEffectForRussianDestinationCities(
   form: UseFormReturn<RouteFormValues>,
   context: PricingDataContextType,
   hasRestoredFromCache: boolean,
-  watchedOriginPort: string | undefined, // Kept for consistency in auto-clearing if origin changes
+  watchedOriginPort: string | undefined, 
   watchedContainerType: ContainerType | undefined,
   localAvailableRussianDestinationCities: string[],
   setLocalAvailableRussianDestinationCities: React.Dispatch<React.SetStateAction<string[]>>
@@ -172,7 +215,7 @@ function useEffectForRussianDestinationCities(
     }
   }, [
     isSeaRailExcelDataLoaded,
-    watchedOriginPort, // Retained for potential cascading clear effects.
+    watchedOriginPort, 
     watchedContainerType,
     excelRailData,
     excelRussianDestinationCitiesMasterList,
@@ -201,39 +244,29 @@ function useEffectForArrivalStations(
   React.useEffect(() => {
     let newAvailableStationsArray: string[] = [];
     const selectedRussianCity = getValues("russianDestinationCity");
-    const selectedSeaPort = getValues("destinationPort");
+    const selectedSeaPort = getValues("destinationPort"); // User's selection for sea port (e.g., "Восточный")
 
     if (isSeaRailExcelDataLoaded && selectedRussianCity && selectedSeaPort &&
-        (VLADIVOSTOK_VARIANTS.some(v => selectedSeaPort.startsWith(v.split(" ")[0])) || VOSTOCHNIY_VARIANTS.some(v => selectedSeaPort.startsWith(v.split(" ")[0]))) &&
+        (VLADIVOSTOK_VARIANTS.map(v => normalizeCityName(v)).includes(normalizeCityName(selectedSeaPort)) || 
+         VOSTOCHNIY_VARIANTS.map(v => normalizeCityName(v)).includes(normalizeCityName(selectedSeaPort))) &&
         excelRailData.length > 0) {
       const stationsForCity = new Set<string>();
-      const seaPortLower = selectedSeaPort.toLowerCase();
-      const seaPortBaseName = selectedSeaPort.split(" ")[0].toLowerCase();
-      const specificSeaHubKeywordMatch = selectedSeaPort.match(/\(([^)]+)\)/);
-      const specificSeaHubKeywords = specificSeaHubKeywordMatch ? specificSeaHubKeywordMatch[1].toLowerCase().split(/[/\s-]+/).map(s => s.trim()).filter(Boolean) : [];
-      const isVladivostokHubArrival = VLADIVOSTOK_VARIANTS.some(v => seaPortLower.startsWith(v.toLowerCase().split(" ")[0]));
-      const isVostochniyHubArrival = VOSTOCHNIY_VARIANTS.some(v => seaPortLower.startsWith(v.toLowerCase().split(" ")[0]));
-
+      
       excelRailData.forEach(railEntry => {
-        if (railEntry.cityOfArrival.toLowerCase() === selectedRussianCity.toLowerCase()) {
+        if (normalizeCityName(railEntry.cityOfArrival) === normalizeCityName(selectedRussianCity)) {
           const isDepartureStationCompatible = railEntry.departureStations.some(depStation => {
-            const pStationLower = depStation.toLowerCase().trim();
-            if (seaPortLower.includes("пл") && pStationLower.includes("пасифик лоджистик")) return true;
-            if (specificSeaHubKeywords.length > 0 && specificSeaHubKeywords.some(kw => pStationLower.includes(kw))) return true;
-            
-            if (isVladivostokHubArrival) {
-                if (pStationLower.includes("владивосток")) return true;
-                if (VLADIVOSTOK_VARIANTS.some(vladVariant => pStationLower.includes(vladVariant.toLowerCase().split(" ")[0]))) return true;
-            }
-            if (isVostochniyHubArrival) {
-                if (pStationLower.includes("восточный")) return true;
-                if (VOSTOCHNIY_VARIANTS.some(vostVariant => pStationLower.includes(vostVariant.toLowerCase().split(" ")[0]))) return true;
-            }
+            // depStation is like "ст. Восточный порт эксп"
+            // selectedSeaPort is like "Восточный" or "Восточный (ВСК)"
+            // Normalize both for robust comparison
+            const normSelectedSeaPort = normalizeCityName(selectedSeaPort);
+            const normDepStation = normalizeCityName(depStation);
 
-            if (pStationLower.includes(seaPortBaseName)) return true;
-            const stationBaseNameLower = pStationLower.split(" ")[0];
-            if (seaPortLower.includes(stationBaseNameLower)) return true;
+            if (normSelectedSeaPort === "восточный" && normDepStation.includes("восточный")) return true;
+            if (normSelectedSeaPort === "владивосток" && normDepStation.includes("владивосток")) return true;
             
+            // Fallback for more direct substring checks if simple hub match fails
+            if (normDepStation.includes(normSelectedSeaPort)) return true;
+
             return false;
           });
           if (isDepartureStationCompatible) {
@@ -288,6 +321,7 @@ function useEffectForAutoClearFields(
       if (!currentOrigin) {
         if (currentSeaLine !== NONE_SEALINE_VALUE) setValue("seaLineCompany", NONE_SEALINE_VALUE, { shouldValidate: true });
       } else if (currentOrigin && !currentSeaDest) {
+        // If origin is set but destination becomes empty, reset sea line
         if (currentSeaLine !== NONE_SEALINE_VALUE) setValue("seaLineCompany", NONE_SEALINE_VALUE, { shouldValidate: true });
       }
     }
@@ -328,7 +362,7 @@ export function useSeaRailDropdownLogic({
 
   useEffectForRussianDestinationCities(
     form, context, hasRestoredFromCache,
-    watchedOriginPort, watchedContainerType, // Pass watchedOriginPort, not watchedDestinationPort
+    watchedOriginPort, watchedContainerType, 
     localAvailableRussianDestinationCities, setLocalAvailableRussianDestinationCities
   );
 
@@ -341,3 +375,4 @@ export function useSeaRailDropdownLogic({
     form, hasRestoredFromCache, watchedOriginPort, watchedDestinationPort
   );
 }
+
