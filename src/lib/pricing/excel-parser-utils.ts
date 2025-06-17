@@ -103,15 +103,14 @@ export function parsePriceCell(cellValue: any): number | null {
     sValue = sValue.split('/')[0].trim();
   }
 
-  // Aggressively clean the string:
   // 1. Replace common currency symbols or text (rub, usd, $, р.) if they are not part of a word.
   //    Using word boundaries \b to avoid replacing parts of words.
   sValue = sValue.replace(/\b(rub|usd|р\.|руб)\b|\$|€|₽/gi, '').trim();
 
-  // 2. Remove all remaining non-digit characters except a decimal point (if one exists).
-  //    First, replace comma decimal separators with a period.
+  // 2. Replace all comma decimal separators with a period.
   let numericString = sValue.replace(/,/g, '.');
-  //    Then, remove all non-digits except the first period found.
+  
+  // 3. Filter the string to keep only digits and the first decimal point found.
   let hasDecimal = false;
   numericString = Array.from(numericString).filter(char => {
     if (char >= '0' && char <= '9') return true;
@@ -133,3 +132,4 @@ export function parsePriceCell(cellValue: any): number | null {
   // console.warn(`parsePriceCell (aggressive) could not parse "${String(cellValue).trim()}" (cleaned: "${numericString}") to number. Returning null.`);
   return null;
 }
+
