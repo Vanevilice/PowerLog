@@ -14,6 +14,7 @@ import type {
 } from '@/types';
 import { NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS, DROP_OFF_TRIGGER_PHRASES, CONTAINER_TYPES_CONST } from './constants';
 import { appendCommentary, normalizeCityName } from './utils';
+import { getCityFromStationName } from './city-station-mapper'; // Import the mapper
 
 // --- Helper Interfaces (can be moved to types if they become more widely used) ---
 export interface SeaPriceInfo {
@@ -93,44 +94,31 @@ export function parseDashboardRouteString(routeString: string): ParsedDashboardR
 
   // Remove FOB/FI prefixes
   tempRouteString = tempRouteString.replace(/^(FOB|FI)\s*/, "").trim();
-
-  // Split the main parts by " - "
-  // We need to handle cases like "Shanghai/Ningbo/Qingdao - LO ПЛ/ТА - FOR MOSCOW"
-  // The " - LO " part or similar often signifies the end of origin ports / start of sea destination context
-  // The " - FOR " part signifies the start of the final Russian destination (station)
   
   let forPart = "";
   if (tempRouteString.includes(" - FOR ")) {
     const forSplit = tempRouteString.split(" - FOR ");
     tempRouteString = forSplit[0].trim();
     forPart = forSplit[1]?.trim() || "";
-    result.finalRussianDestination = forPart; // Station name
+    result.finalRussianDestination = forPart; 
   }
-
-  // Now, tempRouteString contains "ORIGIN_PORTS_PART - SEA_DEST_PART"
-  // Or just "ORIGIN_PORTS_PART" if no sea destination was before "FOR"
-  // Or "ORIGIN_PORTS_PART - SEA_DEST_PART - SOME_OTHER_PART"
   
-  const mainParts = tempRouteString.split(/\s*-\s*(LO|L0)?\s*/i); // Split by " - " or " - LO " or " - L0 "
+  const mainParts = tempRouteString.split(/\s*-\s*(LO|L0)?\s*/i); 
   
   const originSegment = mainParts[0]?.trim();
 
   if (originSegment) {
-    // Split by slash if multiple origins are listed
     result.originPort = originSegment.split('/').map(p => p.trim()).filter(p => p.length > 0);
     if (result.originPort.length === 0) result.originPort = null;
   }
 
-  // The part after the first " - " or " - LO " (if it exists and is not the FOR part) is the sea destination.
   if (mainParts.length > 1 && mainParts[1] && (!forPart || tempRouteString.includes(mainParts[1]))) {
-      // Filter out empty strings or "LO"/"L0" that might result from the split regex
       let potentialSeaDest = mainParts.filter((part, index) => index > 0 && part && !/^(LO|L0)$/i.test(part.trim()));
       if (potentialSeaDest.length > 0) {
         result.seaDestinationPort = potentialSeaDest[0].trim();
       }
   }
   
-  // If originPort still contains container type (e.g. if regex didn't catch it initially due to spacing)
   if (result.originPort && result.originPort.length > 0 && !result.containerType) {
       const firstOrigin = result.originPort[0];
       const containerInOriginMatch = firstOrigin.match(/(20DC|40HC|20GP|40GP)/);
@@ -139,13 +127,12 @@ export function parseDashboardRouteString(routeString: string): ParsedDashboardR
           if (CONTAINER_TYPES_CONST.includes(matchedContainerType)) {
               result.containerType = matchedContainerType;
               result.originPort[0] = firstOrigin.replace(matchedContainerType, "").trim();
-              if(result.originPort[0] === "") result.originPort.shift(); // Remove if empty after stripping
+              if(result.originPort[0] === "") result.originPort.shift(); 
               if(result.originPort.length === 0) result.originPort = null;
           }
       }
   }
   
-  // Normalize extracted port/city names if needed or ensure they are not empty strings
   if (result.originPort && result.originPort.every(p => p === "")) result.originPort = null;
   if (result.seaDestinationPort === "") result.seaDestinationPort = null;
   if (result.finalRussianDestination === "") result.finalRussianDestination = null;
@@ -171,34 +158,28 @@ export function parseDashboardMonetaryValue(valueString: string | undefined | nu
     result.currency = "RUB";
   }
 
-  // Remove currency symbols/units and spaces. Standardize decimal separator.
   let numericPart = sValue
     .replace(/\$|€|₽|USD|EUR|RUB|P|р\.|руб\./gi, '')
     .replace(/\s/g, '')
     .replace(',', '.');
   
-  // Handle cases like "1 500 / 1 600" - take the first number
   if (numericPart.includes('/') && numericPart.match(/\d[\d.]*\/\d[\d.]*/)) {
     numericPart = numericPart.split('/')[0].trim();
   }
   
-  // Remove trailing .0 or .00
   numericPart = numericPart.replace(/\.(0+|0)$/, '');
-  // If rate was like "1000.-", remove the trailing ".-"
   numericPart = numericPart.replace(/\.-$/, '');
 
   const num = parseFloat(numericPart);
 
   if (!isNaN(num)) {
     result.amount = num;
-    // If currency wasn't explicitly found but it's a large number, assume RUB
-    if (!result.currency && num > 50000) { // Heuristic: numbers > 50k likely RUB if not specified
+    if (!result.currency && num > 50000) { 
         result.currency = "RUB";
     } else if (!result.currency) {
-        result.currency = "USD"; // Default to USD for smaller numbers if unspecified
+        result.currency = "USD"; 
     }
   } else {
-      // If parsing fails, keep amount null and potentially clear currency if it was a bad heuristic
       result.currency = null; 
   }
   return result;
@@ -295,9 +276,17 @@ export function findRailLegDetails(
   const seaDestPortLower = seaDestinationPort.toLowerCase();
   const isVladivostokHub = VLADIVOSTOK_VARIANTS.some(v => seaDestPortLower.startsWith(v.toLowerCase().split(" ")[0]));
   const isVostochniyHub = VOSTOCHNIY_VARIANTS.some(v => seaDestPortLower.startsWith(v.toLowerCase().split(" ")[0]));
+  const normalizedTargetUserCity = normalizeCityName(russianDestinationCity);
+
 
   for (const railEntry of excelRailData) {
-    if (railEntry.cityOfArrival.toLowerCase() !== russianDestinationCity.toLowerCase()) continue;
+    const mappedCityFromRailEntry = getCityFromStationName(railEntry.cityOfArrival);
+    const normalizedCityFromRailEntry = mappedCityFromRailEntry ? normalizeCityName(mappedCityFromRailEntry) : null;
+
+    if (!normalizedCityFromRailEntry || normalizedCityFromRailEntry !== normalizedTargetUserCity) {
+      continue;
+    }
+
     if (arrivalStationSelection && !railEntry.arrivalStations.includes(arrivalStationSelection)) continue;
 
     const compatibleDepartureStation = railEntry.departureStations.find(depStation => {
@@ -543,6 +532,3 @@ export function findDirectRailEntry(values: RouteFormValues, context: PricingDat
     normalizeCityName(entry.border) === normalizedBorder
   );
 }
-
-
-    
