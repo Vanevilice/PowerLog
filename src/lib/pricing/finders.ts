@@ -185,6 +185,42 @@ export function parseDashboardMonetaryValue(valueString: string | undefined | nu
   return result;
 }
 
+function isMatchingRailDepartureStation(seaPort: string, railDepStation: string): boolean {
+  const normSeaPort = normalizeCityName(seaPort); // e.g., "восточный (вск)" -> "восточный"
+  const normRailDepStation = normalizeCityName(railDepStation); // e.g., "ст. восточный порт эксп." -> "ст. восточный порт эксп"
+
+  // Check if both refer to Vladivostok
+  const seaIsVlad = VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normSeaPort);
+  const railIsVlad = VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normRailDepStation) || normRailDepStation.includes("владивосток");
+  if (seaIsVlad && railIsVlad) return true;
+
+  // Check if both refer to Vostochny
+  const seaIsVost = VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normSeaPort);
+  const railIsVost = VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normRailDepStation) || normRailDepStation.includes("восточный");
+  if (seaIsVost && railIsVost) return true;
+
+  // Check for specific keywords if parenthetical info was present in the original seaPort
+  const seaPortParentheticalMatch = seaPort.match(/\(([^)]+)\)/);
+  if (seaPortParentheticalMatch && seaPortParentheticalMatch[1]) {
+    const keyword = seaPortParentheticalMatch[1].toLowerCase().trim();
+    if (railDepStation.toLowerCase().includes(keyword)) return true;
+  }
+  
+  // Fallback: direct substring check if one is a known hub name and the other contains it
+  if (seaIsVost && railDepStation.toLowerCase().includes("восточный")) return true;
+  if (seaIsVlad && railDepStation.toLowerCase().includes("владивосток")) return true;
+
+  // Broader substring check for less specific matches
+  if (normSeaPort.length > 3 && normRailDepStation.includes(normSeaPort)) return true;
+  if (normRailDepStation.length > 3 && normSeaPort.includes(normRailDepStation)) return true;
+  
+  // Check for specific "пасифик лоджистик"
+  if (seaPort.toLowerCase().includes("пл") && railDepStation.toLowerCase().includes("пасифик лоджистик")) return true;
+
+
+  return false;
+}
+
 
 // --- Finder Functions ---
 export function findSeaPriceAndDetails(
@@ -273,16 +309,11 @@ export function findRailLegDetails(
   }
 
   let railCostFound = false;
-  const seaDestPortLower = seaDestinationPort.toLowerCase();
-  const isVladivostokHub = VLADIVOSTOK_VARIANTS.some(v => seaDestPortLower.startsWith(v.toLowerCase().split(" ")[0]));
-  const isVostochniyHub = VOSTOCHNIY_VARIANTS.some(v => seaDestPortLower.startsWith(v.toLowerCase().split(" ")[0]));
   const normalizedTargetUserCity = normalizeCityName(russianDestinationCity);
 
-
   for (const railEntry of excelRailData) {
-    const stationOrCityFromExcel = railEntry.cityOfArrival; // This is Sheet 5, Col L
+    const stationOrCityFromExcel = railEntry.cityOfArrival; 
     const mappedCityFromExcelStation = getCityFromStationName(stationOrCityFromExcel);
-    // Effective city from Excel: if station maps to a city, use that; otherwise, use the original value from Excel (which might be a city already).
     const effectiveCityFromExcel = mappedCityFromExcelStation || stationOrCityFromExcel;
     const normalizedEffectiveCityFromExcel = normalizeCityName(effectiveCityFromExcel);
 
@@ -290,62 +321,63 @@ export function findRailLegDetails(
       continue;
     }
 
-    if (arrivalStationSelection && !railEntry.arrivalStations.includes(arrivalStationSelection)) continue;
-
-    const compatibleDepartureStation = railEntry.departureStations.find(depStation => {
-      const pStationLower = depStation.toLowerCase().trim();
-      if (seaDestPortLower.includes("пл") && pStationLower.includes("пасифик лоджистик")) return true;
-      const specificSeaHubKeywordMatch = seaDestinationPort.match(/\(([^)]+)\)/);
-      const specificSeaHubKeywords = specificSeaHubKeywordMatch ? specificSeaHubKeywordMatch[1].toLowerCase().split(/[/\s-]+/).map(s => s.trim()).filter(Boolean) : [];
-      if (specificSeaHubKeywords.length > 0 && specificSeaHubKeywords.some(kw => pStationLower.includes(kw))) return true;
-
-      if (isVladivostokHub) {
-          if (pStationLower.includes("владивосток")) return true;
-          if (VLADIVOSTOK_VARIANTS.some(vladVariant => pStationLower.includes(vladVariant.toLowerCase().split(" ")[0]))) return true;
-      }
-      if (isVostochniyHub) {
-          if (pStationLower.includes("восточный")) return true;
-          if (VOSTOCHNIY_VARIANTS.some(vostVariant => pStationLower.includes(vostVariant.toLowerCase().split(" ")[0]))) return true;
-      }
-      
-      const seaPortBaseNameLower = seaDestPortLower.split(" ")[0];
-      if (pStationLower.includes(seaPortBaseNameLower)) return true;
-      const stationBaseNameLower = pStationLower.split(" ")[0];
-      if (seaDestPortLower.includes(stationBaseNameLower)) return true;
-
-      return false;
-    });
+    if (arrivalStationSelection && !railEntry.arrivalStations.includes(arrivalStationSelection) && stationOrCityFromExcel !== arrivalStationSelection) {
+        continue;
+    }
+    
+    const compatibleDepartureStation = railEntry.departureStations.find(depStation =>
+        isMatchingRailDepartureStation(seaDestinationPort, depStation)
+    );
 
     if (compatibleDepartureStation) {
-      railInfo.departureStation = compatibleDepartureStation;
-      // If user selected a specific arrival station, use it. Otherwise, use the first one from the matched Excel row.
-      // If railEntry.arrivalStations is empty (shouldn't happen if we matched on cityOfArrival being a station),
-      // then use cityOfArrival (the station from Excel) itself.
-      railInfo.arrivalStation = arrivalStationSelection || (railEntry.arrivalStations.length > 0 ? railEntry.arrivalStations[0] : stationOrCityFromExcel);
+      railInfo.departureStation = compatibleDepartureStation; 
+      if (arrivalStationSelection && railEntry.arrivalStations.includes(arrivalStationSelection)) {
+          railInfo.arrivalStation = arrivalStationSelection;
+      } else if (arrivalStationSelection && stationOrCityFromExcel === arrivalStationSelection) {
+          railInfo.arrivalStation = arrivalStationSelection;
+      } else if (railEntry.arrivalStations.length > 0) {
+          railInfo.arrivalStation = railEntry.arrivalStations[0];
+      } else {
+          railInfo.arrivalStation = stationOrCityFromExcel; 
+      }
       
+      let hasBasePrice = false;
       if (containerType === "20DC") {
-        if (railEntry.price20DC_24t !== null && railEntry.guardCost20DC !== null) {
+        if (railEntry.price20DC_24t !== null) {
           railInfo.baseCost24t = railEntry.price20DC_24t;
-          railInfo.baseCost28t = railEntry.price20DC_28t; 
+          hasBasePrice = true;
+        }
+        // price20DC_28t is also a base price, can exist independently or with <24t
+        if (railEntry.price20DC_28t !== null) {
+          railInfo.baseCost28t = railEntry.price20DC_28t;
+          hasBasePrice = true;
+        }
+        if (railEntry.guardCost20DC !== null) {
           railInfo.guardCost20DC = railEntry.guardCost20DC;
-          railCostFound = true;
-        } else if (railEntry.price20DC_28t !== null && railEntry.guardCost20DC !== null) {
-           railInfo.baseCost28t = railEntry.price20DC_28t;
-           railInfo.guardCost20DC = railEntry.guardCost20DC;
-           railCostFound = true;
+        }
+        // A leg is considered priced if it has any base price, guard is optional.
+        if (hasBasePrice) {
+             railCostFound = true;
         }
       } else if (containerType === "40HC") {
-        if (railEntry.price40HC !== null && railEntry.guardCost40HC !== null) {
+        if (railEntry.price40HC !== null) {
           railInfo.baseCost40HC = railEntry.price40HC;
+          hasBasePrice = true; // Set for 40HC if base price is found
+        }
+        if (railEntry.guardCost40HC !== null) {
           railInfo.guardCost40HC = railEntry.guardCost40HC;
-          railCostFound = true;
+        }
+        // A leg is considered priced if it has base price for 40HC.
+        if (hasBasePrice) {
+            railCostFound = true;
         }
       }
+
       if (railCostFound) {
         railInfo.commentaryReason = currentCommentary; 
         break; 
       } else if (!railInfo.commentaryReason.includes("Rail pricing components")) { 
-         railInfo.commentaryReason = appendCommentary(currentCommentary, `Rail pricing components for ${containerType} from a ${seaDestinationPort}-compatible station to ${russianDestinationCity}${arrivalStationSelection ? ` (station: ${arrivalStationSelection})` : ""} are missing for station ${compatibleDepartureStation}.`);
+         railInfo.commentaryReason = appendCommentary(currentCommentary, `Rail pricing components for ${containerType} from ${compatibleDepartureStation} to ${russianDestinationCity}${railInfo.arrivalStation ? ` (station: ${railInfo.arrivalStation})` : ""} are missing.`);
       }
     }
     if (railCostFound) break;
@@ -353,8 +385,13 @@ export function findRailLegDetails(
 
   if (!railCostFound) {
     railInfo.railLegFailed = true;
-    if (!railInfo.commentaryReason.includes("missing components") && !railInfo.commentaryReason.includes("No compatible and fully priced rail route")) {
-       railInfo.commentaryReason = appendCommentary(currentCommentary, `No compatible and fully priced rail route found from a ${seaDestinationPort}-related station to ${russianDestinationCity}${arrivalStationSelection ? ` (station: ${arrivalStationSelection})` : ""}.`);
+    const railNotFoundMsg = `No compatible and fully priced rail route found from a ${seaDestinationPort}-related station to ${russianDestinationCity}${arrivalStationSelection ? ` (station: ${arrivalStationSelection})` : ""}.`;
+    if (!railInfo.commentaryReason.includes(railNotFoundMsg) && !railInfo.commentaryReason.includes("Rail pricing components")) {
+       railInfo.commentaryReason = appendCommentary(currentCommentary, railNotFoundMsg);
+    } else if (!railInfo.commentaryReason.includes("Rail pricing components") && railInfo.commentaryReason.includes("missing components")) {
+      // Retain more specific "missing components" message
+    } else if (!railInfo.commentaryReason) { 
+        railInfo.commentaryReason = railNotFoundMsg;
     }
   }
   return railInfo;
