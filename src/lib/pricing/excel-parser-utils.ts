@@ -110,16 +110,8 @@ export function parsePriceCell(cellValue: any): number | null {
   // 2. Replace all comma decimal separators with a period.
   let numericString = sValue.replace(/,/g, '.');
   
-  // 3. Filter the string to keep only digits and the first decimal point found.
-  let hasDecimal = false;
-  numericString = Array.from(numericString).filter(char => {
-    if (char >= '0' && char <= '9') return true;
-    if (char === '.' && !hasDecimal) {
-      hasDecimal = true;
-      return true;
-    }
-    return false;
-  }).join('');
+  // 3. Remove all remaining spaces (this handles cases like "143 436")
+  numericString = numericString.replace(/\s/g, ''); 
   
   if (numericString === "") return null; // If nothing is left after stripping
 
@@ -129,7 +121,6 @@ export function parsePriceCell(cellValue: any): number | null {
     return num;
   }
   
-  // console.warn(`parsePriceCell (aggressive) could not parse "${String(cellValue).trim()}" (cleaned: "${numericString}") to number. Returning null.`);
+  // console.warn(`parsePriceCell could not parse "${String(cellValue).trim()}" (cleaned: "${numericString}") to number. Returning null.`);
   return null;
 }
-
