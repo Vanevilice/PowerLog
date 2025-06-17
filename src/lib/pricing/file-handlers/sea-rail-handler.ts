@@ -162,10 +162,11 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
             const parsedDepartureStations = parseRailStationsCell(row[1] as string | undefined); // Col B
             const cityOfArrival = String(row[11] || '').trim(); // Col L
             const parsedArrivalStations = parseRailStationsCell(row[2] as string | undefined); // Col C
-            if (parsedDepartureStations.length > 0 && cityOfArrival && parsedArrivalStations.length > 0) {
+            // Condition changed: allow if parsedArrivalStations is empty
+            if (parsedDepartureStations.length > 0 && cityOfArrival) {
               newRailDataLocal.push({
                 departureStations: parsedDepartureStations, // from Col B
-                arrivalStations: parsedArrivalStations,   // from Col C
+                arrivalStations: parsedArrivalStations,   // from Col C (can be empty)
                 cityOfArrival,                            // from Col L
                 price20DC_24t: parsePriceCell(row[3]),    // from Col D
                 guardCost20DC: parsePriceCell(row[4]),    // from Col E
@@ -216,3 +217,5 @@ export async function handleSeaRailFileParse(args: ExcelParserArgsBase) {
   }
   if (fileInputRef.current) fileInputRef.current.value = "";
 }
+
+    
