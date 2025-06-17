@@ -1,4 +1,3 @@
-
 // src/lib/pricing/finders.ts
 import type {
   RouteFormValues,
@@ -158,46 +157,59 @@ export function parseDashboardMonetaryValue(valueString: string | undefined | nu
     result.currency = "RUB";
   }
 
+  // More robust cleaning: remove all non-digits except first period
   let numericPart = sValue
-    .replace(/\$|€|₽|USD|EUR|RUB|P|р\.|руб\./gi, '')
-    .replace(/\s/g, '')
-    .replace(',', '.');
-  
+    .replace(/\b(rub|usd|eur|p|р\.|руб\.)\b|\$|€|₽/gi, '') // remove currency symbols/text
+    .replace(/,/g, '.') // standardize decimal separator
+    .replace(/\s+/g, ''); // remove all spaces
+
   if (numericPart.includes('/') && numericPart.match(/\d[\d.]*\/\d[\d.]*/)) {
     numericPart = numericPart.split('/')[0].trim();
   }
   
-  numericPart = numericPart.replace(/\.(0+|0)$/, '');
-  numericPart = numericPart.replace(/\.-$/, '');
+  // Filter to keep only digits and the first decimal point
+  let hasDecimal = false;
+  numericPart = Array.from(numericPart).filter(char => {
+      if (char === '.') {
+          if (hasDecimal) return false;
+          hasDecimal = true;
+          return true;
+      }
+      return /\d/.test(char);
+  }).join('');
+
 
   const num = parseFloat(numericPart);
 
   if (!isNaN(num)) {
     result.amount = num;
-    if (!result.currency && num > 50000) { 
+    if (!result.currency && num > 50000) { // Heuristic for RUB if no symbol found
         result.currency = "RUB";
-    } else if (!result.currency) {
+    } else if (!result.currency) { // Default to USD if still no currency and not clearly RUB
         result.currency = "USD"; 
     }
   } else {
-      result.currency = null; 
+      result.currency = null; // parsing failed
   }
   return result;
 }
+
 
 function isMatchingRailDepartureStation(seaPort: string, railDepStation: string): boolean {
   const normSeaPort = normalizeCityName(seaPort); // e.g., "восточный (вск)" -> "восточный"
   const normRailDepStation = normalizeCityName(railDepStation); // e.g., "ст. восточный порт эксп" -> "ст. восточный порт эксп"
 
-  // Check if both refer to Vladivostok
-  const seaIsVlad = VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normSeaPort);
-  const railIsVladStationKeyword = VLADIVOSTOK_VARIANTS.some(v => normRailDepStation.includes(normalizeCityName(v)));
-  if (seaIsVlad && railIsVladStationKeyword) return true;
-
   // Check if both refer to Vostochny
-  const seaIsVost = VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normSeaPort);
-  const railIsVostStationKeyword = VOSTOCHNIY_VARIANTS.some(v => normRailDepStation.includes(normalizeCityName(v))) || normRailDepStation.includes("находка-восточная");
-  if (seaIsVost && railIsVostStationKeyword) return true;
+  if (VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normSeaPort) &&
+      (normRailDepStation.includes("восточный") || normRailDepStation.includes("находка-восточная"))) {
+    return true;
+  }
+  
+  // Check if both refer to Vladivostok
+  if (VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normSeaPort) &&
+      normRailDepStation.includes("владивосток")) {
+    return true;
+  }
   
   // Check for specific keywords if parenthetical info was present in the original seaPort
   const seaPortParentheticalMatch = seaPort.match(/\(([^)]+)\)/);
@@ -207,17 +219,18 @@ function isMatchingRailDepartureStation(seaPort: string, railDepStation: string)
   }
   
   // Fallback: direct substring check if one is a known hub name and the other contains it
-  if (seaIsVost && railDepStation.toLowerCase().includes("восточный")) return true;
-  if (seaIsVlad && railDepStation.toLowerCase().includes("владивосток")) return true;
+  if (VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normSeaPort) && railDepStation.toLowerCase().includes("восточный")) return true;
+  if (VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normSeaPort) && railDepStation.toLowerCase().includes("владивосток")) return true;
+
+  // Check for specific "пасифик лоджистик" to "пл" (Vladivostok (ПЛ))
+  if (normSeaPort === normalizeCityName("Владивосток (ПЛ)") && normRailDepStation.includes(normalizeCityName("пасифик лоджистик"))) return true;
 
   // Broader substring check for less specific matches, ensuring meaningful length
   if (normSeaPort.length > 3 && normRailDepStation.includes(normSeaPort)) return true;
   // Ensure rail station name is also of meaningful length for reverse check
-  if (normRailDepStation.length > 3 && normSeaPort.includes(normRailDepStation)) return true;
+  // Removed this as normRailDepStation can be very specific and normSeaPort very generic
+  // if (normRailDepStation.length > 3 && normSeaPort.includes(normRailDepStation)) return true;
   
-  // Check for specific "пасифик лоджистик" to "пл" (Vladivostok (ПЛ))
-  if (normSeaPort === normalizeCityName("Владивосток (ПЛ)") && normRailDepStation.includes(normalizeCityName("пасифик лоджистик"))) return true;
-
   return false;
 }
 
@@ -312,17 +325,15 @@ export function findRailLegDetails(
   const normalizedTargetUserCity = normalizeCityName(russianDestinationCity);
 
   for (const railEntry of excelRailData) {
-    const stationOrCityFromExcel = railEntry.cityOfArrival; 
+    const stationOrCityFromExcel = railEntry.cityOfArrival; // This is Col L from Sheet 5
     const mappedCityFromExcelStation = getCityFromStationName(stationOrCityFromExcel);
-    const effectiveCityFromExcel = mappedCityFromExcelStation || stationOrCityFromExcel; // Use mapped city, or original if no mapping
+    const effectiveCityFromExcel = mappedCityFromExcelStation || stationOrCityFromExcel;
     const normalizedEffectiveCityFromExcel = normalizeCityName(effectiveCityFromExcel);
-
 
     if (normalizedEffectiveCityFromExcel !== normalizedTargetUserCity) {
       continue;
     }
-
-    // If user selected a specific arrival station, it must match one of the stations in the rail entry or the cityOfArrival itself if it's a direct match
+    
     if (arrivalStationSelection && !railEntry.arrivalStations.includes(arrivalStationSelection) && normalizeCityName(stationOrCityFromExcel) !== normalizeCityName(arrivalStationSelection)) {
         continue;
     }
@@ -336,12 +347,11 @@ export function findRailLegDetails(
       if (arrivalStationSelection && railEntry.arrivalStations.includes(arrivalStationSelection)) {
           railInfo.arrivalStation = arrivalStationSelection;
       } else if (arrivalStationSelection && normalizeCityName(stationOrCityFromExcel) === normalizeCityName(arrivalStationSelection) && railEntry.arrivalStations.length === 0) {
-          // Case: user selects "Электроугли", Excel cityOfArrival is "Электроугли", and arrivalStations array is empty.
-          railInfo.arrivalStation = stationOrCityFromExcel; // Use the cityOfArrival as the station
+          railInfo.arrivalStation = stationOrCityFromExcel;
       } else if (railEntry.arrivalStations.length > 0) {
-          railInfo.arrivalStation = railEntry.arrivalStations[0]; // Default to first if specific not chosen or matched
+          railInfo.arrivalStation = railEntry.arrivalStations[0];
       } else {
-          railInfo.arrivalStation = stationOrCityFromExcel; // Fallback to cityOfArrival if arrivalStations is empty
+          railInfo.arrivalStation = stationOrCityFromExcel;
       }
       
       let hasBasePrice = false;
@@ -350,7 +360,6 @@ export function findRailLegDetails(
           railInfo.baseCost24t = railEntry.price20DC_24t;
           hasBasePrice = true;
         }
-        // price20DC_28t is also a base price, can exist independently or with <24t
         if (railEntry.price20DC_28t !== null) {
           railInfo.baseCost28t = railEntry.price20DC_28t;
           hasBasePrice = true; 
@@ -523,15 +532,18 @@ export function findSOCDropOffDetails(
   }
 
   for (const entry of excelSOCDropOffData) {
-    const departureMatch = entry.departureCity === normalizedLookupDepartureCity ||
-                           (entry.departureCity.includes(normalizedLookupDepartureCity) && normalizedLookupDepartureCity.length > 2) ||
-                           (normalizedLookupDepartureCity.includes(entry.departureCity) && entry.departureCity.length > 2);
+    // Ensure entry.departureCity is normalized before comparison
+    const normalizedEntryDepartureCity = normalizeCityName(entry.departureCity);
+
+    const departureMatch = normalizedEntryDepartureCity === normalizedLookupDepartureCity ||
+                           (normalizedEntryDepartureCity.includes(normalizedLookupDepartureCity) && normalizedLookupDepartureCity.length > 2) ||
+                           (normalizedLookupDepartureCity.includes(normalizedEntryDepartureCity) && normalizedEntryDepartureCity.length > 2);
                            
-    const dropOffCityMatch = entry.dropOffCity === normalizedLookupDropOffCity; 
+    const dropOffCityMatch = entry.dropOffCity === normalizedLookupDropOffCity; // dropOffCity in ExcelSOCDropOffEntry is already normalized
     const containerMatch = entry.containerType === containerType;
 
     if (departureMatch && dropOffCityMatch && containerMatch) {
-      socDropOffInfo.costNumeric = entry.price;
+      socDropOffInfo.costNumeric = entry.price; // price is already number | null
       socDropOffInfo.displayValue = entry.price !== null ? String(entry.price) : null;
       entryMatched = true;
 

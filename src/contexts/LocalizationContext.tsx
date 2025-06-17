@@ -161,20 +161,20 @@ export interface Translations {
   toast_CopyFailed_Description: string;
 
   // Best Prices Page Translations
-  toast_BestPrices_RateCopied: string;
+  toast_BestPrices_RateCopied: string; // Param: {{optionNumber}}
   toast_BestPrices_NotAvailable_Title: string;
   toast_BestPrices_NotAvailable_DirectRailInstructions: string;
   bestPrices_NoResults_Title: string;
   bestPrices_NoResults_Description: string;
   bestPrices_BackToCalculator_Button: string;
-  bestPrices_Header_Title: string;
-  bestPrices_Header_BasedOn_DirectRail: string;
-  bestPrices_Header_BasedOn_SeaRail_Base: string;
-  bestPrices_Header_BasedOn_SeaRail_FinalDest: string;
-  bestPrices_RouteCard_OptionTitle: string;
-  bestPrices_RouteCard_Desc_SeaRail_RouteBase: string;
-  bestPrices_RouteCard_Desc_SeaRail_FurtherRail: string;
-  bestPrices_RouteCard_Desc_DirectRail_Route: string;
+  bestPrices_Header_Title: string; // Params: {{count}}, {{mode}}
+  bestPrices_Header_BasedOn_DirectRail: string; // Params: {{departureCity}}, {{destinationCity}}, {{incoterms}}
+  bestPrices_Header_BasedOn_SeaRail_Base: string; // Params: {{originPort}}, {{containerType}}, {{shipmentType}}
+  bestPrices_Header_BasedOn_SeaRail_FinalDest: string; // Param: {{finalDestCity}}
+  bestPrices_RouteCard_OptionTitle: string; // Param: {{optionNumber}}
+  bestPrices_RouteCard_Desc_SeaRail_RouteBase: string; // Params: {{originPort}}, {{seaDestPort}}
+  bestPrices_RouteCard_Desc_SeaRail_FurtherRail: string; // Params: {{russianDestCity}}, {{arrivalStation}}
+  bestPrices_RouteCard_Desc_DirectRail_Route: string; // Params: {{originPort}}, {{destPort}}
   bestPrices_RouteCard_AgentLabel: string;
   bestPrices_RouteCard_SeaLineLabel: string;
   bestPrices_RouteDetails_DepCityLabel_DR: string;
@@ -200,7 +200,7 @@ export interface Translations {
   bestPrices_CostBreakdown_Rail_GuardNA: string;
   bestPrices_CostBreakdown_DropOffCost: string;
   bestPrices_CostBreakdown_DropOffComment: string;
-  bestPrices_CostBreakdown_SOCDropOffCost: string;
+  bestPrices_CostBreakdown_SOCDropOffCost: string; // Param: {{containerType}}
   bestPrices_CostBreakdown_SOCDropOffComment: string;
   bestPrices_CostBreakdown_DirectRailCost: string;
   bestPrices_CostBreakdown_ETD: string;
@@ -265,13 +265,13 @@ export const LocalizationProvider = ({ children }: { children: ReactNode }) => {
     if (language === 'en') {
       mergedTranslations = {
         ...defaultEnTranslations,     // Common EN keys and the function
-        ...partialEnTranslations,   // PortPriceFinderForm specific EN keys & Dashboard EN Keys
+        ...partialEnTranslations,   // PortPriceFinderForm specific EN keys & Dashboard EN Keys & BestPrices EN Keys
       };
     } else { // language === 'ru'
       mergedTranslations = {
         ...defaultEnTranslations,     // Base: Common EN keys and the function
         ...translationsData.ru,     // Override common keys with RU versions
-        ...partialRuTranslations,   // PortPriceFinderForm specific RU keys & Dashboard RU Keys
+        ...partialRuTranslations,   // PortPriceFinderForm specific RU keys & Dashboard RU Keys & BestPrices RU Keys
       };
     }
     return mergedTranslations as Translations; // Assume all keys are covered by the merge

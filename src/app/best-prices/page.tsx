@@ -134,8 +134,9 @@ export default function BestPricesPage() {
   };
 
   const handleCreateInstructions = (route: BestPriceRoute) => {
-    if (route.mode === 'direct_rail') {
-        toast({ title: translate('toast_BestPrices_NotAvailable_Title'), description: translate('toast_BestPrices_NotAvailable_DirectRailInstructions') });
+    if (route.mode === 'direct_rail' || route.isDashboardRecommendation) {
+        const messageKey = route.mode === 'direct_rail' ? 'toast_BestPrices_NotAvailable_DirectRailInstructions' : 'toast_BestPrices_NotAvailable_DirectRailInstructions'; // Assuming same message for now, or make a new one for dashboard
+        toast({ title: translate('toast_BestPrices_NotAvailable_Title'), description: translate(messageKey as keyof import('@/contexts/LocalizationContext').Translations) });
         return;
     }
     const queryParams = new URLSearchParams();
@@ -510,7 +511,7 @@ export default function BestPricesPage() {
                   variant="default"
                   className="w-full flex-1"
                   size="sm"
-                  disabled={route.mode === 'direct_rail'}
+                  disabled={route.mode === 'direct_rail' || route.isDashboardRecommendation}
                 >
                   <Edit3 className="mr-2 h-4 w-4" /> {translate('bestPrices_RouteCard_Button_CreateInstructions')}
                 </Button>

@@ -1,4 +1,3 @@
-
 // src/types/index.ts
 import type { SmartPricingOutput as SmartPricingOutputBase } from '@/ai/flows/smart-pricing';
 import type { PricingCommentaryOutput as PricingCommentaryOutputBase } from '@/ai/flows/pricing-commentary';
@@ -48,8 +47,9 @@ export interface DropOffEntry { // COC Drop-off data
 }
 
 export interface ExcelSOCDropOffEntry { // SOC Drop-off data from new separate file
-  seaLine: string;
-  destination: string; // Could be a port or a city where drop-off occurs
+  // seaLine: string; // Sea line might not be present in this file, matching might be by ports/city
+  departureCity: string; // City from which SOC container is dispatched for drop-off (e.g., Vladivostok)
+  dropOffCity: string;   // City where drop-off occurs (e.g., Moscow)
   containerType: ContainerType; // Should be specific like '20DC' or '40HC'
   price: string | number | null;
   comment?: string;

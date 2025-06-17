@@ -1,11 +1,10 @@
-
 // src/locales/ru/bestPricesPage.ts
 import type { Translations } from '@/contexts/LocalizationContext';
 
 export const bestPricesPageRuTranslations: Partial<Translations> = {
   toast_BestPrices_RateCopied: "Ставка для Опции {{optionNumber}} скопирована.",
   toast_BestPrices_NotAvailable_Title: "Недоступно",
-  toast_BestPrices_NotAvailable_DirectRailInstructions: "Создание инструкций для Прямых ЖД маршрутов пока недоступно.",
+  toast_BestPrices_NotAvailable_DirectRailInstructions: "Создание инструкций для Прямых ЖД или Дашборд маршрутов пока недоступно.",
   bestPrices_NoResults_Title: "Лучшие ценовые предложения не найдены",
   bestPrices_NoResults_Description: "Либо расчет не производился, либо ни один маршрут не соответствовал вашим критериям.",
   bestPrices_BackToCalculator_Button: "Вернуться к Калькулятору",
@@ -49,6 +48,6 @@ export const bestPricesPageRuTranslations: Partial<Translations> = {
   bestPrices_CostBreakdown_ExcelCommentary: "Комментарий из Excel:",
   bestPrices_RouteCard_Button_CopyRate: "Копировать ставку",
   bestPrices_RouteCard_Button_CreateInstructions: "Создать инструкции",
-  bestPrices_DashboardRecommendationLabel: "Из Лучшего",
+  bestPrices_DashboardRecommendationLabel: "Из Лучшего", // Added for dashboard routes
 };
 

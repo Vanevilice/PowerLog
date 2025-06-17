@@ -1,4 +1,3 @@
-
 // src/lib/pricing/calculation-processors.ts
 import type { UseFormReturn } from 'react-hook-form';
 import { useToast } from '@/hooks/use-toast';
@@ -76,9 +75,13 @@ async function callAiAndSetState(
             russianDestinationCity: aiInputData.russianDestinationCity
         };
         try {
+            // const commentaryResponse = await generatePricingCommentary(pricingCommentaryInput);
+            // displayOutput.commentary = commentaryResponse.commentary;
+            // Instead of calling AI if no price, use the constructed reason
             displayOutput.commentary = finalCommentaryReason;
         } catch (e) {
-            displayOutput.commentary = finalCommentaryReason;
+            // console.error("AI commentary generation failed:", e);
+            displayOutput.commentary = finalCommentaryReason; // Fallback to constructed reason
         }
     } else {
         displayOutput.commentary = finalCommentaryReason;
@@ -90,7 +93,23 @@ async function callAiAndSetState(
     if (setCachedLastSuccessfulCalculation) setCachedLastSuccessfulCalculation(null);
 
   } else if (aiInputData.originCity || (aiInputData.directRailCityOfDeparture && aiInputData.directRailDestinationCity)) {
-    displayOutput.commentary = finalCommentaryReason;
+    // if (!finalCommentaryReason && aiInputData.shipmentType && aiInputData.originCity && (aiInputData.destinationCity || aiInputData.russianDestinationCity)) {
+    //   const pricingCommentaryInput: PricingCommentaryInput = {
+    //     originCity: aiInputData.originCity,
+    //     destinationCity: aiInputData.destinationCity || aiInputData.russianDestinationCity!,
+    //     containerType: aiInputData.containerType,
+    //     russianDestinationCity: aiInputData.russianDestinationCity
+    //   };
+    //   try {
+    //     const commentaryResponse = await generatePricingCommentary(pricingCommentaryInput);
+    //     displayOutput.commentary = commentaryResponse.commentary;
+    //   } catch (e) {
+    //     console.error("AI commentary generation failed:", e);
+    //     displayOutput.commentary = "AI commentary generation failed. Using fallback."; // Fallback
+    //   }
+    // } else {
+      displayOutput.commentary = finalCommentaryReason; // Use constructed if it exists
+    // }
     setShippingInfo(displayOutput);
     setCachedShippingInfo(displayOutput);
 
@@ -103,6 +122,7 @@ async function callAiAndSetState(
       if (partialPricing && !noPricedComponents) {
         toast({ title: "Partial Pricing Info", description: finalCommentaryReason });
       }
+      // No toast if full pricing and no specific failure commentary
     }
   } else {
     const fallbackCommentary = finalCommentaryReason || "Essential information missing for processing.";
@@ -174,28 +194,44 @@ export async function processSeaPlusRailCalculation({
     railDetails = findRailLegDetails(values, context, destinationPort, finalCommentary);
     finalCommentary = railDetails.commentaryReason;
   } else if (seaInfo.seaPriceNumeric === null && isFurtherRailJourney) {
+    // If sea pricing failed, we cannot price the rail leg either
     finalCommentary += (finalCommentary ? " " : "") + `Cannot price rail to ${russianDestinationCity} as sea pricing failed.`;
     if (!railDetails) railDetails = { railLegFailed: true, commentaryReason: finalCommentary } as RailLegInfo; else railDetails.railLegFailed = true;
   }
 
+  // Determine city for drop-off lookup
   let cityForDropOffLookup: string | undefined = undefined;
   if (shipmentType === "SOC" && russianDestinationCity) {
     cityForDropOffLookup = russianDestinationCity;
   } else if (shipmentType === "COC") {
+    // If there's a successful further rail journey, drop-off is at the final Russian city
     if (isFurtherRailJourney && railDetails && !railDetails.railLegFailed && russianDestinationCity) {
         cityForDropOffLookup = russianDestinationCity;
-    } else if (destinationPort && (VLADIVOSTOK_VARIANTS.some(variant => destinationPort.startsWith(variant.split(" ")[0])) || VOSTOCHNIY_VARIANTS.some(variant => destinationPort.startsWith(variant.split(" ")[0])) ) ) {
+    } 
+    // If NO further rail journey, but the sea port is a hub (Vlad/Vost), drop-off is at that sea port
+    else if (!isFurtherRailJourney && destinationPort && 
+             (VLADIVOSTOK_VARIANTS.some(variant => normalizeCityName(destinationPort) === normalizeCityName(variant)) || 
+              VOSTOCHNIY_VARIANTS.some(variant => normalizeCityName(destinationPort) === normalizeCityName(variant)))
+            ) {
+        cityForDropOffLookup = destinationPort;
+    }
+    // If sea port is NOT a hub, and NO further rail, then COC drop-off lookup might not be applicable or needs specific rule.
+    // Current logic will try to use destinationPort if it's set and rail journey isn't happening or failed.
+    else if (destinationPort) { // Default to sea port if other conditions not met
         cityForDropOffLookup = destinationPort;
     }
   }
 
 
+  // Attempt COC Drop-off if applicable
   if (shipmentType === "COC" && seaInfo.matchedSeaRouteInfo && cityForDropOffLookup &&
-      (seaInfo.seaPriceNumeric !== null || (isFurtherRailJourney && railDetails && !railDetails.railLegFailed) || (!isFurtherRailJourney && destinationPort && (VLADIVOSTOK_VARIANTS.some(variant => destinationPort.startsWith(variant.split(" ")[0])) || VOSTOCHNIY_VARIANTS.some(variant => destinationPort.startsWith(variant.split(" ")[0])) ) ) ) ) {
+      (seaInfo.seaPriceNumeric !== null || (isFurtherRailJourney && railDetails && !railDetails.railLegFailed) || (!isFurtherRailJourney && destinationPort && (VLADIVOSTOK_VARIANTS.some(variant => normalizeCityName(destinationPort!) === normalizeCityName(variant)) || VOSTOCHNIY_VARIANTS.some(variant => normalizeCityName(destinationPort!) === normalizeCityName(variant))) ) ) ) {
     cocDropOffDetails = findDropOffDetails(values, context, cityForDropOffLookup, seaInfo.seaComment, finalCommentary);
     finalCommentary = cocDropOffDetails.commentaryReason;
-  } else if (shipmentType === "SOC" && seaInfo.matchedSeaRouteInfo && cityForDropOffLookup && originPort && containerType && context.isSOCDropOffExcelDataLoaded) {
-    socDropOffDetails = findSOCDropOffDetails(values, context, cityForDropOffLookup, originPort, finalCommentary);
+  } 
+  // Attempt SOC Drop-off if applicable
+  else if (shipmentType === "SOC" && seaInfo.matchedSeaRouteInfo && cityForDropOffLookup && originPort && containerType && context.isSOCDropOffExcelDataLoaded && destinationPort) {
+    socDropOffDetails = findSOCDropOffDetails(values, context, cityForDropOffLookup, destinationPort, finalCommentary);
     finalCommentary = socDropOffDetails.commentaryReason;
   }
 
@@ -229,7 +265,7 @@ export async function processSeaPlusRailCalculation({
       socDropOffComment: shipmentType === "SOC" ? socDropOffDetails?.comment : null,
 
       socComment: seaInfo.socComment, russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : (shipmentType === 'SOC' ? russianDestinationCity : undefined),
-      commentary: '',
+      commentary: '', // Placeholder, will be filled by callAiAndSetState
     };
 
     const calcDetails: CalculationDetailsForInstructions | null = hasAnyPricedComponent ? {
@@ -293,7 +329,7 @@ export async function processDirectRailCalculation({
       directRailCommentary: matchedEntry.commentary,
       directRailAgentName: matchedEntry.agentName,
       directRailIncoterms: matchedEntry.incoterms,
-      commentary: matchedEntry.commentary || ''
+      commentary: matchedEntry.commentary || '' // Use Excel commentary for Direct Rail "note"
     };
     setShippingInfo(displayOutput);
     setCachedShippingInfo(displayOutput);
@@ -326,7 +362,7 @@ export function calculateBestPrice({
   setShippingInfo(null);
   setBestPriceResults(null);
 
-  let potentialRoutes = [];
+  let potentialRoutes: BestPriceRoute[] = [];
 
   if (calculationMode === "sea_plus_rail") {
     if (!values.originPort || !values.containerType) {
@@ -334,8 +370,9 @@ export function calculateBestPrice({
       setIsCalculatingBestPrice(false); return;
     }
     if (excelRussianDestinationCitiesMasterList.length > 0 && !values.russianDestinationCity && values.shipmentType === "COC") {
-      toast({ title: "Missing Info", description: "Select Destination City for Best Price (Sea+Rail COC)." });
-      setIsCalculatingBestPrice(false); return;
+      // Allow COC best price search without Russian Destination City IF a sea destination port is provided.
+      // Rail leg will only be considered if russianDestinationCity is also provided.
+      // This is implicitly handled by generateSeaPlusRailCandidates' internal logic.
     }
     if (values.shipmentType === "SOC" && !values.russianDestinationCity) {
         toast({ title: "Missing Info", description: "Select Destination City for Best Price (Sea+Rail SOC)." });
@@ -382,3 +419,5 @@ export function calculateBestPrice({
   }
   setIsCalculatingBestPrice(false);
 }
+
+    

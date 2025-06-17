@@ -1,11 +1,10 @@
-
 // src/locales/en/bestPricesPage.ts
 import type { Translations } from '@/contexts/LocalizationContext';
 
 export const bestPricesPageEnTranslations: Partial<Translations> = {
   toast_BestPrices_RateCopied: "Rate for Option {{optionNumber}} copied.",
   toast_BestPrices_NotAvailable_Title: "Not Available",
-  toast_BestPrices_NotAvailable_DirectRailInstructions: "Instructions creation is not available for Direct Rail routes yet.",
+  toast_BestPrices_NotAvailable_DirectRailInstructions: "Instructions creation is not available for Direct Rail or Dashboard routes yet.",
   bestPrices_NoResults_Title: "No Best Price Results Found",
   bestPrices_NoResults_Description: "Either no calculation was performed, or no routes matched your criteria.",
   bestPrices_BackToCalculator_Button: "Back to Calculator",
@@ -49,6 +48,6 @@ export const bestPricesPageEnTranslations: Partial<Translations> = {
   bestPrices_CostBreakdown_ExcelCommentary: "Excel Commentary:",
   bestPrices_RouteCard_Button_CopyRate: "Copy Rate",
   bestPrices_RouteCard_Button_CreateInstructions: "Create Instructions",
-  bestPrices_DashboardRecommendationLabel: "From Our Best",
+  bestPrices_DashboardRecommendationLabel: "From Our Best", // Added for dashboard routes
 };
 
