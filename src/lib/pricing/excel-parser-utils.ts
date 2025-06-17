@@ -1,3 +1,4 @@
+
 // src/lib/pricing/excel-parser-utils.ts
 import { normalizeCityName } from './utils'; // Import normalizeCityName
 
@@ -93,28 +94,24 @@ export function parseGenericListCell(cellValue: string | undefined): string[] {
 
 export function parsePriceCell(cellValue: any): number | null {
   if (cellValue === null || cellValue === undefined) return null;
-  let sValueOriginal = String(cellValue).trim();
-  // Check for common non-price strings or empty strings after trim
-  if (sValueOriginal === "" || sValueOriginal.toLowerCase() === "n/a" || sValueOriginal === "-") return null;
+  let sValue = String(cellValue).trim();
+  if (sValue === "" || sValue.toLowerCase() === "n/a" || sValue === "-") return null;
 
-  // Handle cases like "1 500 / 1 600" - take the first number
-  if (sValueOriginal.includes('/') && sValueOriginal.match(/\d[\d\s.,]*\/\d[\d\s.,]*/)) {
-    sValueOriginal = sValueOriginal.split('/')[0].trim();
+  // Take only the part before any slash if present (e.g., "1500 / 1600" -> "1500")
+  if (sValue.includes('/') && sValue.match(/\d[\d\s.,]*\/\d[\d\s.,]*/)) {
+    sValue = sValue.split('/')[0].trim();
   }
+  
+  // More aggressive stripping of anything that is not a digit, a comma, or a period.
+  // Then replace comma with period for float parsing.
+  const numericString = sValue.replace(/[^\d.,]/g, '').replace(',', '.');
 
-  // Remove currency symbols/units (like P, $, €, RUB, USD, EUR, р., руб.)
-  // and spaces. Standardize decimal separator.
-  const sValueNumericCandidate = sValueOriginal
-    .replace(/\$|€|₽|USD|EUR|RUB|P|р\.|руб\./gi, '') // Remove common currency symbols/units. Note: "р." includes dot.
-    .replace(/\s/g, '')    // Remove all spaces (e.g., "149 000" -> "149000")
-    .replace(',', '.');     // Standardize decimal separator to dot (e.g., "123,45" -> "123.45")
-
-  const num = parseFloat(sValueNumericCandidate);
+  const num = parseFloat(numericString);
 
   if (!isNaN(num)) {
     return num;
-  } else {
-    // console.warn(`parsePriceCell could not parse "${String(cellValue).trim()}" to a number (cleaned: "${sValueNumericCandidate}"). Returning null.`);
-    return null; // If not a number after cleaning, return null
   }
+  // console.warn(`parsePriceCell could not parse "${String(cellValue).trim()}" (cleaned: "${numericString}") to number. Returning null.`);
+  return null;
 }
+
