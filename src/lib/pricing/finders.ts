@@ -187,18 +187,18 @@ export function parseDashboardMonetaryValue(valueString: string | undefined | nu
 
 function isMatchingRailDepartureStation(seaPort: string, railDepStation: string): boolean {
   const normSeaPort = normalizeCityName(seaPort); // e.g., "восточный (вск)" -> "восточный"
-  const normRailDepStation = normalizeCityName(railDepStation); // e.g., "ст. восточный порт эксп." -> "ст. восточный порт эксп"
+  const normRailDepStation = normalizeCityName(railDepStation); // e.g., "ст. восточный порт эксп" -> "ст. восточный порт эксп"
 
   // Check if both refer to Vladivostok
   const seaIsVlad = VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normSeaPort);
-  const railIsVlad = VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normRailDepStation) || normRailDepStation.includes("владивосток");
-  if (seaIsVlad && railIsVlad) return true;
+  const railIsVladStationKeyword = VLADIVOSTOK_VARIANTS.some(v => normRailDepStation.includes(normalizeCityName(v)));
+  if (seaIsVlad && railIsVladStationKeyword) return true;
 
   // Check if both refer to Vostochny
   const seaIsVost = VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normSeaPort);
-  const railIsVost = VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normRailDepStation) || normRailDepStation.includes("восточный");
-  if (seaIsVost && railIsVost) return true;
-
+  const railIsVostStationKeyword = VOSTOCHNIY_VARIANTS.some(v => normRailDepStation.includes(normalizeCityName(v))) || normRailDepStation.includes("находка-восточная");
+  if (seaIsVost && railIsVostStationKeyword) return true;
+  
   // Check for specific keywords if parenthetical info was present in the original seaPort
   const seaPortParentheticalMatch = seaPort.match(/\(([^)]+)\)/);
   if (seaPortParentheticalMatch && seaPortParentheticalMatch[1]) {
@@ -210,13 +210,13 @@ function isMatchingRailDepartureStation(seaPort: string, railDepStation: string)
   if (seaIsVost && railDepStation.toLowerCase().includes("восточный")) return true;
   if (seaIsVlad && railDepStation.toLowerCase().includes("владивосток")) return true;
 
-  // Broader substring check for less specific matches
+  // Broader substring check for less specific matches, ensuring meaningful length
   if (normSeaPort.length > 3 && normRailDepStation.includes(normSeaPort)) return true;
+  // Ensure rail station name is also of meaningful length for reverse check
   if (normRailDepStation.length > 3 && normSeaPort.includes(normRailDepStation)) return true;
   
-  // Check for specific "пасифик лоджистик"
-  if (seaPort.toLowerCase().includes("пл") && railDepStation.toLowerCase().includes("пасифик лоджистик")) return true;
-
+  // Check for specific "пасифик лоджистик" to "пл" (Vladivostok (ПЛ))
+  if (normSeaPort === normalizeCityName("Владивосток (ПЛ)") && normRailDepStation.includes(normalizeCityName("пасифик лоджистик"))) return true;
 
   return false;
 }
@@ -314,14 +314,16 @@ export function findRailLegDetails(
   for (const railEntry of excelRailData) {
     const stationOrCityFromExcel = railEntry.cityOfArrival; 
     const mappedCityFromExcelStation = getCityFromStationName(stationOrCityFromExcel);
-    const effectiveCityFromExcel = mappedCityFromExcelStation || stationOrCityFromExcel;
+    const effectiveCityFromExcel = mappedCityFromExcelStation || stationOrCityFromExcel; // Use mapped city, or original if no mapping
     const normalizedEffectiveCityFromExcel = normalizeCityName(effectiveCityFromExcel);
+
 
     if (normalizedEffectiveCityFromExcel !== normalizedTargetUserCity) {
       continue;
     }
 
-    if (arrivalStationSelection && !railEntry.arrivalStations.includes(arrivalStationSelection) && stationOrCityFromExcel !== arrivalStationSelection) {
+    // If user selected a specific arrival station, it must match one of the stations in the rail entry or the cityOfArrival itself if it's a direct match
+    if (arrivalStationSelection && !railEntry.arrivalStations.includes(arrivalStationSelection) && normalizeCityName(stationOrCityFromExcel) !== normalizeCityName(arrivalStationSelection)) {
         continue;
     }
     
@@ -333,12 +335,13 @@ export function findRailLegDetails(
       railInfo.departureStation = compatibleDepartureStation; 
       if (arrivalStationSelection && railEntry.arrivalStations.includes(arrivalStationSelection)) {
           railInfo.arrivalStation = arrivalStationSelection;
-      } else if (arrivalStationSelection && stationOrCityFromExcel === arrivalStationSelection) {
-          railInfo.arrivalStation = arrivalStationSelection;
+      } else if (arrivalStationSelection && normalizeCityName(stationOrCityFromExcel) === normalizeCityName(arrivalStationSelection) && railEntry.arrivalStations.length === 0) {
+          // Case: user selects "Электроугли", Excel cityOfArrival is "Электроугли", and arrivalStations array is empty.
+          railInfo.arrivalStation = stationOrCityFromExcel; // Use the cityOfArrival as the station
       } else if (railEntry.arrivalStations.length > 0) {
-          railInfo.arrivalStation = railEntry.arrivalStations[0];
+          railInfo.arrivalStation = railEntry.arrivalStations[0]; // Default to first if specific not chosen or matched
       } else {
-          railInfo.arrivalStation = stationOrCityFromExcel; 
+          railInfo.arrivalStation = stationOrCityFromExcel; // Fallback to cityOfArrival if arrivalStations is empty
       }
       
       let hasBasePrice = false;
@@ -350,24 +353,22 @@ export function findRailLegDetails(
         // price20DC_28t is also a base price, can exist independently or with <24t
         if (railEntry.price20DC_28t !== null) {
           railInfo.baseCost28t = railEntry.price20DC_28t;
-          hasBasePrice = true;
+          hasBasePrice = true; 
         }
         if (railEntry.guardCost20DC !== null) {
           railInfo.guardCost20DC = railEntry.guardCost20DC;
         }
-        // A leg is considered priced if it has any base price, guard is optional.
         if (hasBasePrice) {
              railCostFound = true;
         }
       } else if (containerType === "40HC") {
         if (railEntry.price40HC !== null) {
           railInfo.baseCost40HC = railEntry.price40HC;
-          hasBasePrice = true; // Set for 40HC if base price is found
+          hasBasePrice = true;
         }
         if (railEntry.guardCost40HC !== null) {
           railInfo.guardCost40HC = railEntry.guardCost40HC;
         }
-        // A leg is considered priced if it has base price for 40HC.
         if (hasBasePrice) {
             railCostFound = true;
         }
