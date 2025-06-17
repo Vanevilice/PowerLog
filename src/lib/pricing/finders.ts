@@ -280,10 +280,13 @@ export function findRailLegDetails(
 
 
   for (const railEntry of excelRailData) {
-    const mappedCityFromRailEntry = getCityFromStationName(railEntry.cityOfArrival);
-    const normalizedCityFromRailEntry = mappedCityFromRailEntry ? normalizeCityName(mappedCityFromRailEntry) : null;
+    const stationOrCityFromExcel = railEntry.cityOfArrival; // This is Sheet 5, Col L
+    const mappedCityFromExcelStation = getCityFromStationName(stationOrCityFromExcel);
+    // Effective city from Excel: if station maps to a city, use that; otherwise, use the original value from Excel (which might be a city already).
+    const effectiveCityFromExcel = mappedCityFromExcelStation || stationOrCityFromExcel;
+    const normalizedEffectiveCityFromExcel = normalizeCityName(effectiveCityFromExcel);
 
-    if (!normalizedCityFromRailEntry || normalizedCityFromRailEntry !== normalizedTargetUserCity) {
+    if (normalizedEffectiveCityFromExcel !== normalizedTargetUserCity) {
       continue;
     }
 
@@ -315,7 +318,11 @@ export function findRailLegDetails(
 
     if (compatibleDepartureStation) {
       railInfo.departureStation = compatibleDepartureStation;
-      railInfo.arrivalStation = arrivalStationSelection || railEntry.arrivalStations[0]; 
+      // If user selected a specific arrival station, use it. Otherwise, use the first one from the matched Excel row.
+      // If railEntry.arrivalStations is empty (shouldn't happen if we matched on cityOfArrival being a station),
+      // then use cityOfArrival (the station from Excel) itself.
+      railInfo.arrivalStation = arrivalStationSelection || (railEntry.arrivalStations.length > 0 ? railEntry.arrivalStations[0] : stationOrCityFromExcel);
+      
       if (containerType === "20DC") {
         if (railEntry.price20DC_24t !== null && railEntry.guardCost20DC !== null) {
           railInfo.baseCost24t = railEntry.price20DC_24t;
@@ -532,3 +539,5 @@ export function findDirectRailEntry(values: RouteFormValues, context: PricingDat
     normalizeCityName(entry.border) === normalizedBorder
   );
 }
+
+    
