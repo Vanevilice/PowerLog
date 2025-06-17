@@ -95,23 +95,41 @@ export function parseGenericListCell(cellValue: string | undefined): string[] {
 export function parsePriceCell(cellValue: any): number | null {
   if (cellValue === null || cellValue === undefined) return null;
   let sValue = String(cellValue).trim();
+  
   if (sValue === "" || sValue.toLowerCase() === "n/a" || sValue === "-") return null;
 
-  // Take only the part before any slash if present (e.g., "1500 / 1600" -> "1500")
+  // Handle cases like "1 500 / 2 000" - take the first part
   if (sValue.includes('/') && sValue.match(/\d[\d\s.,]*\/\d[\d\s.,]*/)) {
     sValue = sValue.split('/')[0].trim();
   }
+
+  // Aggressively clean the string:
+  // 1. Replace common currency symbols or text (rub, usd, $, р.) if they are not part of a word.
+  //    Using word boundaries \b to avoid replacing parts of words.
+  sValue = sValue.replace(/\b(rub|usd|р\.|руб)\b|\$|€|₽/gi, '').trim();
+
+  // 2. Remove all remaining non-digit characters except a decimal point (if one exists).
+  //    First, replace comma decimal separators with a period.
+  let numericString = sValue.replace(/,/g, '.');
+  //    Then, remove all non-digits except the first period found.
+  let hasDecimal = false;
+  numericString = Array.from(numericString).filter(char => {
+    if (char >= '0' && char <= '9') return true;
+    if (char === '.' && !hasDecimal) {
+      hasDecimal = true;
+      return true;
+    }
+    return false;
+  }).join('');
   
-  // More aggressive stripping of anything that is not a digit, a comma, or a period.
-  // Then replace comma with period for float parsing.
-  const numericString = sValue.replace(/[^\d.,]/g, '').replace(',', '.');
+  if (numericString === "") return null; // If nothing is left after stripping
 
   const num = parseFloat(numericString);
 
   if (!isNaN(num)) {
     return num;
   }
-  // console.warn(`parsePriceCell could not parse "${String(cellValue).trim()}" (cleaned: "${numericString}") to number. Returning null.`);
+  
+  // console.warn(`parsePriceCell (aggressive) could not parse "${String(cellValue).trim()}" (cleaned: "${numericString}") to number. Returning null.`);
   return null;
 }
-
