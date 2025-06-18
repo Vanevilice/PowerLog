@@ -164,7 +164,7 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
             {shippingInfo.directRailCost !== null && shippingInfo.directRailCost !== undefined && (
               <p className="flex justify-between">
                 <strong>Railway Cost:</strong>
-                <span className="font-bold text-lg text-primary">{formatDisplayCost(shippingInfo.directRailCost, 'RUB')}</span>
+                <span className="font-bold text-lg text-primary">{formatDisplayCost(shippingInfo.directRailCost, shippingInfo.directRailCost < 100000 ? 'USD' : 'RUB')}</span>
               </p>
             )}
             <p className="flex justify-between"><strong>ETD:</strong><span className="text-right text-primary">{shippingInfo.directRailETD || 'N/A'}</span></p>
