@@ -112,7 +112,7 @@ export default function BestPricesPage() {
       textToCopy += `${translate('bestPrices_RouteDetails_DestCityLabel_DR')} ${route.seaDestinationPort || translate('common_NA')}\n`; 
       textToCopy += `${translate('bestPrices_RouteDetails_BorderLabel_DR')} ${route.directRailBorder || translate('common_NA')}\n`;
       textToCopy += `${translate('bestPrices_RouteDetails_IncotermsLabel_DR')} ${route.directRailIncoterms || translate('common_NA')}\n`;
-      textToCopy += `${translate('bestPrices_CostBreakdown_DirectRailCost')} ${formatDisplayCost(route.directRailPriceRUB, 'RUB')}\n`;
+      textToCopy += `${translate('bestPrices_CostBreakdown_DirectRailCost')} ${route.directRailPriceRUB !== null ? formatDisplayCost(route.directRailPriceRUB, route.directRailPriceRUB < 100000 ? 'USD' : 'RUB') : translate('common_NA')}\n`;
       textToCopy += `${translate('bestPrices_CostBreakdown_ETD')} ${route.directRailETD || translate('common_NA')}\n`;
       if (route.directRailExcelCommentary) {
         textToCopy += `${translate('bestPrices_CostBreakdown_ExcelCommentary')} ${route.directRailExcelCommentary}\n`;
@@ -488,7 +488,7 @@ export default function BestPricesPage() {
                             {route.directRailPriceRUB !== null && (
                             <p className="flex justify-between">
                                 <span>{translate('bestPrices_CostBreakdown_DirectRailCost')}</span>
-                                <span className="font-semibold text-primary">{formatDisplayCost(route.directRailPriceRUB, 'RUB')}</span>
+                                <span className="font-semibold text-primary">{formatDisplayCost(route.directRailPriceRUB, route.directRailPriceRUB < 100000 ? 'USD' : 'RUB')}</span>
                             </p>
                             )}
                              {route.directRailETD && (
