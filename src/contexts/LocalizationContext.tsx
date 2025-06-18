@@ -128,8 +128,8 @@ export interface Translations {
   nav_Dashboard: string;
   nav_Calculator: string;
   nav_Settings: string;
-  nav_FAQ_Title: string; // New
-  nav_FAQ_Tooltip: string; // New
+  nav_FAQ_Title: string;
+  nav_FAQ_Tooltip: string;
 
   // Dashboard Page Translations
   dashboard_DataNotLoaded_Title: string;
@@ -211,7 +211,7 @@ export interface Translations {
   bestPrices_RouteCard_Button_CreateInstructions: string;
   bestPrices_DashboardRecommendationLabel: string;
 
-  // FAQ Page Translations - New
+  // FAQ Page Translations
   faq_PageTitle: string;
   faq_PageDescription: string;
   faq_chapter_introduction_title: string;
@@ -252,8 +252,8 @@ const defaultEnTranslations: Partial<Translations> = {
   nav_Dashboard: "Dashboard",
   nav_Calculator: "Calculator",
   nav_Settings: "Settings",
-  nav_FAQ_Title: "FAQ", // New
-  nav_FAQ_Tooltip: "User Guide / FAQ", // New
+  nav_FAQ_Title: "FAQ", 
+  nav_FAQ_Tooltip: "User Guide / FAQ", 
   toast_Success_Title: "Success!",
   toast_CopyFailed_Title: "Copy Failed",
   toast_CopyFailed_Description: "Could not copy to clipboard.",
@@ -275,8 +275,8 @@ const translationsData: Record<Language, Partial<Translations>> = {
     nav_Dashboard: "Дашборд",
     nav_Calculator: "Калькулятор",
     nav_Settings: "Настройки",
-    nav_FAQ_Title: "Руководство", // New
-    nav_FAQ_Tooltip: "Руководство пользователя / FAQ", // New
+    nav_FAQ_Title: "Руководство", 
+    nav_FAQ_Tooltip: "Руководство пользователя / FAQ", 
     toast_Success_Title: "Успех!",
     toast_CopyFailed_Title: "Ошибка копирования",
     toast_CopyFailed_Description: "Не удалось скопировать в буфер обмена.",
@@ -290,17 +290,17 @@ export const LocalizationProvider = ({ children }: { children: ReactNode }) => {
     let mergedTranslations: Partial<Translations>;
     if (language === 'en') {
       mergedTranslations = {
-        ...defaultEnTranslations,     // Common EN keys and the function
-        ...partialEnTranslations,   // PortPriceFinderForm specific EN keys & Dashboard EN Keys & BestPrices EN Keys
+        ...defaultEnTranslations,    
+        ...partialEnTranslations,   
       };
     } else { // language === 'ru'
       mergedTranslations = {
-        ...defaultEnTranslations,     // Base: Common EN keys and the function
-        ...translationsData.ru,     // Override common keys with RU versions
-        ...partialRuTranslations,   // PortPriceFinderForm specific RU keys & Dashboard RU Keys & BestPrices RU Keys
+        ...defaultEnTranslations,    
+        ...translationsData.ru,    
+        ...partialRuTranslations,  
       };
     }
-    return mergedTranslations as Translations; // Assume all keys are covered by the merge
+    return mergedTranslations as Translations; 
   }, [language]);
 
   const translate = useCallback((key: keyof Translations, replacements?: Record<string, string | number>) => {

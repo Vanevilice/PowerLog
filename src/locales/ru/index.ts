@@ -4,13 +4,13 @@ import type { Translations } from '@/contexts/LocalizationContext';
 import { portPriceFinderFormRuTranslations } from './portPriceFinderForm';
 import { dashboardPageRuTranslations } from './dashboardPage';
 import { bestPricesPageRuTranslations } from './bestPricesPage';
-import { faqPageRuTranslations } from './faqPage'; // New
+import { faqPageRuTranslations } from './faqPage';
 
 // This object will merge all partial Russian translation files.
 export const partialRuTranslations: Partial<Translations> = {
   ...portPriceFinderFormRuTranslations,
   ...dashboardPageRuTranslations,
   ...bestPricesPageRuTranslations,
-  ...faqPageRuTranslations, // New
+  ...faqPageRuTranslations,
   // ... other future partial Russian translations can be merged here
 };
