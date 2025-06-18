@@ -25,7 +25,7 @@ import {
 } from './finders';
 import { getCityFromStationName } from './city-station-mapper';
 import { parseContainerInfoCell } from '@/lib/dashboard/utils';
-import { normalizeCityName } from './utils'; // Import normalizeCityName
+import { normalizeCityName, appendCommentary } from './utils'; // Import normalizeCityName and appendCommentary
 
 // Interface for the return type of _getRailAndDropOffDetailsForCandidate
 interface RailAndDropOffCandidateDetails {
@@ -67,7 +67,6 @@ function _getRailAndDropOffDetailsForCandidate(
   if (isFurtherRailJourney && formRussianDestinationCity && containerType && preParsedRailwayLegs && preParsedRailwayLegs.length > 0) {
     for (const leg of preParsedRailwayLegs) {
       let stationNameFromLeg: string | null = null;
-      // More robust extraction of "FOR <station name>"
       const forMatch = leg.originInfo.match(/FOR\s+(.+)/i);
       if (forMatch && forMatch[1]) {
         stationNameFromLeg = forMatch[1].trim();
@@ -82,12 +81,11 @@ function _getRailAndDropOffDetailsForCandidate(
         if (mappedCityFromLegViaExactStation && normalizeCityName(mappedCityFromLegViaExactStation) === normalizedFormRussianDestCity) {
             isMatchForDestination = true;
         } else {
-            // Check for general Moscow hub phrases
             const normalizedStationNameForMoscowCheck = normalizeCityName(stationNameFromLeg);
-            if (normalizedFormRussianDestCity === "москва" && 
-                (normalizedStationNameForMoscowCheck.includes("мос. узла") || 
+            if (normalizedFormRussianDestCity === "москва" &&
+                (normalizedStationNameForMoscowCheck.includes("мос. узла") ||
                  normalizedStationNameForMoscowCheck.includes("московский узел") ||
-                 normalizedStationNameForMoscowCheck.includes("станции мос. узла"))) { // Added this check
+                 normalizedStationNameForMoscowCheck.includes("станции мос. узла"))) {
                 isMatchForDestination = true;
             }
         }
@@ -96,20 +94,30 @@ function _getRailAndDropOffDetailsForCandidate(
             const parsedLegCost = parseDashboardMonetaryValue(leg.cost);
             if (parsedLegCost.amount !== null && parsedLegCost.currency === 'RUB') {
                 costToAddForRailRUB = parsedLegCost.amount;
-                // When using pre-parsed data, the cost is often a total.
-                // Distribute it to the primary base cost for the container type.
                 railLegDetails = { 
                     railLegFailed: false, commentaryReason: "",
                     arrivalStation: stationNameFromLeg, 
                     departureStation: seaDestPort, 
                     baseCost24t: containerType === "20DC" ? parsedLegCost.amount : null,
-                    baseCost28t: null, // Assume total is in baseCost24t if 20DC
-                    guardCost20DC: 0,  // Assume guard included or not specified separately
+                    baseCost28t: null, 
+                    guardCost20DC: 0,  
                     baseCost40HC: containerType === "40HC" ? parsedLegCost.amount : null,
-                    guardCost40HC: 0, // Assume guard included or not specified separately
+                    guardCost40HC: 0, 
                 };
                 railFoundInPreParsed = true;
                 break;
+            } else { // Cost from dashboard rail leg was null or not RUB
+                railLegDetails = {
+                    railLegFailed: true,
+                    commentaryReason: appendCommentary(currentSeaComment || "", `Dashboard rail leg ("${stationNameFromLeg}") cost invalid or not in RUB. Cost: ${leg.cost}`),
+                    arrivalStation: stationNameFromLeg,
+                    departureStation: seaDestPort,
+                    baseCost24t: null, baseCost28t: null, guardCost20DC: null,
+                    baseCost40HC: null, guardCost40HC: null,
+                };
+                costToAddForRailRUB = 0; // Ensure no cost is added if parsing failed
+                railFoundInPreParsed = true; // Still found, but failed to parse cost
+                break; 
             }
         }
       }
@@ -121,8 +129,8 @@ function _getRailAndDropOffDetailsForCandidate(
     const genericRailDetails = findRailLegDetails(
       { ...values, destinationPort: seaDestPort, seaLineCompany: seaLineCompanyIt, originPort: originPortForSeaRoute, russianDestinationCity: formRussianDestinationCity, containerType } as RouteFormValues,
       context,
-      seaDestPort, // Pass the specific sea port like "Восточный (ВСК)"
-      ""
+      seaDestPort, 
+      "" 
     );
     if (!genericRailDetails.railLegFailed) {
       railLegDetails = genericRailDetails;
@@ -170,7 +178,7 @@ function _getRailAndDropOffDetailsForCandidate(
         values,
         context,
         formRussianDestinationCity,
-        seaDestPort, // For SOC, departure city for drop-off is the sea port
+        seaDestPort, 
         currentSeaComment || ""
       );
 
@@ -217,11 +225,9 @@ function isMatchingSeaPortHub(portFromExcelCell: string, targetPortToMatch: stri
         return true;
     }
     
-    // Check if normalized target is a prefix of normalized excel port (e.g. target "восточный", excel "восточный (вск)")
     if (normExcelPort.startsWith(normTargetPort) && (isTargetPortVostochniy || isTargetPortVladivostok)) {
         return true;
     }
-    // Check if normalized excel port is a prefix of normalized target port (e.g. target "восточный (вск)", excel "восточный")
     if (normTargetPort.startsWith(normExcelPort) && (isExcelPortVostochniy || isExcelPortVladivostok)) {
         return true;
     }
@@ -256,7 +262,6 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
 
   let seaPortsToConsiderForBestPrice: string[];
   const normalizedFormRussianDestinationCity = russianDestinationCity ? normalizeCityName(russianDestinationCity) : null;
-  // const normalizedFormDestinationPort = destinationPort ? normalizeCityName(destinationPort) : null;
 
   const isFormRequestingFurtherRail = normalizedFormRussianDestinationCity &&
                                   !VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normalizedFormRussianDestinationCity) &&
@@ -315,10 +320,10 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
         );
 
         if (shipmentType === "SOC" && details.socDropOffDetails?.socDropOffLegFailed) {
-            return; // Skip if SOC drop-off is required but failed
+            return; 
         }
         if (shipmentType === "COC" && details.cocDropOffDetails?.dropOffLegFailed && !seaLineCompanyIt?.toLowerCase().includes('panda express line')) {
-            return; // Skip if COC drop-off is required (non-Panda) but failed
+            return; 
         }
 
         const isRailLegApplicableForCandidate = details.derivedRussianDestinationCityForCandidate &&
@@ -327,7 +332,6 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
             !VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(details.derivedRussianDestinationCityForCandidate) === normalizeCityName(v) && normalizeCityName(actualSeaPortForThisRouteAndCandidate!) === normalizeCityName(v)) &&
             !VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(details.derivedRussianDestinationCityForCandidate) === normalizeCityName(v) && normalizeCityName(actualSeaPortForThisRouteAndCandidate!) === normalizeCityName(v));
 
-        // Filter out candidates if an expected rail leg has no cost
         if (isRailLegApplicableForCandidate) {
             if (details.railLegDetails?.railLegFailed) {
                 return; 
@@ -341,13 +345,10 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
                     return; 
                 }
             }
+            totalComparisonCostRUB += details.costToAddForRailRUB;
         }
-        // End of new filtering logic
-
+        
         totalComparisonCostRUB += details.costToAddForDropOffRUB;
-        if (isRailLegApplicableForCandidate) { 
-             totalComparisonCostRUB += details.costToAddForRailRUB;
-        }
 
 
         candidates.push({
@@ -413,7 +414,7 @@ export function generateDirectRailCandidates(values: RouteFormValues, context: P
         shipmentType: 'N/A',
         originPort: entry.cityOfDeparture,
         seaDestinationPort: entry.destinationCity,
-        containerType: '40HC', // Defaulting or assuming 40HC for direct rail best price if not specified
+        containerType: '40HC', 
         russianDestinationCity: entry.destinationCity,
         totalComparisonCostRUB: entry.price,
 
@@ -451,7 +452,6 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
       if (!parsedRoute.originPort || !parsedRoute.originPort.some(op => normalizeCityName(op) === normalizeCityName(formOriginPortFromUser))) {
         return;
       }
-      // If dashboard route has a container type, it must match. If it doesn't, we assume it matches.
       if (parsedRoute.containerType && parsedRoute.containerType !== formContainerTypeFromUser) {
         return;
       }
@@ -467,14 +467,11 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
 
       const effectiveRussianDestCityForCandidateLogic = formRussianDestinationCityFromUser || mappedCityFromDashboardStation;
 
-      // If user explicitly wants a final Russian city, the dashboard route must align
       if (formRussianDestinationCityFromUser) {
         const normFormRussianDest = normalizeCityName(formRussianDestinationCityFromUser);
         const normEffectiveDashboardDest = effectiveRussianDestCityForCandidateLogic ? normalizeCityName(effectiveRussianDestCityForCandidateLogic) : null;
         const normActualSeaDestPort = normalizeCityName(actualSeaDestinationPort);
 
-        // If form has a final Russian city, the effective dashboard destination must match it,
-        // OR if dashboard has no explicit final Russian city, the sea port must match the form's Russian city.
         if (!(normEffectiveDashboardDest && normEffectiveDashboardDest === normFormRussianDest) && 
             !(!parsedRoute.finalRussianDestination && normActualSeaDestPort === normFormRussianDest)) {
                 return;
@@ -482,13 +479,13 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
       }
       
       const tempFormValuesForHelper: RouteFormValues = {
-        ...values, // Spread existing form values
-        shipmentType: "COC", // Dashboard is assumed COC
-        originPort: formOriginPortFromUser, // User's selected origin
-        destinationPort: actualSeaDestinationPort, // Sea dest from dashboard route
-        containerType: formContainerTypeFromUser, // User's selected container
-        russianDestinationCity: effectiveRussianDestCityForCandidateLogic || undefined, // Derived final dest
-        seaLineCompany: section.serviceName, // Dashboard service name acts as sea line
+        ...values, 
+        shipmentType: "COC", 
+        originPort: formOriginPortFromUser, 
+        destinationPort: actualSeaDestinationPort, 
+        containerType: formContainerTypeFromUser, 
+        russianDestinationCity: effectiveRussianDestCityForCandidateLogic || undefined, 
+        seaLineCompany: section.serviceName, 
       };
 
       const additionalDetails = _getRailAndDropOffDetailsForCandidate(
@@ -507,7 +504,6 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
           !VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(additionalDetails.derivedRussianDestinationCityForCandidate) === normalizeCityName(v) && normalizeCityName(actualSeaDestinationPort) === normalizeCityName(v)) &&
           !VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(additionalDetails.derivedRussianDestinationCityForCandidate) === normalizeCityName(v) && normalizeCityName(actualSeaDestinationPort) === normalizeCityName(v));
 
-      // Filter out candidates if an expected rail leg has no cost
       if (isFurtherRailNeededForThisDashboardCandidate) {
           if (additionalDetails.railLegDetails?.railLegFailed) {
               return; 
@@ -522,8 +518,7 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
               }
           }
       }
-      // End of new filtering logic
-
+      
       if (!section.serviceName?.toLowerCase().includes('panda express line') && additionalDetails.cocDropOffDetails?.dropOffLegFailed){
           return;
       }
