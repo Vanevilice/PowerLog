@@ -275,7 +275,12 @@ export function handleDirectRailCopy(shippingInfo: SmartPricingOutput | null, to
   if (shippingInfo.directRailDestinationCity) text += "Destination City: " + shippingInfo.directRailDestinationCity + "\n";
   if (shippingInfo.directRailBorder) text += "Border: " + shippingInfo.directRailBorder + "\n";
   if (shippingInfo.directRailIncoterms) text += "Incoterms: " + shippingInfo.directRailIncoterms + "\n";
-  if (shippingInfo.directRailCost !== null && shippingInfo.directRailCost !== undefined) text += "Railway Cost: " + formatDisplayCost(shippingInfo.directRailCost, 'RUB') + "\n";
+  
+  if (shippingInfo.directRailCost !== null && shippingInfo.directRailCost !== undefined) {
+    const currency = shippingInfo.directRailCost < 100000 ? 'USD' : 'RUB';
+    text += "Railway Cost: " + formatDisplayCost(shippingInfo.directRailCost, currency) + "\n";
+  }
+
   if (shippingInfo.directRailETD) text += "ETD: " + shippingInfo.directRailETD + "\n";
   if (shippingInfo.directRailCommentary) text += "Commentary: " + shippingInfo.directRailCommentary + "\n";
 
