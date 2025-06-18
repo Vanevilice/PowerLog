@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ArrowLeft, Ship, Train, Copy, Edit3, Info, ListOrdered, AlertTriangle, CheckCircle, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDisplayCost } from '@/lib/pricing/ui-helpers';
-import { VLADIVOSTOK_VARIANTS } from '@/lib/pricing/constants';
+import { VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS } from '@/lib/pricing/constants'; // Added VOSTOCHNIY_VARIANTS
+import { normalizeCityName } from '@/lib/pricing/utils'; // Added normalizeCityName
 import { useLocalization } from '@/contexts/LocalizationContext';
 import { Badge } from '@/components/ui/badge';
 
@@ -27,7 +28,16 @@ export default function BestPricesPage() {
       textToCopy += "FOB " + (route.containerType || 'N/A');
       textToCopy += " " + (route.originPort || 'N/A');
       textToCopy += " - " + (route.seaDestinationPort || 'N/A');
-      if (route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0]))) {
+
+      const normalizedSeaDestPortCopy = normalizeCityName(route.seaDestinationPort || "");
+      const normalizedRussianDestCityCopy = normalizeCityName(route.russianDestinationCity || "");
+      const isSeaDestHubCopy = VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normalizedSeaDestPortCopy) ||
+                             VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normalizedSeaDestPortCopy);
+      const isFurtherRailForCopy = route.russianDestinationCity && route.russianDestinationCity !== 'N/A' &&
+                                isSeaDestHubCopy &&
+                                normalizedRussianDestCityCopy !== normalizedSeaDestPortCopy;
+
+      if (isFurtherRailForCopy) {
         textToCopy += " - " + route.russianDestinationCity;
          if (route.railArrivalStation) {
           textToCopy += " (прибытие: " + route.railArrivalStation + ")";
@@ -51,10 +61,6 @@ export default function BestPricesPage() {
       textToCopy += "Фрахт: " + formatDisplayCost(totalFreightCostUSD > 0 ? totalFreightCostUSD : null, 'USD') + "\n";
 
       let jdLine = "";
-      const isFurtherRailForCopy = route.russianDestinationCity && route.russianDestinationCity !== 'N/A' &&
-                                  route.seaDestinationPort && VLADIVOSTOK_VARIANTS.some(v => route.seaDestinationPort!.startsWith(v.split(" ")[0])) &&
-                                  !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity!.startsWith(v.split(" ")[0]));
-
       if (isFurtherRailForCopy) {
           jdLine = translate('bestPrices_CostBreakdown_RailComponent') + " ";
           if (route.containerType === "20DC") {
@@ -148,12 +154,17 @@ export default function BestPricesPage() {
     if (route.shipmentType === "COC" && route.seaComment) queryParams.set('seaComment', route.seaComment);
     if (route.shipmentType === "SOC" && route.socComment) queryParams.set('socComment', route.socComment);
 
+    const normalizedSeaDestPortInstructions = normalizeCityName(route.seaDestinationPort || "");
+    const normalizedRussianDestCityInstructions = normalizeCityName(route.russianDestinationCity || "");
+    const isSeaDestHubInstructions = VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normalizedSeaDestPortInstructions) ||
+                           VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normalizedSeaDestPortInstructions);
 
-    if (route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0]))) {
+    if (route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && isSeaDestHubInstructions && normalizedRussianDestCityInstructions !== normalizedSeaDestPortInstructions) {
         queryParams.set('russianDestinationCity', route.russianDestinationCity);
         if (route.railArrivalStation) queryParams.set('railArrivalStation', route.railArrivalStation);
         if (route.railDepartureStation) queryParams.set('railDepartureStation', route.railDepartureStation);
     }
+
 
     if (route.seaCostUSD !== null && route.seaCostUSD !== undefined) {
       queryParams.set('seaCostBase', route.seaCostUSD.toString());
@@ -264,17 +275,21 @@ export default function BestPricesPage() {
             const agentOrSeaLineLabel = route.mode === 'direct_rail' ? translate('bestPrices_RouteCard_AgentLabel') : translate('bestPrices_RouteCard_SeaLineLabel');
             const agentOrSeaLineValue = route.mode === 'direct_rail' ? route.directRailAgentName : route.seaLineCompany;
             
-            const hasRailComponentToShow = 
-              route.mode === 'sea_plus_rail' &&
-              route.seaDestinationPort &&
-              VLADIVOSTOK_VARIANTS.some(v => route.seaDestinationPort!.startsWith(v.split(" ")[0])) &&
-              route.russianDestinationCity &&
-              !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity!.startsWith(v.split(" ")[0])) &&
-              (
+            const normalizedSeaDestPort = normalizeCityName(route.seaDestinationPort || "");
+            const normalizedRussianDestCity = normalizeCityName(route.russianDestinationCity || "");
+
+            const isSeaDestHub = VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(v) === normalizedSeaDestPort) ||
+                                 VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(v) === normalizedSeaDestPort);
+
+            const hasFurtherRailLegData = route.russianDestinationCity && isSeaDestHub && normalizedRussianDestCity !== normalizedSeaDestPort;
+
+            const hasRailCostDataToShow = (
                 (route.containerType === "20DC" && (route.railCost20DC_24t_RUB !== null || route.railCost20DC_28t_RUB !== null || (route.shipmentType === "COC" && route.railGuardCost20DC_RUB !== null) )) ||
                 (route.containerType === "40HC" && (route.railCost40HC_RUB !== null || (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) ))
-              );
+            );
             
+            const hasRailComponentToShow = route.mode === 'sea_plus_rail' && hasFurtherRailLegData && hasRailCostDataToShow;
+
             const isDashboardRec = route.isDashboardRecommendation;
             const cardClasses = `shadow-xl rounded-xl overflow-hidden flex flex-col bg-card border border-border hover:shadow-2xl transition-shadow duration-300`;
             
@@ -310,7 +325,7 @@ export default function BestPricesPage() {
                 {route.mode === 'sea_plus_rail' ? (
                     <>
                     {translate('bestPrices_RouteCard_Desc_SeaRail_RouteBase', { originPort: route.originPort || '', seaDestPort: route.seaDestinationPort || '' })}
-                    {route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0])) && 
+                    {hasFurtherRailLegData && 
                       translate('bestPrices_RouteCard_Desc_SeaRail_FurtherRail', { 
                         russianDestCity: route.russianDestinationCity, 
                         arrivalStation: route.railArrivalStation ? `(${route.railArrivalStation})` : '' 
@@ -347,17 +362,17 @@ export default function BestPricesPage() {
                     </>
                   )}
 
-                  {route.mode === 'sea_plus_rail' && route.russianDestinationCity && route.russianDestinationCity !== 'N/A' && !VLADIVOSTOK_VARIANTS.some(v => route.russianDestinationCity.startsWith(v.split(" ")[0])) && (
+                  {route.mode === 'sea_plus_rail' && hasFurtherRailLegData && (
                     <>
                       <p className="font-medium text-muted-foreground">{translate('bestPrices_RouteDetails_FinalDestCityLabel_SR')}</p><p className="text-right">{route.russianDestinationCity}</p>
                     </>
                   )}
-                  {route.mode === 'sea_plus_rail' && route.railDepartureStation && (
+                  {route.mode === 'sea_plus_rail' && hasFurtherRailLegData && route.railDepartureStation && (
                     <>
                       <p className="font-medium text-muted-foreground">{translate('bestPrices_RouteDetails_RailDepStationLabel_SR')}</p><p className="text-right">{route.railDepartureStation}</p>
                     </>
                   )}
-                  {route.mode === 'sea_plus_rail' && route.railArrivalStation && (
+                  {route.mode === 'sea_plus_rail' && hasFurtherRailLegData && route.railArrivalStation && (
                      <>
                       <p className="font-medium text-muted-foreground">{translate('bestPrices_RouteDetails_RailArrStationLabel_SR')}</p><p className="text-right">{route.railArrivalStation}</p>
                     </>
@@ -530,5 +545,4 @@ export default function BestPricesPage() {
     </div>
   );
 }
-
     
