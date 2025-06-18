@@ -48,5 +48,5 @@ export const bestPricesPageRuTranslations: Partial<Translations> = {
   bestPrices_CostBreakdown_ExcelCommentary: "Комментарий из Excel:",
   bestPrices_RouteCard_Button_CopyRate: "Копировать ставку",
   bestPrices_RouteCard_Button_CreateInstructions: "Создать инструкции",
-  bestPrices_DashboardRecommendationLabel: "Из Лучшего", // Added for dashboard routes
+  bestPrices_DashboardRecommendationLabel: "Из Лучшего",
 };
