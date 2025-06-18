@@ -20,7 +20,7 @@ import { RouteSchema } from '@/lib/schemas';
 import { handleCopyOutput, handleCreateInstructionsNavigation, handleDirectRailCopy } from '@/lib/pricing/ui-helpers';
 import { usePricingFormEffects } from '@/hooks/usePricingFormEffects';
 import { usePricingFormManager } from '@/hooks/usePricingFormManager'; // Import the new hook
-import { DEFAULT_SEA_RAIL_FORM_VALUES, DEFAULT_DIRECT_RAIL_FORM_VALUES } from '@/lib/pricing/constants';
+import { DEFAULT_SEA_RAIL_FORM_VALUES, DEFAULT_DIRECT_RAIL_FORM_VALUES, NONE_SEALINE_VALUE } from '@/lib/pricing/constants';
 import { CommonFormFields } from './fields/CommonFormFields';
 import { SeaRailFormFields } from './fields/SeaRailFormFields';
 import { DirectRailFormFields } from './fields/DirectRailFormFields';
@@ -41,24 +41,24 @@ export default function PortPriceFinderForm(): JSX.Element {
     directRailAgents, directRailDepartureCities, directRailDestinationCitiesDR,
     directRailIncotermsList, directRailBordersList,
     localAvailableDirectRailAgents, localAvailableDirectRailIncoterms, localAvailableDirectRailBorders,
-    cachedFormValues, // Still needed for initial form reset
+    cachedFormValues, 
   } = pricingContext;
 
-  const { translate, language } = useLocalization(); // Get translate and language
+  const { translate, language } = useLocalization(); 
 
   const form = useForm<RouteFormValues>({
     resolver: zodResolver(RouteSchema),
     defaultValues: {
-      ...DEFAULT_SEA_RAIL_FORM_VALUES,
-      seaMargin: "",
-      railMargin: "",
-      ...DEFAULT_DIRECT_RAIL_FORM_VALUES,
-      calculationModeToggle: calculationMode,
+      ...DEFAULT_SEA_RAIL_FORM_VALUES, // Spread defaults first
+      seaMargin: "", // Explicitly set if not in DEFAULT_SEA_RAIL_FORM_VALUES
+      railMargin: "", // Explicitly set if not in DEFAULT_SEA_RAIL_FORM_VALUES
+      ...DEFAULT_DIRECT_RAIL_FORM_VALUES, // Spread direct rail defaults
+      calculationModeToggle: calculationMode, // Initialize with context's mode
+      seaLineCompany: NONE_SEALINE_VALUE, // Ensure this default is set
     },
   });
   const { handleSubmit, getValues } = form;
 
-  // Instantiate the new hook
   const {
     isLoading,
     isCalculatingBestPrice,
@@ -86,29 +86,48 @@ export default function PortPriceFinderForm(): JSX.Element {
     form,
     context: pricingContext,
     hasRestoredFromCache,
-    setHasRestoredFromCache, // Pass the setter
+    setHasRestoredFromCache, 
   });
 
 
-  // Effect for initial form reset from cache if data is loaded
   React.useEffect(() => {
-    if ((isSeaRailExcelDataLoaded || isDirectRailExcelDataLoaded || isSOCDropOffExcelDataLoaded) && !hasRestoredFromCache && cachedFormValues) {
-      form.reset(cachedFormValues as RouteFormValues);
-      if (cachedFormValues.calculationModeToggle && pricingContext.calculationMode !== cachedFormValues.calculationModeToggle) {
-          pricingContext.setCalculationMode(cachedFormValues.calculationModeToggle);
+    if (!hasRestoredFromCache) {
+      if ((isSeaRailExcelDataLoaded || isDirectRailExcelDataLoaded || isSOCDropOffExcelDataLoaded) && cachedFormValues) {
+        const newResetValues = { ...DEFAULT_SEA_RAIL_FORM_VALUES, ...DEFAULT_DIRECT_RAIL_FORM_VALUES, ...cachedFormValues } as RouteFormValues;
+        
+        let modeToSetInContext = pricingContext.calculationMode;
+        if (cachedFormValues.calculationModeToggle && pricingContext.calculationMode !== cachedFormValues.calculationModeToggle) {
+          modeToSetInContext = cachedFormValues.calculationModeToggle;
+          pricingContext.setCalculationMode(modeToSetInContext);
+        }
+        // Ensure the form's toggle reflects the mode that will be active (either from cache or current context)
+        newResetValues.calculationModeToggle = modeToSetInContext;
+
+        form.reset(newResetValues);
+        setHasRestoredFromCache(true);
+      } else if (!cachedFormValues) {
+        // No cached values, ensure form defaults align with current context mode and mark as restored.
+        form.reset({
+          ...DEFAULT_SEA_RAIL_FORM_VALUES,
+          ...DEFAULT_DIRECT_RAIL_FORM_VALUES,
+          seaMargin: "", 
+          railMargin: "",
+          calculationModeToggle: pricingContext.calculationMode,
+          seaLineCompany: NONE_SEALINE_VALUE,
+        });
+        setHasRestoredFromCache(true);
       }
-      // setHasRestoredFromCache will be called by file handlers after first successful parse.
-      // If we want to mark restored after form.reset, it could be done here too.
-      // For now, relying on file handlers.
     }
   }, [
     isSeaRailExcelDataLoaded, isDirectRailExcelDataLoaded, isSOCDropOffExcelDataLoaded,
-    hasRestoredFromCache, form.reset, cachedFormValues,
-    pricingContext.calculationMode, pricingContext.setCalculationMode
+    cachedFormValues,
+    hasRestoredFromCache,
+    form, // form.reset, form.getValues implied
+    pricingContext, // pricingContext.calculationMode, pricingContext.setCalculationMode implied
+    setHasRestoredFromCache
   ]);
 
-  // This hook handles dependent dropdown logic and other side effects based on form/context changes
-  // It will now receive shippingInfo and lastSuccessfulCalculation from usePricingFormManager
+
   const [localAvailableDestinationPorts, setLocalAvailableDestinationPorts] = React.useState<string[]>([]);
   const [localAvailableSeaLines, setLocalAvailableSeaLines] = React.useState<string[]>([]);
   const [localAvailableRussianDestinationCities, setLocalAvailableRussianDestinationCities] = React.useState<string[]>([]);
