@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ComponentProps } from 'react';
 import { SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
-import { LayoutDashboard, Calculator, Settings, Languages } from 'lucide-react'; // Added Languages icon
+import { LayoutDashboard, Calculator, Settings, Languages, HelpCircle } from 'lucide-react'; // Added HelpCircle
 import { useLocalization } from '@/contexts/LocalizationContext';
 
 type SidebarMenuButtonProps = ComponentProps<typeof SidebarMenuButton>;
@@ -13,10 +13,10 @@ type SidebarMenuButtonProps = ComponentProps<typeof SidebarMenuButton>;
 interface NavLinkItemProps {
   href: string;
   icon: React.ReactNode;
-  labelKey: keyof import('@/contexts/LocalizationContext').Translations; // Use keyof for type safety
+  labelKey: keyof import('@/contexts/LocalizationContext').Translations;
   tooltipKey: keyof import('@/contexts/LocalizationContext').Translations;
-  isActive?: boolean; // Allow manual override if needed, but default to path check
-  exact?: boolean; // Whether the path should be an exact match
+  isActive?: boolean;
+  exact?: boolean;
 }
 
 function NavLinkItem({ href, icon, labelKey, tooltipKey, isActive, exact = false }: NavLinkItemProps) {
@@ -60,6 +60,14 @@ export function NavLinks() {
         labelKey="nav_Calculator"
         tooltipKey="nav_Calculator"
         isActive={pathname === '/'}
+        exact={true}
+      />
+      <NavLinkItem
+        href="/faq"
+        icon={<HelpCircle />}
+        labelKey="nav_FAQ_Title"
+        tooltipKey="nav_FAQ_Tooltip"
+        isActive={pathname === '/faq'}
         exact={true}
       />
       <SidebarMenuItem>

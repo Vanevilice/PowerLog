@@ -128,6 +128,8 @@ export interface Translations {
   nav_Dashboard: string;
   nav_Calculator: string;
   nav_Settings: string;
+  nav_FAQ_Title: string; // New
+  nav_FAQ_Tooltip: string; // New
 
   // Dashboard Page Translations
   dashboard_DataNotLoaded_Title: string;
@@ -207,7 +209,27 @@ export interface Translations {
   bestPrices_CostBreakdown_ExcelCommentary: string;
   bestPrices_RouteCard_Button_CopyRate: string;
   bestPrices_RouteCard_Button_CreateInstructions: string;
-  bestPrices_DashboardRecommendationLabel: string; // New key for "Из Лучшего"
+  bestPrices_DashboardRecommendationLabel: string;
+
+  // FAQ Page Translations - New
+  faq_PageTitle: string;
+  faq_PageDescription: string;
+  faq_chapter_introduction_title: string;
+  faq_chapter_introduction_content: string;
+  faq_chapter_gettingStarted_title: string;
+  faq_chapter_gettingStarted_content: string;
+  faq_chapter_calculatorPage_title: string;
+  faq_chapter_calculatorPage_content: string;
+  faq_chapter_dashboardPage_title: string;
+  faq_chapter_dashboardPage_content: string;
+  faq_chapter_bestPricesPage_title: string;
+  faq_chapter_bestPricesPage_content: string;
+  faq_chapter_instructionsPage_title: string;
+  faq_chapter_instructionsPage_content: string;
+  faq_chapter_languageSettings_title: string;
+  faq_chapter_languageSettings_content: string;
+  faq_chapter_troubleshooting_title: string;
+  faq_chapter_troubleshooting_content: string;
 }
 
 interface LocalizationContextType {
@@ -230,6 +252,8 @@ const defaultEnTranslations: Partial<Translations> = {
   nav_Dashboard: "Dashboard",
   nav_Calculator: "Calculator",
   nav_Settings: "Settings",
+  nav_FAQ_Title: "FAQ", // New
+  nav_FAQ_Tooltip: "User Guide / FAQ", // New
   toast_Success_Title: "Success!",
   toast_CopyFailed_Title: "Copy Failed",
   toast_CopyFailed_Description: "Could not copy to clipboard.",
@@ -251,6 +275,8 @@ const translationsData: Record<Language, Partial<Translations>> = {
     nav_Dashboard: "Дашборд",
     nav_Calculator: "Калькулятор",
     nav_Settings: "Настройки",
+    nav_FAQ_Title: "Руководство", // New
+    nav_FAQ_Tooltip: "Руководство пользователя / FAQ", // New
     toast_Success_Title: "Успех!",
     toast_CopyFailed_Title: "Ошибка копирования",
     toast_CopyFailed_Description: "Не удалось скопировать в буфер обмена.",
