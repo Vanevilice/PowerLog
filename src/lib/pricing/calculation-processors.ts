@@ -1,3 +1,4 @@
+
 // src/lib/pricing/calculation-processors.ts
 import type { UseFormReturn } from 'react-hook-form';
 import { useToast } from '@/hooks/use-toast';
@@ -222,13 +223,26 @@ export async function processSeaPlusRailCalculation({
     }
   }
 
+  // Refactored conditional logic for COC Drop-off
+  const canAttemptCOCDropOffSeaPriceOK = seaInfo.seaPriceNumeric !== null;
+  const canAttemptCOCDropOffRailLegSuccess = isFurtherRailJourney && railDetails && !railDetails.railLegFailed;
+  const canAttemptCOCDropOffSeaPortIsHub =
+    !isFurtherRailJourney &&
+    destinationPort &&
+    (
+      VLADIVOSTOK_VARIANTS.some(variant => normalizeCityName(destinationPort!) === normalizeCityName(variant)) ||
+      VOSTOCHNIY_VARIANTS.some(variant => normalizeCityName(destinationPort!) === normalizeCityName(variant))
+    );
 
-  // Attempt COC Drop-off if applicable
-  if (shipmentType === "COC" && seaInfo.matchedSeaRouteInfo && cityForDropOffLookup &&
-      (seaInfo.seaPriceNumeric !== null || (isFurtherRailJourney && railDetails && !railDetails.railLegFailed) || (!isFurtherRailJourney && destinationPort && (VLADIVOSTOK_VARIANTS.some(variant => normalizeCityName(destinationPort!) === normalizeCityName(variant)) || VOSTOCHNIY_VARIANTS.some(variant => normalizeCityName(destinationPort!) === normalizeCityName(variant))) ) ) ) {
+  if (
+    shipmentType === "COC" &&
+    seaInfo.matchedSeaRouteInfo &&
+    cityForDropOffLookup &&
+    (canAttemptCOCDropOffSeaPriceOK || canAttemptCOCDropOffRailLegSuccess || canAttemptCOCDropOffSeaPortIsHub)
+  ) {
     cocDropOffDetails = findDropOffDetails(values, context, cityForDropOffLookup, seaInfo.seaComment, finalCommentary);
     finalCommentary = cocDropOffDetails.commentaryReason;
-  } 
+  }
   // Attempt SOC Drop-off if applicable
   else if (shipmentType === "SOC" && seaInfo.matchedSeaRouteInfo && cityForDropOffLookup && originPort && containerType && context.isSOCDropOffExcelDataLoaded && destinationPort) {
     socDropOffDetails = findSOCDropOffDetails(values, context, cityForDropOffLookup, destinationPort, finalCommentary);
@@ -273,6 +287,7 @@ export async function processSeaPlusRailCalculation({
       russianDestinationCity: isFurtherRailJourney ? russianDestinationCity : (shipmentType === 'SOC' ? russianDestinationCity : undefined),
       railArrivalStation: railDetails?.arrivalStation ?? undefined, railDepartureStation: railDetails?.departureStation ?? undefined,
       seaCostBase: seaInfo.seaPriceNumeric, seaMarginApplied: seaMargin, seaCostFinal: finalSeaPriceWithMargin, seaComment: seaInfo.seaComment,
+      socComment: seaInfo.socComment,
       railCostBase24t: containerType === "20DC" ? railDetails?.baseCost24t : null, railCostBase28t: containerType === "20DC" ? railDetails?.baseCost28t : null, railGuardCost20DC: containerType === "20DC" ? railDetails?.guardCost20DC : null,
       railCostBase40HC: containerType === "40HC" ? railDetails?.baseCost40HC : null, railGuardCost40HC: containerType === "40HC" ? railDetails?.guardCost40HC : null,
       railMarginApplied: railMargin, railCostFinal24t: containerType === "20DC" ? finalRailBaseCost24tWithMargin : null, railCostFinal28t: containerType === "20DC" ? finalRailBaseCost28tWithMargin : null, railCostFinal40HC: containerType === "40HC" ? finalRailBaseCost40HCWithMargin : null,
@@ -283,7 +298,6 @@ export async function processSeaPlusRailCalculation({
 
       socDropOffCost: shipmentType === "SOC" ? socDropOffDetails?.costNumeric : null,
       socDropOffComment: shipmentType === "SOC" ? socDropOffDetails?.comment : null,
-      socComment: seaInfo.socComment,
     } : null;
 
     const partialPricing = (
@@ -322,32 +336,20 @@ export async function processDirectRailCalculation({
   let displayOutput: CombinedAiOutput;
 
   if (matchedEntry) {
-    let finalDirectRailCostRub: number | null = null;
-    let finalDirectRailCommentary = matchedEntry.commentary || '';
-
-    if (matchedEntry.price !== null) {
-      if (matchedEntry.price < 100000) {
-        finalDirectRailCostRub = matchedEntry.price * USD_RUB_CONVERSION_RATE;
-        finalDirectRailCommentary = appendCommentary(
-          finalDirectRailCommentary,
-          `(Original price ${matchedEntry.price} USD converted to RUB)`
-        );
-      } else {
-        finalDirectRailCostRub = matchedEntry.price;
-      }
-    }
+    const finalDirectRailCost = matchedEntry.price; // This is the original Excel value
+    const finalDirectRailCommentary = matchedEntry.commentary || ''; // Original commentary
 
     displayOutput = {
       directRailCityOfDeparture: matchedEntry.cityOfDeparture,
       directRailDepartureStation: matchedEntry.departureStation,
       directRailDestinationCity: matchedEntry.destinationCity,
       directRailBorder: matchedEntry.border,
-      directRailCost: finalDirectRailCostRub,
+      directRailCost: finalDirectRailCost, // Store the original value
       directRailETD: matchedEntry.etd,
-      directRailCommentary: finalDirectRailCommentary,
+      directRailCommentary: finalDirectRailCommentary, // Clean commentary
       directRailAgentName: matchedEntry.agentName,
       directRailIncoterms: matchedEntry.incoterms,
-      commentary: finalDirectRailCommentary,
+      commentary: finalDirectRailCommentary, // Main commentary is the clean Excel commentary
     };
     setShippingInfo(displayOutput);
     setCachedShippingInfo(displayOutput);
@@ -437,5 +439,3 @@ export function calculateBestPrice({
   }
   setIsCalculatingBestPrice(false);
 }
-
-    
