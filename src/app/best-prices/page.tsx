@@ -10,8 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ArrowLeft, Ship, Train, Copy, Edit3, Info, ListOrdered, AlertTriangle, CheckCircle, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDisplayCost } from '@/lib/pricing/ui-helpers';
-import { VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS } from '@/lib/pricing/constants'; // Added VOSTOCHNIY_VARIANTS
-import { normalizeCityName } from '@/lib/pricing/utils'; // Added normalizeCityName
+import { VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS } from '@/lib/pricing/constants';
+import { normalizeCityName } from '@/lib/pricing/utils';
 import { useLocalization } from '@/contexts/LocalizationContext';
 import { Badge } from '@/components/ui/badge';
 
@@ -74,34 +74,22 @@ export default function BestPricesPage() {
                 jdLine += translate('common_NA');
               }
 
-              if (route.shipmentType === "COC") {
+              if (route.shipmentType === "COC" && route.railGuardCost20DC_RUB && route.railGuardCost20DC_RUB > 0) {
                 const guardCostFormatted = formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB');
-                if (route.railGuardCost20DC_RUB !== null) {
-                    jdLine += " + " + translate('bestPrices_CostBreakdown_Rail_GuardPrefix') + guardCostFormatted;
-                    if (route.railGuardCost20DC_RUB > 0) {
-                        jdLine += " " + translate('bestPrices_CostBreakdown_Rail_GuardSuffixIfCodeProtected');
-                    }
-                } else if (costsParts.length > 0 || (jdLine !== translate('common_NA') && jdLine !== translate('bestPrices_CostBreakdown_RailComponent') + translate('common_NA'))) { 
-                    jdLine += translate('bestPrices_CostBreakdown_Rail_GuardNA');
-                }
+                jdLine += " + " + translate('bestPrices_CostBreakdown_Rail_GuardPrefix') + guardCostFormatted;
+                jdLine += " " + translate('bestPrices_CostBreakdown_Rail_GuardSuffixIfCodeProtected');
               }
           } else if (route.containerType === "40HC") {
               if (route.railCost40HC_RUB !== null) {
                 jdLine += formatDisplayCost(route.railCost40HC_RUB, 'RUB');
-                if (route.shipmentType === "COC") { 
+                if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB && route.railGuardCost40HC_RUB > 0) { 
                     const guardCostFormatted = formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB');
-                    if (route.railGuardCost40HC_RUB !== null) {
-                        jdLine += " + " + translate('bestPrices_CostBreakdown_Rail_GuardPrefix') + guardCostFormatted;
-                        if (route.railGuardCost40HC_RUB > 0) {
-                            jdLine += " " + translate('bestPrices_CostBreakdown_Rail_GuardSuffixIfCodeProtected');
-                        }
-                    } else { 
-                        jdLine += translate('bestPrices_CostBreakdown_Rail_GuardNA');
-                    }
+                    jdLine += " + " + translate('bestPrices_CostBreakdown_Rail_GuardPrefix') + guardCostFormatted;
+                    jdLine += " " + translate('bestPrices_CostBreakdown_Rail_GuardSuffixIfCodeProtected');
                 }
-              } else if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) {
+              } else if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB && route.railGuardCost40HC_RUB > 0) {
                 jdLine += `${translate('bestPrices_CostBreakdown_Rail_GuardPrefix')}${formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB')}`;
-                if (route.railGuardCost40HC_RUB > 0) jdLine += " " + translate('bestPrices_CostBreakdown_Rail_GuardSuffixIfCodeProtected');
+                jdLine += " " + translate('bestPrices_CostBreakdown_Rail_GuardSuffixIfCodeProtected');
               } else {
                 jdLine += translate('common_NA');
               }
@@ -141,7 +129,7 @@ export default function BestPricesPage() {
 
   const handleCreateInstructions = (route: BestPriceRoute) => {
     if (route.mode === 'direct_rail' || route.isDashboardRecommendation) {
-        const messageKey = route.mode === 'direct_rail' ? 'toast_BestPrices_NotAvailable_DirectRailInstructions' : 'toast_BestPrices_NotAvailable_DirectRailInstructions'; // Assuming same message for now, or make a new one for dashboard
+        const messageKey = route.mode === 'direct_rail' ? 'toast_BestPrices_NotAvailable_DirectRailInstructions' : 'toast_BestPrices_NotAvailable_DirectRailInstructions';
         toast({ title: translate('toast_BestPrices_NotAvailable_Title'), description: translate(messageKey as keyof import('@/contexts/LocalizationContext').Translations) });
         return;
     }
@@ -284,8 +272,8 @@ export default function BestPricesPage() {
             const hasFurtherRailLegData = route.russianDestinationCity && isSeaDestHub && normalizedRussianDestCity !== normalizedSeaDestPort;
 
             const hasRailCostDataToShow = (
-                (route.containerType === "20DC" && (route.railCost20DC_24t_RUB !== null || route.railCost20DC_28t_RUB !== null || (route.shipmentType === "COC" && route.railGuardCost20DC_RUB !== null) )) ||
-                (route.containerType === "40HC" && (route.railCost40HC_RUB !== null || (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) ))
+                (route.containerType === "20DC" && (route.railCost20DC_24t_RUB !== null || route.railCost20DC_28t_RUB !== null || (route.shipmentType === "COC" && route.railGuardCost20DC_RUB && route.railGuardCost20DC_RUB > 0) )) ||
+                (route.containerType === "40HC" && (route.railCost40HC_RUB !== null || (route.shipmentType === "COC" && route.railGuardCost40HC_RUB && route.railGuardCost40HC_RUB > 0) ))
             );
             
             const hasRailComponentToShow = route.mode === 'sea_plus_rail' && hasFurtherRailLegData && hasRailCostDataToShow;
@@ -411,7 +399,7 @@ export default function BestPricesPage() {
                                 <span className="font-semibold text-primary text-right">
                                   {(() => {
                                     let railLegStr = "";
-                                    let guardNeededComment = false;
+                                    let guardNeededAndPriced = false;
 
                                     if (route.containerType === "20DC") {
                                       const costsParts = [];
@@ -422,36 +410,32 @@ export default function BestPricesPage() {
                                         railLegStr = costsParts.join(' / ');
                                       }
 
-                                      if (route.shipmentType === "COC" && route.railGuardCost20DC_RUB !== null) {
+                                      if (route.shipmentType === "COC" && route.railGuardCost20DC_RUB && route.railGuardCost20DC_RUB > 0) {
                                         const guardStr = `${translate('bestPrices_CostBreakdown_Rail_GuardPrefix')}${formatDisplayCost(route.railGuardCost20DC_RUB, 'RUB')}`;
                                         if (railLegStr) { 
                                             railLegStr += ` + ${guardStr}`;
                                         } else { 
                                             railLegStr = guardStr;
                                         }
-                                        if (route.railGuardCost20DC_RUB > 0) guardNeededComment = true;
-                                      } else if (route.shipmentType === "COC" && railLegStr) { 
-                                          railLegStr += translate('bestPrices_CostBreakdown_Rail_GuardNA');
+                                        guardNeededAndPriced = true;
                                       }
                                       if (!railLegStr) railLegStr = translate('common_NA'); 
 
                                     } else if (route.containerType === "40HC") {
                                       if (route.railCost40HC_RUB !== null) {
                                         railLegStr = formatDisplayCost(route.railCost40HC_RUB, 'RUB');
-                                        if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) {
+                                        if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB && route.railGuardCost40HC_RUB > 0) {
                                           railLegStr += ` + ${translate('bestPrices_CostBreakdown_Rail_GuardPrefix')}${formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB')}`;
-                                          if (route.railGuardCost40HC_RUB > 0) guardNeededComment = true;
-                                        } else if (route.shipmentType === "COC") {
-                                          railLegStr += translate('bestPrices_CostBreakdown_Rail_GuardNA');
+                                          guardNeededAndPriced = true;
                                         }
-                                      } else if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) { 
+                                      } else if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB && route.railGuardCost40HC_RUB > 0) { 
                                         railLegStr = `${translate('bestPrices_CostBreakdown_Rail_GuardPrefix')}${formatDisplayCost(route.railGuardCost40HC_RUB, 'RUB')}`;
-                                        if (route.railGuardCost40HC_RUB > 0) guardNeededComment = true;
+                                        guardNeededAndPriced = true;
                                       } else {
                                         railLegStr = translate('common_NA');
                                       }
                                     }
-                                    if (route.shipmentType === "COC" && guardNeededComment) {
+                                    if (route.shipmentType === "COC" && guardNeededAndPriced) {
                                       railLegStr += " " + translate('bestPrices_CostBreakdown_Rail_GuardSuffixIfCodeProtected');
                                     }
                                     return railLegStr;
@@ -545,4 +529,6 @@ export default function BestPricesPage() {
     </div>
   );
 }
+    
+
     
