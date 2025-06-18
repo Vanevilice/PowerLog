@@ -165,13 +165,13 @@ export default function BestPricesPage() {
     if (route.containerType === "20DC") { 
         if (route.railCost20DC_24t_RUB !== null) queryParams.set('railCostBase24t', route.railCost20DC_24t_RUB.toString());
         if (route.railCost20DC_28t_RUB !== null) queryParams.set('railCostBase28t', route.railCost20DC_28t_RUB.toString());
-        if (route.shipmentType === "COC" && route.railGuardCost20DC_RUB !== null) queryParams.set('railGuardCost20DC', route.railGuardCost20DC_RUB.toString());
+        if (route.shipmentType === "COC" && route.railGuardCost20DC_RUB !== null && route.railGuardCost20DC_RUB > 0) queryParams.set('railGuardCost20DC', route.railGuardCost20DC_RUB.toString());
 
         if (route.railCost20DC_24t_RUB !== null) queryParams.set('railCostFinal24t', route.railCost20DC_24t_RUB.toString());
         if (route.railCost20DC_28t_RUB !== null) queryParams.set('railCostFinal28t', route.railCost20DC_28t_RUB.toString());
     } else if (route.containerType === "40HC") { 
         if (route.railCost40HC_RUB !== null) queryParams.set('railCostBase40HC', route.railCost40HC_RUB.toString());
-        if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null) queryParams.set('railGuardCost40HC', route.railGuardCost40HC_RUB.toString());
+        if (route.shipmentType === "COC" && route.railGuardCost40HC_RUB !== null && route.railGuardCost40HC_RUB > 0) queryParams.set('railGuardCost40HC', route.railGuardCost40HC_RUB.toString());
 
         if (route.railCost40HC_RUB !== null) queryParams.set('railCostFinal40HC', route.railCost40HC_RUB.toString());
     }
@@ -259,7 +259,19 @@ export default function BestPricesPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {bestPriceResults.map((route, index) => {
-            const dropOffToDisplay = route.dropOffDisplayValue || (route.dropOffCostUSD !== null && route.dropOffCostUSD !== undefined ? formatDisplayCost(route.dropOffCostUSD, 'USD') : null);
+            let dropOffCostForCard: string | null = null;
+            if (route.shipmentType === "COC" && route.dropOffDisplayValue) {
+                const isNumeric = /^\d+(\.\d+)?$/.test(route.dropOffDisplayValue);
+                const hasCurrency = /\s(USD|RUB)$/i.test(route.dropOffDisplayValue);
+                if (isNumeric && !hasCurrency) {
+                    dropOffCostForCard = formatDisplayCost(parseFloat(route.dropOffDisplayValue), 'USD');
+                } else {
+                    dropOffCostForCard = route.dropOffDisplayValue;
+                }
+            } else if (route.shipmentType === "COC" && route.dropOffCostUSD !== null && route.dropOffCostUSD !== undefined) {
+                dropOffCostForCard = formatDisplayCost(route.dropOffCostUSD, 'USD');
+            }
+
             const agentOrSeaLineLabel = route.mode === 'direct_rail' ? translate('bestPrices_RouteCard_AgentLabel') : translate('bestPrices_RouteCard_SeaLineLabel');
             const agentOrSeaLineValue = route.mode === 'direct_rail' ? route.directRailAgentName : route.seaLineCompany;
             
@@ -444,10 +456,10 @@ export default function BestPricesPage() {
                               </p>
                             )}
 
-                            {dropOffToDisplay && route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line') && (
+                            {dropOffCostForCard && route.shipmentType === "COC" && !route.seaLineCompany?.toLowerCase().includes('panda express line') && (
                                 <p className="flex justify-between">
                                     <span>{translate('bestPrices_CostBreakdown_DropOffCost')}</span>
-                                    <span className="font-semibold text-primary">{dropOffToDisplay}</span>
+                                    <span className="font-semibold text-primary">{dropOffCostForCard}</span>
                                 </p>
                             )}
                             {route.dropOffComment && route.shipmentType === "COC" && (

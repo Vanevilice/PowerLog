@@ -23,7 +23,18 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
   if (!shippingInfo) return null;
 
   // Determine which drop-off value to display for COC
-  const cocDropOffToDisplay = shippingInfo.dropOffDisplayValue || (shippingInfo.dropOffCost !== null && shippingInfo.dropOffCost !== undefined ? formatDisplayCost(shippingInfo.dropOffCost, 'USD') : null);
+  let cocDropOffStringToDisplay: string | null = null;
+  if (shippingInfo.dropOffDisplayValue) {
+      const isNumeric = /^\d+(\.\d+)?$/.test(shippingInfo.dropOffDisplayValue);
+      const hasCurrency = /\s(USD|RUB)$/i.test(shippingInfo.dropOffDisplayValue);
+      if (isNumeric && !hasCurrency) {
+          cocDropOffStringToDisplay = formatDisplayCost(parseFloat(shippingInfo.dropOffDisplayValue), 'USD');
+      } else {
+          cocDropOffStringToDisplay = shippingInfo.dropOffDisplayValue;
+      }
+  } else if (shippingInfo.dropOffCost !== null && shippingInfo.dropOffCost !== undefined) {
+      cocDropOffStringToDisplay = formatDisplayCost(shippingInfo.dropOffCost, 'USD');
+  }
 
 
   return (
@@ -90,7 +101,7 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
                     <span className="font-bold text-lg text-primary">{formatDisplayCost(shippingInfo.railCost20DC_28t, 'RUB')}</span>
                   </p>
                 ) : null}
-                {'railGuardCost20DC' in shippingInfo && shippingInfo.railGuardCost20DC !== null && shippingInfo.railGuardCost20DC !== undefined ? (
+                {'railGuardCost20DC' in shippingInfo && shippingInfo.railGuardCost20DC !== null && shippingInfo.railGuardCost20DC !== undefined && shippingInfo.railGuardCost20DC > 0 ? (
                   <p className="flex justify-between">
                     <strong>Rail Guard Cost (20DC):</strong>
                     <span className="font-bold text-lg text-primary">{formatDisplayCost(shippingInfo.railGuardCost20DC, 'RUB')}</span>
@@ -106,7 +117,7 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
                     <span className="font-bold text-lg text-primary">{formatDisplayCost(shippingInfo.railCost40HC, 'RUB')}</span>
                   </p>
                 ) : null}
-                {'railGuardCost40HC' in shippingInfo && shippingInfo.railGuardCost40HC !== null && shippingInfo.railGuardCost40HC !== undefined ? (
+                {'railGuardCost40HC' in shippingInfo && shippingInfo.railGuardCost40HC !== null && shippingInfo.railGuardCost40HC !== undefined && shippingInfo.railGuardCost40HC > 0 ? (
                   <p className="flex justify-between">
                     <strong>Rail Guard Cost (40HC):</strong>
                     <span className="font-bold text-lg text-primary">{formatDisplayCost(shippingInfo.railGuardCost40HC, 'RUB')}</span>
@@ -114,10 +125,10 @@ export function ShippingInfoDisplay({ shippingInfo, calculationMode, getFormValu
                 ) : null}
               </>
             )}
-            {cocDropOffToDisplay && currentFormValues.shipmentType === "COC" && !currentFormValues.seaLineCompany?.toLowerCase().includes('panda express line') ? (
+            {cocDropOffStringToDisplay && currentFormValues.shipmentType === "COC" && !currentFormValues.seaLineCompany?.toLowerCase().includes('panda express line') ? (
               <p className="flex justify-between">
                 <strong>Drop Off Cost:</strong>
-                <span className="font-bold text-lg text-primary">{cocDropOffToDisplay}</span>
+                <span className="font-bold text-lg text-primary">{cocDropOffStringToDisplay}</span>
               </p>
             ) : null}
             {'dropOffComment' in shippingInfo && shippingInfo.dropOffComment && currentFormValues.shipmentType === "COC" ? (
