@@ -200,32 +200,6 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
 
       <FormField
         control={control}
-        name="seaLineCompany"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="flex items-center"><Anchor className="mr-2 h-4 w-4 text-primary" /> {translate('seaLineCompany')}</FormLabel>
-            <Select
-              onValueChange={field.onChange}
-              value={field.value || NONE_SEALINE_VALUE}
-              disabled={isParsingSeaRailFile || !isSeaRailExcelDataLoaded || (!watchedOriginPort || !watchedDestinationPort) || (localAvailableSeaLines.length === 0 && isSeaRailExcelDataLoaded && !!watchedOriginPort && !!watchedDestinationPort)}
-            >
-              <FormControl><SelectTrigger><SelectValue placeholder={translate(getSeaLinePlaceholder(placeholderGetterArgsForSeaLine))} /></SelectTrigger></FormControl>
-              <SelectContent>
-                <SelectItem value={NONE_SEALINE_VALUE}>{translate("seaLineCompany_NoneOption")}</SelectItem>
-                {localAvailableSeaLines.map((line) => (<SelectItem key={"line-" + line} value={line}>{line}</SelectItem>))}
-                {isParsingSeaRailFile && (<SelectItem value="parsing_sealine_disabled" disabled>{translate("seaLineCompanyPlaceholder_Loading")}</SelectItem>)}
-                {!isSeaRailExcelDataLoaded && !isParsingSeaRailFile && (<SelectItem value="upload_excel_sealine_disabled" disabled>{translate("seaLineCompanyPlaceholder_NoData")}</SelectItem>)}
-                {!isParsingSeaRailFile && isSeaRailExcelDataLoaded && (!watchedOriginPort || !watchedDestinationPort) && (<SelectItem value="select_od_sealine_disabled" disabled>{translate("seaLineCompany_SelectODFirst")}</SelectItem>)}
-                {!isParsingSeaRailFile && isSeaRailExcelDataLoaded && watchedOriginPort && watchedDestinationPort && localAvailableSeaLines.length === 0 && (<SelectItem value="no_sea_lines_disabled" disabled>{translate("seaLineCompanyPlaceholder_NoLinesForOD")}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={control}
         name="containerType"
         render={({ field }) => (
           <FormItem>
@@ -286,6 +260,32 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
                 {isSeaRailExcelDataLoaded && watchedOriginPort && watchedContainerType && localAvailableRussianDestinationCities.length === 0 && !isParsingSeaRailFile && (<SelectItem value="no_rail_cities_for_selection_disabled" disabled>{translate(getRussianCityPlaceholder(placeholderGetterArgsForRussianCity))}</SelectItem>)}
                 
                 {isSeaRailExcelDataLoaded && localAvailableRussianDestinationCities.map((city) => (<SelectItem key={"rus-city-" + city} value={city}>{city}</SelectItem>))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      
+      <FormField
+        control={control}
+        name="seaLineCompany"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className="flex items-center"><Anchor className="mr-2 h-4 w-4 text-primary" /> {translate('seaLineCompany')}</FormLabel>
+            <Select
+              onValueChange={field.onChange}
+              value={field.value || NONE_SEALINE_VALUE}
+              disabled={isParsingSeaRailFile || !isSeaRailExcelDataLoaded || (!watchedOriginPort || !watchedDestinationPort) || (localAvailableSeaLines.length === 0 && isSeaRailExcelDataLoaded && !!watchedOriginPort && !!watchedDestinationPort)}
+            >
+              <FormControl><SelectTrigger><SelectValue placeholder={translate(getSeaLinePlaceholder(placeholderGetterArgsForSeaLine))} /></SelectTrigger></FormControl>
+              <SelectContent>
+                <SelectItem value={NONE_SEALINE_VALUE}>{translate("seaLineCompany_NoneOption")}</SelectItem>
+                {localAvailableSeaLines.map((line) => (<SelectItem key={"line-" + line} value={line}>{line}</SelectItem>))}
+                {isParsingSeaRailFile && (<SelectItem value="parsing_sealine_disabled" disabled>{translate("seaLineCompanyPlaceholder_Loading")}</SelectItem>)}
+                {!isSeaRailExcelDataLoaded && !isParsingSeaRailFile && (<SelectItem value="upload_excel_sealine_disabled" disabled>{translate("seaLineCompanyPlaceholder_NoData")}</SelectItem>)}
+                {!isParsingSeaRailFile && isSeaRailExcelDataLoaded && (!watchedOriginPort || !watchedDestinationPort) && (<SelectItem value="select_od_sealine_disabled" disabled>{translate("seaLineCompany_SelectODFirst")}</SelectItem>)}
+                {!isParsingSeaRailFile && isSeaRailExcelDataLoaded && watchedOriginPort && watchedDestinationPort && localAvailableSeaLines.length === 0 && (<SelectItem value="no_sea_lines_disabled" disabled>{translate("seaLineCompanyPlaceholder_NoLinesForOD")}</SelectItem>)}
               </SelectContent>
             </Select>
             <FormMessage />
