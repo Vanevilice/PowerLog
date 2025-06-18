@@ -78,45 +78,59 @@ function _getRailAndDropOffDetailsForCandidate(
         const normalizedFormRussianDestCity = normalizeCityName(formRussianDestinationCity);
         
         let isMatchForDestination = false;
+
+        // Attempt 1: Direct mapping of the whole "FOR..." string
         if (mappedCityFromLegViaExactStation && normalizeCityName(mappedCityFromLegViaExactStation) === normalizedFormRussianDestCity) {
             isMatchForDestination = true;
-        } else {
-            const normalizedStationNameForMoscowCheck = normalizeCityName(stationNameFromLeg);
-            if (normalizedFormRussianDestCity === "москва" &&
-                (normalizedStationNameForMoscowCheck.includes("мос. узла") ||
-                 normalizedStationNameForMoscowCheck.includes("московский узел") ||
-                 normalizedStationNameForMoscowCheck.includes("станции мос. узла"))) {
+        } 
+        // Attempt 2: Check for "Мос. узел" variants if user destination is Moscow OR check individual stations if "FOR..." string contains '/'
+        else if (normalizedFormRussianDestCity === "москва") {
+            const normalizedStationNameFromLegForMoscowCheck = normalizeCityName(stationNameFromLeg);
+            if (normalizedStationNameFromLegForMoscowCheck.includes("мос. узла") ||
+                normalizedStationNameFromLegForMoscowCheck.includes("московский узел") ||
+                normalizedStationNameFromLegForMoscowCheck.includes("станции мос. узла")) {
                 isMatchForDestination = true;
+            }
+            // Attempt 3: Split multi-station "FOR..." strings (e.g., "Селятино/Люберцы/Электроугли") and check each part if user dest is Moscow
+            else if (stationNameFromLeg.includes('/')) { 
+                const individualStations = stationNameFromLeg.split('/');
+                for (const individualStation of individualStations) {
+                    const mappedCityFromIndividualStation = getCityFromStationName(individualStation.trim());
+                    if (mappedCityFromIndividualStation && normalizeCityName(mappedCityFromIndividualStation) === "москва") {
+                        isMatchForDestination = true;
+                        break; // Found a match for Moscow
+                    }
+                }
             }
         }
 
         if (isMatchForDestination && legContainerType === containerType) {
             const parsedLegCost = parseDashboardMonetaryValue(leg.cost);
-            if (parsedLegCost.amount !== null && parsedLegCost.currency === 'RUB') { // Ensure amount is not null and currency is RUB
-                costToAddForRailRUB = parsedLegCost.amount; // CRITICAL FIX: Update costToAddForRailRUB
+            if (parsedLegCost.amount !== null && parsedLegCost.currency === 'RUB') {
+                costToAddForRailRUB = parsedLegCost.amount; 
                 railLegDetails = { 
-                    railLegFailed: false, commentaryReason: "", // Explicitly set railLegFailed to false
+                    railLegFailed: false, commentaryReason: "",
                     arrivalStation: stationNameFromLeg, 
-                    departureStation: seaDestPort, // Use the seaDestPort as the departure for this leg
+                    departureStation: seaDestPort, 
                     baseCost24t: containerType === "20DC" ? parsedLegCost.amount : null,
-                    baseCost28t: null, // Not available from this pre-parsed data
-                    guardCost20DC: 0,  // Not available from this pre-parsed data
+                    baseCost28t: null, 
+                    guardCost20DC: 0, 
                     baseCost40HC: containerType === "40HC" ? parsedLegCost.amount : null,
-                    guardCost40HC: 0, // Not available from this pre-parsed data
+                    guardCost40HC: 0, 
                 };
                 railFoundInPreParsed = true;
                 break;
-            } else { // Cost from dashboard rail leg was null or not RUB
+            } else { 
                 railLegDetails = {
-                    railLegFailed: true, // Mark as failed if cost is null or not RUB
+                    railLegFailed: true, 
                     commentaryReason: appendCommentary(currentSeaComment || "", `Dashboard rail leg for "${stationNameFromLeg}" has invalid cost or currency. Cost: ${leg.cost}`),
                     arrivalStation: stationNameFromLeg,
                     departureStation: seaDestPort,
                     baseCost24t: null, baseCost28t: null, guardCost20DC: null,
                     baseCost40HC: null, guardCost40HC: null,
                 };
-                costToAddForRailRUB = 0; // Ensure no cost is added if parsing failed
-                railFoundInPreParsed = true; // Still found, but failed to parse cost
+                costToAddForRailRUB = 0; 
+                railFoundInPreParsed = true;
                 break; 
             }
         }
@@ -465,6 +479,18 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
       let mappedCityFromDashboardStation: string | null = null;
       if (parsedRoute.finalRussianDestination) {
           mappedCityFromDashboardStation = getCityFromStationName(parsedRoute.finalRussianDestination);
+          // If direct mapping fails for multi-station strings like "Селятино/Люберцы/Электроугли"
+          // and user asks for Moscow, try splitting and checking
+          if (!mappedCityFromDashboardStation && formRussianDestinationCityFromUser && normalizeCityName(formRussianDestinationCityFromUser) === "москва" && parsedRoute.finalRussianDestination.includes('/')) {
+              const individualStations = parsedRoute.finalRussianDestination.split('/');
+              for (const individualStation of individualStations) {
+                  const mappedCity = getCityFromStationName(individualStation.trim());
+                  if (mappedCity && normalizeCityName(mappedCity) === "москва") {
+                      mappedCityFromDashboardStation = "Москва"; // Set to canonical "Москва"
+                      break;
+                  }
+              }
+          }
       }
 
       const effectiveRussianDestCityForCandidateLogic = formRussianDestinationCityFromUser || mappedCityFromDashboardStation;
