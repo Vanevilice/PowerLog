@@ -23,7 +23,7 @@ import {
   type SOCDropOffInfo
 } from './finders';
 import { generateSeaPlusRailCandidates, generateDirectRailCandidates, generateDashboardCandidates } from './best-price-generators';
-import { normalizeCityName } from './utils'; // Added normalizeCityName
+import { normalizeCityName, appendCommentary } from './utils'; // Added normalizeCityName and appendCommentary
 
 // --- Helper Types ---
 interface CalculationArgsBase {
@@ -322,14 +322,32 @@ export async function processDirectRailCalculation({
   let displayOutput: CombinedAiOutput;
 
   if (matchedEntry) {
+    let finalDirectRailCostRub: number | null = null;
+    let finalDirectRailCommentary = matchedEntry.commentary || '';
+
+    if (matchedEntry.price !== null) {
+      if (matchedEntry.price < 100000) {
+        finalDirectRailCostRub = matchedEntry.price * USD_RUB_CONVERSION_RATE;
+        finalDirectRailCommentary = appendCommentary(
+          finalDirectRailCommentary,
+          `(Original price ${matchedEntry.price} USD converted to RUB)`
+        );
+      } else {
+        finalDirectRailCostRub = matchedEntry.price;
+      }
+    }
+
     displayOutput = {
-      directRailCityOfDeparture: matchedEntry.cityOfDeparture, directRailDepartureStation: matchedEntry.departureStation,
-      directRailDestinationCity: matchedEntry.destinationCity, directRailBorder: matchedEntry.border,
-      directRailCost: matchedEntry.price, directRailETD: matchedEntry.etd,
-      directRailCommentary: matchedEntry.commentary,
+      directRailCityOfDeparture: matchedEntry.cityOfDeparture,
+      directRailDepartureStation: matchedEntry.departureStation,
+      directRailDestinationCity: matchedEntry.destinationCity,
+      directRailBorder: matchedEntry.border,
+      directRailCost: finalDirectRailCostRub,
+      directRailETD: matchedEntry.etd,
+      directRailCommentary: finalDirectRailCommentary,
       directRailAgentName: matchedEntry.agentName,
       directRailIncoterms: matchedEntry.incoterms,
-      commentary: matchedEntry.commentary || '' // Use Excel commentary for Direct Rail "note"
+      commentary: finalDirectRailCommentary,
     };
     setShippingInfo(displayOutput);
     setCachedShippingInfo(displayOutput);
