@@ -1,3 +1,4 @@
+
 // src/lib/pricing/best-price-generators.ts
 import type {
   RouteFormValues,
@@ -66,35 +67,47 @@ function _getRailAndDropOffDetailsForCandidate(
   if (isFurtherRailJourney && formRussianDestinationCity && containerType && preParsedRailwayLegs && preParsedRailwayLegs.length > 0) {
     for (const leg of preParsedRailwayLegs) {
       let stationNameFromLeg: string | null = null;
-      const forMatch = leg.originInfo.match(/FOR\s+([^\s,(-]+(?:\s+[^\s,(-]+)*)/i);
+      // More robust extraction of "FOR <station name>"
+      const forMatch = leg.originInfo.match(/FOR\s+(.+)/i);
       if (forMatch && forMatch[1]) {
         stationNameFromLeg = forMatch[1].trim();
       }
 
       if (stationNameFromLeg) {
-        const mappedCityFromLeg = getCityFromStationName(stationNameFromLeg);
+        const mappedCityFromLegViaExactStation = getCityFromStationName(stationNameFromLeg);
         const { containerType: legContainerType } = parseContainerInfoCell(leg.containerInfo);
         const normalizedFormRussianDestCity = normalizeCityName(formRussianDestinationCity);
-        const normalizedMappedCityFromLeg = mappedCityFromLeg ? normalizeCityName(mappedCityFromLeg) : null;
+        
+        let isMatchForDestination = false;
+        if (mappedCityFromLegViaExactStation && normalizeCityName(mappedCityFromLegViaExactStation) === normalizedFormRussianDestCity) {
+            isMatchForDestination = true;
+        } else {
+            // Check for general Moscow hub phrases
+            const normalizedStationNameForMoscowCheck = normalizeCityName(stationNameFromLeg);
+            if (normalizedFormRussianDestCity === "москва" && 
+                (normalizedStationNameForMoscowCheck.includes("мос. узла") || 
+                 normalizedStationNameForMoscowCheck.includes("московский узел"))) {
+                isMatchForDestination = true;
+            }
+        }
 
-
-        if (normalizedMappedCityFromLeg && normalizedMappedCityFromLeg === normalizedFormRussianDestCity && legContainerType === containerType) {
-          const parsedLegCost = parseDashboardMonetaryValue(leg.cost);
-          if (parsedLegCost.amount !== null && parsedLegCost.currency === 'RUB') {
-            costToAddForRailRUB = parsedLegCost.amount;
-            railLegDetails = {
-              railLegFailed: false, commentaryReason: "",
-              arrivalStation: stationNameFromLeg, // Use the actual station name from "FOR"
-              departureStation: seaDestPort, // The sea port where this rail leg originates
-              baseCost24t: containerType === "20DC" ? parsedLegCost.amount : null,
-              baseCost28t: null,
-              guardCost20DC: 0,
-              baseCost40HC: containerType === "40HC" ? parsedLegCost.amount : null,
-              guardCost40HC: 0,
-            };
-            railFoundInPreParsed = true;
-            break;
-          }
+        if (isMatchForDestination && legContainerType === containerType) {
+            const parsedLegCost = parseDashboardMonetaryValue(leg.cost);
+            if (parsedLegCost.amount !== null && parsedLegCost.currency === 'RUB') {
+                costToAddForRailRUB = parsedLegCost.amount;
+                railLegDetails = { 
+                    railLegFailed: false, commentaryReason: "",
+                    arrivalStation: stationNameFromLeg, 
+                    departureStation: seaDestPort, 
+                    baseCost24t: containerType === "20DC" ? parsedLegCost.amount : null,
+                    baseCost28t: null, 
+                    guardCost20DC: 0,  
+                    baseCost40HC: containerType === "40HC" ? parsedLegCost.amount : null,
+                    guardCost40HC: 0, 
+                };
+                railFoundInPreParsed = true;
+                break;
+            }
         }
       }
     }
