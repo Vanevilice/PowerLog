@@ -13,9 +13,9 @@ export const bestPricesPageEnTranslations: Partial<Translations> = {
   bestPrices_Header_BasedOn_SeaRail_Base: "Based on: Origin <strong>{{originPort}}</strong>, Container <strong>{{containerType}}</strong>, Shipment <strong>{{shipmentType}}</strong>",
   bestPrices_Header_BasedOn_SeaRail_FinalDest: ", Final Dest. City <strong>{{finalDestCity}}</strong>",
   bestPrices_RouteCard_OptionTitle: "Option {{optionNumber}}",
-  bestPrices_RouteCard_Desc_SeaRail_RouteBase: "Route: {{originPort}} <ShipIcon/> {{seaDestPort}}",
-  bestPrices_RouteCard_Desc_SeaRail_FurtherRail: " <TrainIcon/> {{russianDestCity}} {{arrivalStation}}",
-  bestPrices_RouteCard_Desc_DirectRail_Route: "Route: {{originPort}} <TrainIcon/> {{destPort}}",
+  bestPrices_RouteCard_Desc_SeaRail_RouteBase: "Route: {{originPort}} - {{seaDestPort}}",
+  bestPrices_RouteCard_Desc_SeaRail_FurtherRail: " - {{russianDestCity}} {{arrivalStation}}",
+  bestPrices_RouteCard_Desc_DirectRail_Route: "Route: {{originPort}} - {{destPort}}",
   bestPrices_RouteCard_AgentLabel: "Agent:",
   bestPrices_RouteCard_SeaLineLabel: "Sea Line:",
   bestPrices_RouteDetails_DepCityLabel_DR: "Departure City:",
@@ -50,4 +50,3 @@ export const bestPricesPageEnTranslations: Partial<Translations> = {
   bestPrices_RouteCard_Button_CreateInstructions: "Create Instructions",
   bestPrices_DashboardRecommendationLabel: "From Our Best", // Added for dashboard routes
 };
-
