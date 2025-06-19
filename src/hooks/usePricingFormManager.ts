@@ -114,6 +114,8 @@ export function usePricingFormManager({
     setShippingInfoState: setShippingInfo,
     setHasRestoredFromCacheState: setHasRestoredFromCache, // Pass the setter here
     toast,
+    fileInputRef: seaRailFileInputRef, // This will be overridden but must be present for type
+    setIsParsingState: setIsParsingSeaRailFile, // This will be overridden but must be present for type
     setBestPriceResults: context.setBestPriceResults,
   };
 
@@ -164,7 +166,7 @@ export function usePricingFormManager({
 
   const onCalculateBestPriceWrapper = () => {
     calculateBestPrice({
-      form,
+      values: form.getValues(), // Pass form values directly
       context,
       toast,
       setIsCalculatingBestPrice,
@@ -172,6 +174,7 @@ export function usePricingFormManager({
       setBestPriceResults: context.setBestPriceResults,
       setCachedFormValues: context.setCachedFormValues,
       setIsNavigatingToBestPrices,
+      // overrideContainerType is not passed here as this is for initial calculation
     });
   };
 
@@ -266,3 +269,4 @@ export function usePricingFormManager({
     calculateBestPriceButtonDisabled,
   };
 }
+

@@ -39,7 +39,7 @@ interface CalculationArgsBase {
 }
 
 interface BestPriceArgs {
-  form: UseFormReturn<RouteFormValues>;
+  values: RouteFormValues; // Changed from form to values
   context: PricingDataContextType;
   toast: ReturnType<typeof useToast>['toast'];
   setIsCalculatingBestPrice: React.Dispatch<React.SetStateAction<boolean>>;
@@ -47,6 +47,7 @@ interface BestPriceArgs {
   setBestPriceResults: PricingDataContextType['setBestPriceResults'];
   setCachedFormValues: PricingDataContextType['setCachedFormValues'];
   setIsNavigatingToBestPrices: React.Dispatch<React.SetStateAction<boolean>>;
+  overrideContainerType?: ContainerType; // New optional parameter
 }
 
 
@@ -372,29 +373,41 @@ export async function processDirectRailCalculation({
 
 
 export function calculateBestPrice({
-  form, context, toast, setIsCalculatingBestPrice, setShippingInfo,
-  setBestPriceResults, setCachedFormValues, setIsNavigatingToBestPrices
+  values, // Changed from form to values
+  context,
+  toast,
+  setIsCalculatingBestPrice,
+  setShippingInfo,
+  setBestPriceResults,
+  setCachedFormValues,
+  setIsNavigatingToBestPrices,
+  overrideContainerType, // New optional parameter
 }: BestPriceArgs) {
-  const values = form.getValues();
   const { calculationMode, excelRussianDestinationCitiesMasterList, isSeaRailExcelDataLoaded, isDirectRailExcelDataLoaded, isSOCDropOffExcelDataLoaded, dashboardServiceSections } = context;
 
   setIsCalculatingBestPrice(true);
   setShippingInfo(null);
   setBestPriceResults(null);
 
+  // Use overrideContainerType if provided, otherwise use containerType from values
+  const effectiveContainerType = overrideContainerType || values.containerType;
+  const valuesForCalculation: RouteFormValues = {
+    ...values,
+    containerType: effectiveContainerType, // Ensure calculations use the effective container type
+  };
+
+
   let potentialRoutes: BestPriceRoute[] = [];
 
   if (calculationMode === "sea_plus_rail") {
-    if (!values.originPort || !values.containerType) {
+    if (!valuesForCalculation.originPort || !valuesForCalculation.containerType) {
       toast({ title: "Missing Info", description: "Select Origin Port & Container Type for Best Price (Sea+Rail)." });
       setIsCalculatingBestPrice(false); return;
     }
-    if (excelRussianDestinationCitiesMasterList.length > 0 && !values.russianDestinationCity && values.shipmentType === "COC") {
+    if (excelRussianDestinationCitiesMasterList.length > 0 && !valuesForCalculation.russianDestinationCity && valuesForCalculation.shipmentType === "COC") {
       // Allow COC best price search without Russian Destination City IF a sea destination port is provided.
-      // Rail leg will only be considered if russianDestinationCity is also provided.
-      // This is implicitly handled by generateSeaPlusRailCandidates' internal logic.
     }
-    if (values.shipmentType === "SOC" && !values.russianDestinationCity) {
+    if (valuesForCalculation.shipmentType === "SOC" && !valuesForCalculation.russianDestinationCity) {
         toast({ title: "Missing Info", description: "Select Destination City for Best Price (Sea+Rail SOC)." });
         setIsCalculatingBestPrice(false); return;
     }
@@ -402,20 +415,19 @@ export function calculateBestPrice({
       toast({ title: "Data Not Loaded", description: "Please load the Море + Ж/Д Excel file first." });
       setIsCalculatingBestPrice(false); return;
     }
-    if (values.shipmentType === "SOC" && !isSOCDropOffExcelDataLoaded) {
+    if (valuesForCalculation.shipmentType === "SOC" && !isSOCDropOffExcelDataLoaded) {
         toast({ title: "Data Not Loaded", description: "Please load the SOC Drop-off Excel file for SOC Best Price calculation." });
         setIsCalculatingBestPrice(false); return;
     }
-    potentialRoutes = generateSeaPlusRailCandidates(values, context);
+    potentialRoutes = generateSeaPlusRailCandidates(valuesForCalculation, context);
 
-    // Add Dashboard Candidates for COC Sea+Rail mode
-    if (values.shipmentType === "COC" && isSeaRailExcelDataLoaded && dashboardServiceSections && dashboardServiceSections.length > 0) {
-        const dashboardCandidates = generateDashboardCandidates(values, context);
+    if (valuesForCalculation.shipmentType === "COC" && isSeaRailExcelDataLoaded && dashboardServiceSections && dashboardServiceSections.length > 0) {
+        const dashboardCandidates = generateDashboardCandidates(valuesForCalculation, context);
         potentialRoutes = [...potentialRoutes, ...dashboardCandidates];
     }
 
   } else if (calculationMode === "direct_rail") {
-    if (!values.directRailCityOfDeparture || !values.directRailDestinationCityDR || !values.directRailIncoterms) {
+    if (!valuesForCalculation.directRailCityOfDeparture || !valuesForCalculation.directRailDestinationCityDR || !valuesForCalculation.directRailIncoterms) {
       toast({ title: "Missing Info", description: "Select City of Departure, Destination City, and Incoterms for Direct Rail Best Price." });
       setIsCalculatingBestPrice(false); return;
     }
@@ -423,7 +435,7 @@ export function calculateBestPrice({
       toast({ title: "Data Not Loaded", description: "Please load the Прямое ЖД Excel file first." });
       setIsCalculatingBestPrice(false); return;
     }
-    potentialRoutes = generateDirectRailCandidates(values, context);
+    potentialRoutes = generateDirectRailCandidates(valuesForCalculation, context);
   }
 
   potentialRoutes.sort((a, b) => a.totalComparisonCostRUB - b.totalComparisonCostRUB);
@@ -432,10 +444,12 @@ export function calculateBestPrice({
   setBestPriceResults(top6Routes);
 
   if (top6Routes.length > 0) {
-    setCachedFormValues(values);
+    // Cache the form values that led to this result, including the effective container type
+    setCachedFormValues(valuesForCalculation);
     setIsNavigatingToBestPrices(true);
   } else {
     toast({ title: "No Routes Found", description: "Could not find valid shipping routes for best price with the selected criteria." });
   }
   setIsCalculatingBestPrice(false);
 }
+
