@@ -11,6 +11,7 @@ import type { Translations } from '@/contexts/LocalizationContext';
 import { formatDisplayCost } from '@/lib/pricing/ui-helpers';
 import { normalizeCityName } from '@/lib/pricing/utils';
 import { VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS } from '@/lib/pricing/constants';
+import { cn } from "@/lib/utils"; // Import cn
 
 interface BestPriceCardProps {
   route: BestPriceRoute;
@@ -60,13 +61,24 @@ export default function BestPriceCard({ route, index, translate, onCopyRate, onC
   const headerStyle = isDashboardRec ? { backgroundColor: 'hsl(var(--chart-2))', borderColor: 'hsl(var(--chart-2))' } : {};
   const headerTextStyle = isDashboardRec ? 'text-primary-foreground' : 'text-primary';
   const headerDescriptionStyle = isDashboardRec ? 'text-primary-foreground/80' : '';
-  const badgeStyle = isDashboardRec ? { borderColor: 'hsl(var(--primary-foreground))', color: 'hsl(var(--primary-foreground))', backgroundColor: 'hsla(var(--chart-2), 0.1)'} : {};
+  
+  // Adjusted badge style and added min-height for dashboard recommendation headers
+  const badgeStyle = isDashboardRec 
+    ? { borderColor: 'hsl(var(--primary-foreground))', color: 'hsl(var(--primary-foreground))', backgroundColor: 'hsla(var(--primary-foreground), 0.15)'} 
+    : {};
+  const dashboardRecHeaderMinHeightClass = "min-h-[8rem]"; // Approx 128px, adjust as needed
 
   return (
     <Card className={cardClasses}>
       <CardHeader 
-        className={`pb-4 border-b ${isDashboardRec ? '' : 'bg-muted/30'}`}
-        style={headerStyle}
+        className={cn(
+            "pb-4 border-b", // Common classes
+            {
+              [dashboardRecHeaderMinHeightClass]: isDashboardRec, // Conditional min-height
+              'bg-muted/30': !isDashboardRec  // Conditional background for non-dashboard
+            }
+          )}
+        style={isDashboardRec ? headerStyle : {}}
       >
         <div className="flex justify-between items-start">
           <CardTitle className={`text-xl font-semibold ${headerTextStyle}`}>
@@ -76,10 +88,10 @@ export default function BestPriceCard({ route, index, translate, onCopyRate, onC
           </CardTitle>
           {isDashboardRec && (
               <Badge variant="outline" 
-                     className="font-semibold ml-2 flex items-center"
+                     className="font-semibold ml-2 flex items-center px-3 py-1" // Increased padding
                      style={badgeStyle}
               >
-                  <Star className="mr-1.5 h-3.5 w-3.5 fill-yellow-500 stroke-yellow-500" /> 
+                  <Star className="mr-1.5 h-4 w-4 fill-yellow-500 stroke-yellow-500" /> {/* Increased icon size */}
                   {translate('bestPrices_DashboardRecommendationLabel')}
               </Badge>
           )}
