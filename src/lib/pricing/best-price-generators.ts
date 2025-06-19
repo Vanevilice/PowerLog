@@ -502,7 +502,7 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
       if (formRussianDestinationCityFromUser) {
         const normFormRussianDest = normalizeCityName(formRussianDestinationCityFromUser);
         const normEffectiveDashboardDest = effectiveRussianDestCityForCandidateLogic ? normalizeCityName(effectiveRussianDestCityForCandidateLogic) : null;
-        const normActualSeaDestPort = normalizeCityName(actualSeaDestinationPort);
+        // const normActualSeaDestPort = normalizeCityName(actualSeaDestinationPort); // Not needed for this check
 
         let dashboardRouteMatchesUserRussianCity = false;
         
@@ -510,7 +510,11 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
             dashboardRouteMatchesUserRussianCity = true;
         } 
         
-        else if (!parsedRoute.finalRussianDestination && normActualSeaDestPort === normFormRussianDest) {
+        // This case handles when the dashboard route doesn't specify a "FOR Russian_City" (parsedRoute.finalRussianDestination is null),
+        // so effectiveRussianDestCityForCandidateLogic would be null.
+        // We then check if the dashboard route's *sea destination port* itself matches the user's desired Russian city.
+        // Example: User wants Moscow. Dashboard route is "Qingdao - Moscow". Here actualSeaDestinationPort is Moscow.
+        else if (!effectiveRussianDestCityForCandidateLogic && normalizeCityName(actualSeaDestinationPort) === normFormRussianDest) {
             dashboardRouteMatchesUserRussianCity = true;
         }
         
@@ -542,12 +546,13 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
           row.railwayLegs 
       );
 
-      
-      const isFurtherRailNeededForThisDashboardCandidate = additionalDetails.derivedRussianDestinationCityForCandidate &&
-          additionalDetails.derivedRussianDestinationCityForCandidate !== "N/A" &&
-          (VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(actualSeaDestinationPort) === normalizeCityName(v)) || VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(actualSeaDestinationPort) === normalizeCityName(v))) &&
-          !VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(additionalDetails.derivedRussianDestinationCityForCandidate) === normalizeCityName(v) && normalizeCityName(actualSeaDestinationPort) === normalizeCityName(v)) &&
-          !VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(additionalDetails.derivedRussianDestinationCityForCandidate) === normalizeCityName(v) && normalizeCityName(actualSeaDestinationPort) === normalizeCityName(v));
+      const isFurtherRailNeededForThisDashboardCandidate =
+        effectiveRussianDestCityForCandidateLogic &&
+        effectiveRussianDestCityForCandidateLogic !== "N/A" &&
+        actualSeaDestinationPort &&
+        actualSeaDestinationPort !== "N/A" &&
+        normalizeCityName(effectiveRussianDestCityForCandidateLogic) !== normalizeCityName(actualSeaDestinationPort);
+
 
       if (isFurtherRailNeededForThisDashboardCandidate) {
           if (additionalDetails.railLegDetails?.railLegFailed) {
