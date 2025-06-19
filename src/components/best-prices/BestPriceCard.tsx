@@ -79,7 +79,7 @@ export default function BestPriceCard({ route, index, translate, onCopyRate, onC
                      className="font-semibold ml-2 flex items-center"
                      style={badgeStyle}
               >
-                  <Star className="mr-1.5 h-3.5 w-3.5 text-yellow-500" fill="currentColor"/> 
+                  <Star className="mr-1.5 h-3.5 w-3.5 fill-yellow-500 text-yellow-500" /> 
                   {translate('bestPrices_DashboardRecommendationLabel')}
               </Badge>
           )}
@@ -293,3 +293,4 @@ export default function BestPriceCard({ route, index, translate, onCopyRate, onC
     </Card>
   );
 }
+
