@@ -58,9 +58,9 @@ function _getRailAndDropOffDetailsForCandidate(
 
   const isFurtherRailJourney = formRussianDestinationCity &&
     seaDestPort &&
-    (VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(seaDestPort) === normalizeCityName(v)) || VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(seaDestPort) === normalizeCityName(v))) &&
-    !VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(formRussianDestinationCity) === normalizeCityName(v) && normalizeCityName(seaDestPort) === normalizeCityName(v)) &&
-    !VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(formRussianDestinationCity) === normalizeCityName(v) && normalizeCityName(seaDestPort) === normalizeCityName(v));
+    // Ensure seaDestPort is a hub OR we are attempting rail regardless of hub status (controlled by caller)
+    // The check for whether rail *should* be attempted is now more in generateDashboardCandidates
+    normalizeCityName(formRussianDestinationCity) !== normalizeCityName(seaDestPort);
 
 
   let railFoundInPreParsed = false;
@@ -81,7 +81,7 @@ function _getRailAndDropOffDetailsForCandidate(
 
         if (mappedCityFromLegDirect && normalizeCityName(mappedCityFromLegDirect) === normalizedFormRussianDestCity) {
             isMatchForDestination = true;
-        } else if (normalizedFormRussianDestCity === "москва") {
+        } else if (normalizedFormRussianDestCity === "москва") { // Special handling for Moscow
             if (normalizedStationNameFromLegForMoscowCheck.includes("мос. узла") ||
                 normalizedStationNameFromLegForMoscowCheck.includes("московский узел") ||
                 normalizedStationNameFromLegForMoscowCheck.includes("станции мос. узла")) {
@@ -103,14 +103,14 @@ function _getRailAndDropOffDetailsForCandidate(
         if (isMatchForDestination && legContainerType === containerType) {
             const parsedLegCost = parseDashboardMonetaryValue(leg.cost);
             if (parsedLegCost.amount !== null && parsedLegCost.currency === 'RUB') {
-                costToAddForRailRUB = parsedLegCost.amount; // Explicitly set costToAddForRailRUB
+                costToAddForRailRUB = parsedLegCost.amount;
                 railLegDetails = {
                     railLegFailed: false, commentaryReason: "",
                     arrivalStation: stationNameFromLeg,
-                    departureStation: seaDestPort,
+                    departureStation: seaDestPort, // Assuming seaDestPort is the departure for this pre-parsed leg
                     baseCost24t: containerType === "20DC" ? parsedLegCost.amount : null,
-                    baseCost28t: null,
-                    guardCost20DC: 0, 
+                    baseCost28t: null, // pre-parsed legs might not differentiate 24/28t unless explicitly stated
+                    guardCost20DC: 0, // Guard cost typically not in simple pre-parsed legs, might need separate lookup
                     baseCost40HC: containerType === "40HC" ? parsedLegCost.amount : null,
                     guardCost40HC: 0, 
                 };
@@ -136,8 +136,8 @@ function _getRailAndDropOffDetailsForCandidate(
     const genericRailDetails = findRailLegDetails(
       { ...values, destinationPort: seaDestPort, seaLineCompany: seaLineCompanyIt, originPort: originPortForSeaRoute, russianDestinationCity: formRussianDestinationCity, containerType } as RouteFormValues,
       context,
-      seaDestPort,
-      ""
+      seaDestPort, // Pass the actual sea port of the candidate for rail departure lookup
+      currentSeaComment || "" // Pass current commentary for appending
     );
     if (!genericRailDetails.railLegFailed) {
       railLegDetails = genericRailDetails;
@@ -160,10 +160,11 @@ function _getRailAndDropOffDetailsForCandidate(
 
 
   if (shipmentType === "COC") {
-    let cityForDropOffLookup = seaDestPort;
+    let cityForDropOffLookup = seaDestPort; // Default to sea port
     if (isFurtherRailJourney && formRussianDestinationCity && railLegDetails && !railLegDetails.railLegFailed) {
-      cityForDropOffLookup = formRussianDestinationCity;
+      cityForDropOffLookup = formRussianDestinationCity; // If successful rail, drop-off at final city
     } else if (!isFurtherRailJourney && formRussianDestinationCity) {
+      // If no "further" rail (e.g. sea to Vlad, final to Vlad), but a Russian city is specified, use it
       cityForDropOffLookup = formRussianDestinationCity;
     }
 
@@ -174,7 +175,7 @@ function _getRailAndDropOffDetailsForCandidate(
         context,
         cityForDropOffLookup,
         currentSeaComment,
-        ""
+        railLegDetails?.commentaryReason || currentSeaComment || "" // Pass along commentary
       );
       if (cocDropOffDetails.costNumeric !== null) {
         costToAddForDropOffRUB = cocDropOffDetails.costNumeric * USD_RUB_CONVERSION_RATE;
@@ -186,8 +187,8 @@ function _getRailAndDropOffDetailsForCandidate(
         values,
         context,
         formRussianDestinationCity,
-        seaDestPort,
-        currentSeaComment || ""
+        seaDestPort, // SOC drop-off typically from sea port
+        railLegDetails?.commentaryReason || currentSeaComment || ""
       );
 
       if (socDropOffDetails.costNumeric !== null) {
@@ -196,7 +197,7 @@ function _getRailAndDropOffDetailsForCandidate(
     } else {
       socDropOffDetails = {
         socDropOffLegFailed: true,
-        commentaryReason: "SOC Drop-off data not loaded or key info missing.",
+        commentaryReason: "SOC Drop-off data not loaded or key info missing for lookup.",
         costNumeric: null, displayValue: null, comment: null
       };
     }
@@ -333,30 +334,38 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
         if (shipmentType === "COC" && details.cocDropOffDetails?.dropOffLegFailed && !seaLineCompanyIt?.toLowerCase().includes('panda express line')) {
             return;
         }
-
+        
         const isRailLegApplicableForCandidate = details.derivedRussianDestinationCityForCandidate &&
             details.derivedRussianDestinationCityForCandidate !== "N/A" &&
             (VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(actualSeaPortForThisRouteAndCandidate!) === normalizeCityName(v)) || VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(actualSeaPortForThisRouteAndCandidate!) === normalizeCityName(v))) &&
             !VLADIVOSTOK_VARIANTS.some(v => normalizeCityName(details.derivedRussianDestinationCityForCandidate) === normalizeCityName(v) && normalizeCityName(actualSeaPortForThisRouteAndCandidate!) === normalizeCityName(v)) &&
             !VOSTOCHNIY_VARIANTS.some(v => normalizeCityName(details.derivedRussianDestinationCityForCandidate) === normalizeCityName(v) && normalizeCityName(actualSeaPortForThisRouteAndCandidate!) === normalizeCityName(v));
 
+
         if (isRailLegApplicableForCandidate) {
-            if (details.railLegDetails?.railLegFailed) {
+            if (details.railLegDetails?.railLegFailed) { // If rail is applicable BUT failed, skip this candidate
                 return;
             }
+            // If rail is applicable and did not fail, check if specific container type has price
             if (containerType === "20DC") {
                 if ((details.railLegDetails?.baseCost24t ?? null) === null && (details.railLegDetails?.baseCost28t ?? null) === null) {
-                    return;
+                    return; // Skip if no 20DC rail price
                 }
             } else if (containerType === "40HC") {
                 if ((details.railLegDetails?.baseCost40HC ?? null) === null) {
-                    return;
+                    return; // Skip if no 40HC rail price
                 }
             }
+            // If rail is applicable, did not fail, and has a price for the container type, add its cost.
             totalComparisonCostRUB += details.costToAddForRailRUB;
         }
         
-        totalComparisonCostRUB += details.costToAddForDropOffRUB;
+        // Add drop-off cost if not failed
+        if (shipmentType === "COC" && details.cocDropOffDetails && !details.cocDropOffDetails.dropOffLegFailed) {
+            totalComparisonCostRUB += details.costToAddForDropOffRUB;
+        } else if (shipmentType === "SOC" && details.socDropOffDetails && !details.socDropOffDetails.socDropOffLegFailed) {
+            totalComparisonCostRUB += details.costToAddForDropOffRUB;
+        }
 
 
         candidates.push({
@@ -417,15 +426,13 @@ export function generateDirectRailCandidates(values: RouteFormValues, context: P
       entry.price !== null // Ensure price exists
     ) {
       let comparisonCostInRub: number;
-      let originalPriceValue: number = entry.price; // Store original price for display
+      let originalPriceValue: number = entry.price; 
       let commentary = entry.commentary;
 
-      if (entry.price < 100000) { // Price is in USD
-        comparisonCostInRub = entry.price * USD_RUB_CONVERSION_RATE; // For sorting
-        // originalPriceValue is already entry.price (USD)
-      } else { // Price is in RUB
+      if (entry.price < 100000) { 
+        comparisonCostInRub = entry.price * USD_RUB_CONVERSION_RATE;
+      } else { 
         comparisonCostInRub = entry.price;
-        // originalPriceValue is already entry.price (RUB)
       }
       
       candidates.push({
@@ -436,14 +443,14 @@ export function generateDirectRailCandidates(values: RouteFormValues, context: P
         seaDestinationPort: entry.destinationCity,
         containerType: '40HC', 
         russianDestinationCity: entry.destinationCity,
-        totalComparisonCostRUB: comparisonCostInRub, // Use RUB converted value for sorting
+        totalComparisonCostRUB: comparisonCostInRub, 
 
         directRailAgentName: entry.agentName,
         directRailIncoterms: entry.incoterms,
         directRailBorder: entry.border,
-        directRailPriceRUB: originalPriceValue, // Store original value (USD or RUB) for display
+        directRailPriceRUB: originalPriceValue, 
         directRailETD: entry.etd,
-        directRailExcelCommentary: commentary, // No conversion commentary added
+        directRailExcelCommentary: commentary, 
         railDepartureStation: entry.departureStation,
         railArrivalStation: entry.destinationCity, 
 
@@ -502,18 +509,12 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
       if (formRussianDestinationCityFromUser) {
         const normFormRussianDest = normalizeCityName(formRussianDestinationCityFromUser);
         const normEffectiveDashboardDest = effectiveRussianDestCityForCandidateLogic ? normalizeCityName(effectiveRussianDestCityForCandidateLogic) : null;
-        // const normActualSeaDestPort = normalizeCityName(actualSeaDestinationPort); // Not needed for this check
-
+        
         let dashboardRouteMatchesUserRussianCity = false;
         
         if (normEffectiveDashboardDest && normEffectiveDashboardDest === normFormRussianDest) {
             dashboardRouteMatchesUserRussianCity = true;
         } 
-        
-        // This case handles when the dashboard route doesn't specify a "FOR Russian_City" (parsedRoute.finalRussianDestination is null),
-        // so effectiveRussianDestCityForCandidateLogic would be null.
-        // We then check if the dashboard route's *sea destination port* itself matches the user's desired Russian city.
-        // Example: User wants Moscow. Dashboard route is "Qingdao - Moscow". Here actualSeaDestinationPort is Moscow.
         else if (!effectiveRussianDestCityForCandidateLogic && normalizeCityName(actualSeaDestinationPort) === normFormRussianDest) {
             dashboardRouteMatchesUserRussianCity = true;
         }
@@ -523,15 +524,12 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
         }
       }
       
-      
-
       const tempFormValuesForHelper: RouteFormValues = {
         ...values, 
         shipmentType: "COC",
         originPort: formOriginPortFromUser,
         destinationPort: actualSeaDestinationPort, 
         containerType: formContainerTypeFromUser,
-        
         russianDestinationCity: effectiveRussianDestCityForCandidateLogic || undefined, 
         seaLineCompany: section.serviceName, 
       };
@@ -545,7 +543,7 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
           formOriginPortFromUser, 
           row.railwayLegs 
       );
-
+      
       const isFurtherRailNeededForThisDashboardCandidate =
         effectiveRussianDestCityForCandidateLogic &&
         effectiveRussianDestCityForCandidateLogic !== "N/A" &&
@@ -553,31 +551,25 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
         actualSeaDestinationPort !== "N/A" &&
         normalizeCityName(effectiveRussianDestCityForCandidateLogic) !== normalizeCityName(actualSeaDestinationPort);
 
-
-      if (isFurtherRailNeededForThisDashboardCandidate) {
-          if (additionalDetails.railLegDetails?.railLegFailed) {
-              return; 
-          }
-          
-          if (formContainerTypeFromUser === "20DC") {
-              if ((additionalDetails.railLegDetails?.baseCost24t ?? null) === null && (additionalDetails.railLegDetails?.baseCost28t ?? null) === null) {
-                  return; 
-              }
-          } else if (formContainerTypeFromUser === "40HC") {
-              if ((additionalDetails.railLegDetails?.baseCost40HC ?? null) === null) {
-                  return; 
-              }
-          }
-      }
+      // Softened conditions: Do not return if rail leg details failed or specific container price is missing.
+      // Let the costs be null and the candidate will be generated. BestPriceCard handles display of N/A.
       
-      
+      // Still return if COC drop-off is required and fails (unless Panda)
       if (!section.serviceName?.toLowerCase().includes('panda express line') && additionalDetails.cocDropOffDetails?.dropOffLegFailed){
           return;
       }
 
       let totalDashboardComparisonCostRUB = parsedRate.amount * USD_RUB_CONVERSION_RATE;
-      totalDashboardComparisonCostRUB += additionalDetails.costToAddForRailRUB; 
-      totalDashboardComparisonCostRUB += additionalDetails.costToAddForDropOffRUB;
+      
+      // Only add rail/drop-off costs if they are successfully found AND priced
+      if (additionalDetails.railLegDetails && !additionalDetails.railLegDetails.railLegFailed && additionalDetails.costToAddForRailRUB > 0) {
+        totalDashboardComparisonCostRUB += additionalDetails.costToAddForRailRUB;
+      }
+      if (additionalDetails.cocDropOffDetails && !additionalDetails.cocDropOffDetails.dropOffLegFailed && additionalDetails.costToAddForDropOffRUB > 0) {
+          totalDashboardComparisonCostRUB += additionalDetails.costToAddForDropOffRUB;
+      } else if (additionalDetails.socDropOffDetails && !additionalDetails.socDropOffDetails.socDropOffLegFailed && additionalDetails.costToAddForDropOffRUB > 0) {
+          totalDashboardComparisonCostRUB += additionalDetails.costToAddForDropOffRUB;
+      }
 
       candidates.push({
         id: `dash-${section.serviceName.replace(/\s+/g, '-')}-${formOriginPortFromUser}-${routeIdCounter++}`,
@@ -608,12 +600,13 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
         dropOffDisplayValue: additionalDetails.cocDropOffDetails?.displayValue ?? null,
         dropOffComment: additionalDetails.cocDropOffDetails?.comment ?? null,
         
+        // SOC fields are not applicable here as we are filtering for formShipmentType === "COC"
+        socDropOffCostUSD: null, 
+        socDropOffComment: null,
+        socComment: null,
       });
     });
   });
 
   return candidates;
 }
-
-
-    
