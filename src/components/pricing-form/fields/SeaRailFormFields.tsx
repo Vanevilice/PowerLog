@@ -1,14 +1,15 @@
 
 import React from 'react';
 import { Control, UseFormReturn } from 'react-hook-form';
+import { Button } from "@/components/ui/button"; // Import Button
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+// RadioGroup and RadioGroupItem are no longer needed here for shipmentType
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Ship, Anchor, Package, Train, MapPinned, Home } from 'lucide-react';
-import type { RouteFormValues, ShipmentType } from '@/types'; // Using consolidated types
+import type { RouteFormValues, ShipmentType, ContainerType } from '@/types';
 import { CONTAINER_TYPES_CONST, NONE_SEALINE_VALUE, VLADIVOSTOK_VARIANTS } from '@/lib/pricing/constants';
 import { getSeaLinePlaceholder, getArrivalStationPlaceholder, getRussianCityPlaceholder } from '@/lib/pricing/ui-helpers';
-import { useLocalization } from '@/contexts/LocalizationContext'; // Import useLocalization
+import { useLocalization } from '@/contexts/LocalizationContext';
 
 interface SeaRailFormFieldsProps {
   form: UseFormReturn<RouteFormValues>;
@@ -36,12 +37,13 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
   hasRestoredFromCache,
 }) => {
   const { control, watch, setValue, getValues } = form;
-  const { translate } = useLocalization(); // Get translate function
+  const { translate } = useLocalization();
 
   const watchedOriginPort = watch("originPort");
-  const watchedDestinationPort = watch("destinationPort"); // Sea port
+  const watchedDestinationPort = watch("destinationPort");
   const watchedContainerType = watch("containerType");
   const watchedRussianDestinationCity = watch("russianDestinationCity");
+  // const watchedShipmentType = watch("shipmentType"); // No longer needed to watch for button style, field.value will be used
 
   const placeholderGetterArgsForSeaLine = {
     isParsingSeaRailFile,
@@ -97,29 +99,34 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
         render={({ field }) => (
           <FormItem className="space-y-3">
             <FormLabel className="flex items-center"><Home className="mr-2 h-4 w-4 text-primary" /> {translate('shipmentType')}</FormLabel>
-            <FormControl>
-              <RadioGroup
-                onValueChange={(value) => {
-                  field.onChange(value as ShipmentType);
+            <div className="flex space-x-2">
+              <Button
+                type="button"
+                variant={field.value === 'COC' ? 'default' : 'outline'}
+                onClick={() => {
+                  field.onChange("COC" as ShipmentType);
                   if (hasRestoredFromCache) {
                     setValue("destinationPort", "", { shouldValidate: true });
                     setValue("seaLineCompany", NONE_SEALINE_VALUE, { shouldValidate: true });
                   }
                 }}
-                defaultValue={field.value}
-                value={field.value}
-                className="flex flex-row space-x-4"
               >
-                <FormItem className="flex items-center space-x-2 space-y-0">
-                  <FormControl><RadioGroupItem value="COC" /></FormControl>
-                  <FormLabel className="font-normal">{translate('shipmentType_COC')}</FormLabel>
-                </FormItem>
-                <FormItem className="flex items-center space-x-2 space-y-0">
-                  <FormControl><RadioGroupItem value="SOC" /></FormControl>
-                  <FormLabel className="font-normal">{translate('shipmentType_SOC')}</FormLabel>
-                </FormItem>
-              </RadioGroup>
-            </FormControl>
+                {translate('shipmentType_COC')}
+              </Button>
+              <Button
+                type="button"
+                variant={field.value === 'SOC' ? 'default' : 'outline'}
+                onClick={() => {
+                  field.onChange("SOC" as ShipmentType);
+                  if (hasRestoredFromCache) {
+                    setValue("destinationPort", "", { shouldValidate: true });
+                    setValue("seaLineCompany", NONE_SEALINE_VALUE, { shouldValidate: true });
+                  }
+                }}
+              >
+                {translate('shipmentType_SOC')}
+              </Button>
+            </div>
             <FormMessage />
           </FormItem>
         )}
@@ -320,4 +327,3 @@ export const SeaRailFormFields: React.FC<SeaRailFormFieldsProps> = ({
     </>
   );
 };
-

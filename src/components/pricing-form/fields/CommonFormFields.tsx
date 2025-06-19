@@ -1,28 +1,28 @@
 
 import React from 'react';
-import { Control, ControllerRenderProps, FieldValues, UseFormReturn } from 'react-hook-form';
+import { Control, ControllerRenderProps, FieldPath, FieldValues, UseFormReturn } from 'react-hook-form';
 import { Button } from "@/components/ui/button";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+// RadioGroup and RadioGroupItem are no longer needed here for calculationModeToggle
 import { Input } from "@/components/ui/input";
 import { UploadCloud, Loader2, AlertCircle } from 'lucide-react';
-import type { RouteFormValues, CalculationMode, PricingDataContextType } from '@/types'; // Using consolidated types
-import { useLocalization } from '@/contexts/LocalizationContext'; // Import useLocalization
+import type { RouteFormValues, CalculationMode, PricingDataContextType } from '@/types';
+import { useLocalization } from '@/contexts/LocalizationContext';
 
 interface CommonFormFieldsProps {
-  form: UseFormReturn<RouteFormValues>; // Use consolidated RouteFormValues
+  form: UseFormReturn<RouteFormValues>;
   isParsingSeaRailFile: boolean;
   isParsingDirectRailFile: boolean;
-  isParsingSOCDropOffFile: boolean; // New state for SOC drop-off parsing
+  isParsingSOCDropOffFile: boolean;
   handleSeaRailFileUploadClick: () => void;
   handleDirectRailFileUploadClick: () => void;
-  handleSOCDropOffFileUploadClick: () => void; // New handler for SOC drop-off button
+  handleSOCDropOffFileUploadClick: () => void;
   seaRailFileInputRef: React.RefObject<HTMLInputElement>;
   directRailFileInputRef: React.RefObject<HTMLInputElement>;
-  socDropOffFileInputRef: React.RefObject<HTMLInputElement>; // New ref for SOC drop-off input
+  socDropOffFileInputRef: React.RefObject<HTMLInputElement>;
   onSeaRailFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onDirectRailFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onSOCDropOffFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void; // New change handler
+  onSOCDropOffFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   calculationModeContext: CalculationMode;
   setCalculationModeContext: PricingDataContextType['setCalculationMode'];
   exchangeRate: string | null;
@@ -32,22 +32,22 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
   form,
   isParsingSeaRailFile,
   isParsingDirectRailFile,
-  isParsingSOCDropOffFile, // Consuming new state
+  isParsingSOCDropOffFile,
   handleSeaRailFileUploadClick,
   handleDirectRailFileUploadClick,
-  handleSOCDropOffFileUploadClick, // Consuming new handler
+  handleSOCDropOffFileUploadClick,
   seaRailFileInputRef,
   directRailFileInputRef,
-  socDropOffFileInputRef, // Consuming new ref
+  socDropOffFileInputRef,
   onSeaRailFileChange,
   onDirectRailFileChange,
-  onSOCDropOffFileChange, // Consuming new change handler
+  onSOCDropOffFileChange,
   calculationModeContext,
   setCalculationModeContext,
   exchangeRate,
 }) => {
-  const { control, getValues, setValue } = form;
-  const { translate } = useLocalization(); // Get translate function
+  const { control, setValue } = form; // Added setValue
+  const { translate } = useLocalization();
 
   return (
     <>
@@ -93,17 +93,17 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
         <Button
           type="button"
           variant="outline"
-          onClick={handleSOCDropOffFileUploadClick} // Using new handler
+          onClick={handleSOCDropOffFileUploadClick}
           className="w-full"
-          disabled={isParsingSOCDropOffFile || isParsingSeaRailFile || isParsingDirectRailFile} // Disable if any parsing is active
+          disabled={isParsingSOCDropOffFile || isParsingSeaRailFile || isParsingDirectRailFile}
         >
           {isParsingSOCDropOffFile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
           {isParsingSOCDropOffFile ? translate('processingFile') : translate('uploadSOCDropOffExcel')}
         </Button>
         <input
           type="file"
-          ref={socDropOffFileInputRef} // Using new ref
-          onChange={onSOCDropOffFileChange} // Using new change handler
+          ref={socDropOffFileInputRef}
+          onChange={onSOCDropOffFileChange}
           accept=".xlsx, .xls"
           className="hidden"
           aria-hidden="true"
@@ -113,33 +113,34 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
 
       <FormField
         control={control}
-        name="calculationModeToggle"
-        render={({ field }) => (
+        name="calculationModeToggle" // This field in form state is still useful for schema validation
+        render={({ field }) => ( // field.onChange will update the form state
           <FormItem className="space-y-3">
             <FormLabel className="text-base font-semibold">{translate('calculationMode')}</FormLabel>
-            <FormControl>
-              <RadioGroup
-                onValueChange={(value: string) => {
-                  const newMode = value as CalculationMode;
-                  setCalculationModeContext(newMode);
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+              <Button
+                type="button"
+                variant={calculationModeContext === 'sea_plus_rail' ? 'default' : 'outline'}
+                onClick={() => {
+                  setCalculationModeContext('sea_plus_rail');
+                  field.onChange('sea_plus_rail' as CalculationMode);
                 }}
-                value={calculationModeContext} // Controlled by context
-                className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4"
+                className="flex-1 sm:flex-none"
               >
-                <FormItem className="flex items-center space-x-2 space-y-0">
-                  <FormControl>
-                    <RadioGroupItem value="sea_plus_rail" id="mode_sea_plus_rail" />
-                  </FormControl>
-                  <FormLabel htmlFor="mode_sea_plus_rail" className="font-normal">{translate('calculationMode_SeaRail')}</FormLabel>
-                </FormItem>
-                <FormItem className="flex items-center space-x-2 space-y-0">
-                  <FormControl>
-                    <RadioGroupItem value="direct_rail" id="mode_direct_rail" />
-                  </FormControl>
-                  <FormLabel htmlFor="mode_direct_rail" className="font-normal">{translate('calculationMode_DirectRail')}</FormLabel>
-                </FormItem>
-              </RadioGroup>
-            </FormControl>
+                {translate('calculationMode_SeaRail')}
+              </Button>
+              <Button
+                type="button"
+                variant={calculationModeContext === 'direct_rail' ? 'default' : 'outline'}
+                onClick={() => {
+                  setCalculationModeContext('direct_rail');
+                  field.onChange('direct_rail' as CalculationMode);
+                }}
+                className="flex-1 sm:flex-none"
+              >
+                {translate('calculationMode_DirectRail')}
+              </Button>
+            </div>
             <FormMessage />
           </FormItem>
         )}
@@ -183,4 +184,3 @@ export const CommonFormFields: React.FC<CommonFormFieldsProps> = ({
     </>
   );
 };
-
