@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -7,7 +6,7 @@ import { useLocalization } from '@/contexts/LocalizationContext';
 import NoBestPricesFound from '@/components/best-prices/NoBestPricesFound';
 import BestPricesPageHeader from '@/components/best-prices/BestPricesPageHeader';
 import BestPriceList from '@/components/best-prices/BestPriceList';
-import BestPricesPageFooter from '@/components/best-prices/BestPricesPageFooter'; // Import the new footer
+import BestPricesPageFooter from '@/components/best-prices/BestPricesPageFooter';
 import { useBestPriceActions } from '@/hooks/useBestPriceActions';
 
 export default function BestPricesPage() {
@@ -34,7 +33,7 @@ export default function BestPricesPage() {
         handleCreateInstructions={handleCreateInstructions}
       />
 
-      <BestPricesPageFooter translate={translate} /> {/* Use the new footer component */}
+      <BestPricesPageFooter translate={translate} />
     </div>
   );
 }
