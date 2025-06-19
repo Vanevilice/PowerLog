@@ -95,10 +95,7 @@ export function useBestPriceActions() {
       }
       textToCopy += "Прием и вывоз контейнера в режиме ГТД в пределах МКАД: 48 000 руб. с НДС 0%\n";
 
-      if (route.shipmentType === "COC") {
-        if (route.seaComment) textToCopy += `${translate('bestPrices_CostBreakdown_SeaRouteComment')} ${route.seaComment}\n`;
-        if (route.dropOffComment) textToCopy += `${translate('bestPrices_CostBreakdown_DropOffComment')} ${route.dropOffComment}\n`;
-      }
+      // Commentaries for Sea+Rail mode are removed from here
 
     } else if (route.mode === 'direct_rail') {
       textToCopy += translate('bestPrices_RouteCard_Desc_DirectRail_Route', { originPort: route.originPort || translate('common_NA'), destPort: route.seaDestinationPort || translate('common_NA') }) + "\n";
@@ -109,9 +106,7 @@ export function useBestPriceActions() {
       textToCopy += `${translate('bestPrices_RouteDetails_IncotermsLabel_DR')} ${route.directRailIncoterms || translate('common_NA')}\n`;
       textToCopy += `${translate('bestPrices_CostBreakdown_DirectRailCost')} ${route.directRailPriceRUB !== null ? formatDisplayCost(route.directRailPriceRUB, route.directRailPriceRUB < 100000 ? 'USD' : 'RUB') : translate('common_NA')}\n`;
       textToCopy += `${translate('bestPrices_CostBreakdown_ETD')} ${route.directRailETD || translate('common_NA')}\n`;
-      if (route.directRailExcelCommentary) {
-        textToCopy += `${translate('bestPrices_CostBreakdown_ExcelCommentary')} ${route.directRailExcelCommentary}\n`;
-      }
+      // Excel Commentary for Direct Rail mode is removed from here
     }
 
     try {
