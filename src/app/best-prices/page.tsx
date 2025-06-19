@@ -14,7 +14,8 @@ import { VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS } from '@/lib/pricing/constan
 import { normalizeCityName } from '@/lib/pricing/utils';
 import { useLocalization } from '@/contexts/LocalizationContext';
 import { Badge } from '@/components/ui/badge';
-import NoBestPricesFound from '@/components/best-prices/NoBestPricesFound'; // Import the new component
+import NoBestPricesFound from '@/components/best-prices/NoBestPricesFound';
+import BestPricesPageHeader from '@/components/best-prices/BestPricesPageHeader'; // Import the new component
 
 export default function BestPricesPage() {
   const router = useRouter();
@@ -200,43 +201,16 @@ export default function BestPricesPage() {
   };
 
   if (!bestPriceResults || bestPriceResults.length === 0) {
-    return <NoBestPricesFound translate={translate} />; // Use the new component
+    return <NoBestPricesFound translate={translate} />;
   }
-
-  const isDirectRailMode = bestPriceResults.some(r => r.mode === 'direct_rail');
-  const formModeText = isDirectRailMode ? translate('calculationMode_DirectRail') : translate('calculationMode_SeaRail');
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-primary flex items-center">
-            <ListOrdered className="mr-3 h-8 w-8 text-primary" /> 
-            {translate('bestPrices_Header_Title', { count: bestPriceResults.length, mode: formModeText })}
-          </h1>
-          {cachedFormValues && (
-             <p className="text-muted-foreground mt-1" dangerouslySetInnerHTML={{
-                __html: isDirectRailMode ?
-                  translate('bestPrices_Header_BasedOn_DirectRail', {
-                    departureCity: cachedFormValues.directRailCityOfDeparture || translate('common_NA'),
-                    destinationCity: cachedFormValues.directRailDestinationCityDR || translate('common_NA'),
-                    incoterms: cachedFormValues.directRailIncoterms || translate('common_NA'),
-                  }) :
-                  translate('bestPrices_Header_BasedOn_SeaRail_Base', {
-                    originPort: cachedFormValues.originPort || translate('common_NA'),
-                    containerType: cachedFormValues.containerType || translate('common_NA'),
-                    shipmentType: cachedFormValues.shipmentType || translate('common_NA'),
-                  }) +
-                  (cachedFormValues.russianDestinationCity ? translate('bestPrices_Header_BasedOn_SeaRail_FinalDest', { finalDestCity: cachedFormValues.russianDestinationCity }) : '')
-             }} />
-          )}
-        </div>
-        <Button asChild variant="outline" className="mt-4 sm:mt-0">
-          <Link href="/">
-            <ArrowLeft className="mr-2 h-4 w-4" /> {translate('bestPrices_BackToCalculator_Button')}
-          </Link>
-        </Button>
-      </header>
+      <BestPricesPageHeader 
+        bestPriceResults={bestPriceResults} 
+        cachedFormValues={cachedFormValues} 
+        translate={translate} 
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {bestPriceResults.map((route, index) => {
@@ -526,5 +500,7 @@ export default function BestPricesPage() {
   );
 }
 
+
+    
 
     
