@@ -2,14 +2,12 @@
 "use client";
 
 import React from 'react';
-import Link from 'next/link';
 import { usePricingData } from '@/contexts/PricingDataContext';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
 import { useLocalization } from '@/contexts/LocalizationContext';
 import NoBestPricesFound from '@/components/best-prices/NoBestPricesFound';
 import BestPricesPageHeader from '@/components/best-prices/BestPricesPageHeader';
-import BestPriceList from '@/components/best-prices/BestPriceList'; // New import
+import BestPriceList from '@/components/best-prices/BestPriceList';
+import BestPricesPageFooter from '@/components/best-prices/BestPricesPageFooter'; // Import the new footer
 import { useBestPriceActions } from '@/hooks/useBestPriceActions';
 
 export default function BestPricesPage() {
@@ -29,20 +27,14 @@ export default function BestPricesPage() {
         translate={translate}
       />
 
-      <BestPriceList // Using the new component
+      <BestPriceList
         bestPriceResults={bestPriceResults}
         translate={translate}
         handleCopyRate={handleCopyRate}
         handleCreateInstructions={handleCreateInstructions}
       />
 
-       <div className="text-center mt-6">
-        <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href="/">
-                <ArrowLeft className="mr-2 h-4 w-4" /> {translate('bestPrices_BackToCalculator_Button')}
-            </Link>
-        </Button>
-      </div>
+      <BestPricesPageFooter translate={translate} /> {/* Use the new footer component */}
     </div>
   );
 }

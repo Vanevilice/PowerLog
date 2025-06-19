@@ -2,9 +2,8 @@
 "use client";
 
 import React from 'react';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ListOrdered, ArrowLeft } from 'lucide-react';
+import { ListOrdered } from 'lucide-react';
 import type { BestPriceRoute, RouteFormValues } from '@/contexts/PricingDataContext';
 import type { Translations } from '@/contexts/LocalizationContext';
 
@@ -42,11 +41,7 @@ export default function BestPricesPageHeader({ bestPriceResults, cachedFormValue
           }} />
         )}
       </div>
-      <Button asChild variant="outline" className="mt-4 sm:mt-0">
-        <Link href="/">
-          <ArrowLeft className="mr-2 h-4 w-4" /> {translate('bestPrices_BackToCalculator_Button')}
-        </Link>
-      </Button>
+      {/* The "Back to Calculator" button has been removed from here and moved to BestPricesPageFooter */}
     </header>
   );
 }
