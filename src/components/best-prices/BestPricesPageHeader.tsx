@@ -3,16 +3,17 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ListOrdered } from 'lucide-react';
+import { ListOrdered, Loader2 } from 'lucide-react'; // Added Loader2
 import type { BestPriceRoute, RouteFormValues, ContainerType } from '@/contexts/PricingDataContext';
 import type { Translations } from '@/contexts/LocalizationContext';
 
 interface BestPricesPageHeaderProps {
-  bestPriceResultsCount: number; // Pass count instead of full array
+  bestPriceResultsCount: number;
   cachedFormValues: Partial<RouteFormValues> | null;
   translate: (key: keyof Translations, replacements?: Record<string, string | number>) => string;
   selectedFilterContainerType: ContainerType | undefined;
   onFilterContainerTypeChange: (containerType: ContainerType) => void;
+  isRecalculating: boolean; // New prop
 }
 
 export default function BestPricesPageHeader({
@@ -21,6 +22,7 @@ export default function BestPricesPageHeader({
   translate,
   selectedFilterContainerType,
   onFilterContainerTypeChange,
+  isRecalculating, // Consuming new prop
 }: BestPricesPageHeaderProps) {
   const isDirectRailMode = cachedFormValues?.calculationModeToggle === 'direct_rail';
   const formModeText = isDirectRailMode ? translate('calculationMode_DirectRail') : translate('calculationMode_SeaRail');
@@ -44,7 +46,7 @@ export default function BestPricesPageHeader({
               }) :
               translate('bestPrices_Header_BasedOn_SeaRail_Base', {
                 originPort: cachedFormValues.originPort || translate('common_NA'),
-                containerType: initialContainerType || translate('common_NA'), // Show originally calculated container type
+                containerType: initialContainerType || translate('common_NA'), 
                 shipmentType: cachedFormValues.shipmentType || translate('common_NA'),
               }) +
               (cachedFormValues.russianDestinationCity ? translate('bestPrices_Header_BasedOn_SeaRail_FinalDest', { finalDestCity: cachedFormValues.russianDestinationCity }) : '')
@@ -57,16 +59,20 @@ export default function BestPricesPageHeader({
             variant={selectedFilterContainerType === '20DC' ? 'default' : 'outline'}
             size="sm"
             onClick={() => onFilterContainerTypeChange('20DC')}
-            className="px-4 py-2 rounded-md shadow-sm hover:shadow-md transition-shadow"
+            className="px-4 py-2 rounded-md shadow-sm hover:shadow-md transition-shadow min-w-[80px]" // Added min-width
+            disabled={isRecalculating} // Disable button if recalculating
           >
+            {isRecalculating && selectedFilterContainerType === '20DC' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             20DC
           </Button>
           <Button
             variant={selectedFilterContainerType === '40HC' ? 'default' : 'outline'}
             size="sm"
             onClick={() => onFilterContainerTypeChange('40HC')}
-            className="px-4 py-2 rounded-md shadow-sm hover:shadow-md transition-shadow"
+            className="px-4 py-2 rounded-md shadow-sm hover:shadow-md transition-shadow min-w-[80px]" // Added min-width
+            disabled={isRecalculating} // Disable button if recalculating
           >
+            {isRecalculating && selectedFilterContainerType === '40HC' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             40HC
           </Button>
         </div>
