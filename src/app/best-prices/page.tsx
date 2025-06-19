@@ -58,7 +58,8 @@ export default function BestPricesPage() {
         totalFreightCostUSD += route.socDropOffCostUSD;
       }
 
-      textToCopy += "Фрахт: " + formatDisplayCost(totalFreightCostUSD > 0 ? totalFreightCostUSD : null, 'USD') + "\n";
+      textToCopy += translate('bestPrices_CostBreakdown_SeaFreightCost') + " " + formatDisplayCost(totalFreightCostUSD > 0 ? totalFreightCostUSD : null, 'USD') + "\n";
+
 
       let jdLine = "";
       if (isFurtherRailForCopy) {
@@ -319,7 +320,7 @@ export default function BestPricesPage() {
                            className="font-semibold ml-2 flex items-center"
                            style={badgeStyle}
                     >
-                        <Star className="mr-1.5 h-3.5 w-3.5 text-yellow-500" /> 
+                        <Star className="mr-1.5 h-3.5 w-3.5 text-yellow-500" fill="currentColor"/> 
                         {translate('bestPrices_DashboardRecommendationLabel')}
                     </Badge>
                 )}
@@ -548,3 +549,6 @@ export default function BestPricesPage() {
 
     
 
+
+
+    
