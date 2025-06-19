@@ -270,7 +270,10 @@ export default function BestPricesPage() {
                 }
             } else if (route.shipmentType === "COC" && route.dropOffCostUSD !== null && route.dropOffCostUSD !== undefined) {
                 dropOffCostForCard = formatDisplayCost(route.dropOffCostUSD, 'USD');
+            } else if (route.shipmentType === "SOC" && route.socDropOffCostUSD !== null && route.socDropOffCostUSD !== undefined) {
+                dropOffCostForCard = formatDisplayCost(route.socDropOffCostUSD, 'USD');
             }
+
 
             const agentOrSeaLineLabel = route.mode === 'direct_rail' ? translate('bestPrices_RouteCard_AgentLabel') : translate('bestPrices_RouteCard_SeaLineLabel');
             const agentOrSeaLineValue = route.mode === 'direct_rail' ? route.directRailAgentName : route.seaLineCompany;
@@ -316,7 +319,7 @@ export default function BestPricesPage() {
                            className="font-semibold ml-2 flex items-center"
                            style={badgeStyle}
                     >
-                        <Star className="mr-1.5 h-3.5 w-3.5" /> 
+                        <Star className="mr-1.5 h-3.5 w-3.5 text-yellow-500" /> 
                         {translate('bestPrices_DashboardRecommendationLabel')}
                     </Badge>
                 )}
@@ -544,3 +547,4 @@ export default function BestPricesPage() {
     
 
     
+
