@@ -2,8 +2,9 @@
 "use client";
 
 import React from 'react';
+import Link from 'next/link'; // Import Link
 import { Button } from '@/components/ui/button';
-import { ListOrdered, Loader2 } from 'lucide-react'; // Added Loader2
+import { ListOrdered, Loader2, ArrowLeft } from 'lucide-react'; // Added ArrowLeft
 import type { BestPriceRoute, RouteFormValues, ContainerType } from '@/contexts/PricingDataContext';
 import type { Translations } from '@/contexts/LocalizationContext';
 
@@ -13,7 +14,7 @@ interface BestPricesPageHeaderProps {
   translate: (key: keyof Translations, replacements?: Record<string, string | number>) => string;
   selectedFilterContainerType: ContainerType | undefined;
   onFilterContainerTypeChange: (containerType: ContainerType) => void;
-  isRecalculating: boolean; // New prop
+  isRecalculating: boolean;
 }
 
 export default function BestPricesPageHeader({
@@ -22,7 +23,7 @@ export default function BestPricesPageHeader({
   translate,
   selectedFilterContainerType,
   onFilterContainerTypeChange,
-  isRecalculating, // Consuming new prop
+  isRecalculating,
 }: BestPricesPageHeaderProps) {
   const isDirectRailMode = cachedFormValues?.calculationModeToggle === 'direct_rail';
   const formModeText = isDirectRailMode ? translate('calculationMode_DirectRail') : translate('calculationMode_SeaRail');
@@ -46,37 +47,45 @@ export default function BestPricesPageHeader({
               }) :
               translate('bestPrices_Header_BasedOn_SeaRail_Base', {
                 originPort: cachedFormValues.originPort || translate('common_NA'),
-                containerType: initialContainerType || translate('common_NA'), 
+                containerType: initialContainerType || translate('common_NA'),
                 shipmentType: cachedFormValues.shipmentType || translate('common_NA'),
               }) +
               (cachedFormValues.russianDestinationCity ? translate('bestPrices_Header_BasedOn_SeaRail_FinalDest', { finalDestCity: cachedFormValues.russianDestinationCity }) : '')
           }} />
         )}
       </div>
-      {!isDirectRailMode && (
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Button
-            variant={selectedFilterContainerType === '20DC' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => onFilterContainerTypeChange('20DC')}
-            className="px-4 py-2 rounded-md shadow-sm hover:shadow-md transition-shadow min-w-[80px]" // Added min-width
-            disabled={isRecalculating} // Disable button if recalculating
-          >
-            {isRecalculating && selectedFilterContainerType === '20DC' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            20DC
-          </Button>
-          <Button
-            variant={selectedFilterContainerType === '40HC' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => onFilterContainerTypeChange('40HC')}
-            className="px-4 py-2 rounded-md shadow-sm hover:shadow-md transition-shadow min-w-[80px]" // Added min-width
-            disabled={isRecalculating} // Disable button if recalculating
-          >
-            {isRecalculating && selectedFilterContainerType === '40HC' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            40HC
-          </Button>
-        </div>
-      )}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <Button asChild variant="outline" size="sm" className="px-4 py-2 rounded-md shadow-sm hover:shadow-md transition-shadow">
+            <Link href="/">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {translate('bestPrices_BackToCalculator_Button')}
+            </Link>
+        </Button>
+        {!isDirectRailMode && (
+          <>
+            <Button
+              variant={selectedFilterContainerType === '20DC' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => onFilterContainerTypeChange('20DC')}
+              className="px-4 py-2 rounded-md shadow-sm hover:shadow-md transition-shadow min-w-[80px]"
+              disabled={isRecalculating}
+            >
+              {isRecalculating && selectedFilterContainerType === '20DC' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              20DC
+            </Button>
+            <Button
+              variant={selectedFilterContainerType === '40HC' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => onFilterContainerTypeChange('40HC')}
+              className="px-4 py-2 rounded-md shadow-sm hover:shadow-md transition-shadow min-w-[80px]"
+              disabled={isRecalculating}
+            >
+              {isRecalculating && selectedFilterContainerType === '40HC' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              40HC
+            </Button>
+          </>
+        )}
+      </div>
     </header>
   );
 }
