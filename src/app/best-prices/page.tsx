@@ -7,13 +7,14 @@ import { useRouter } from 'next/navigation';
 import { usePricingData, type BestPriceRoute } from '@/contexts/PricingDataContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Ship, Train, Copy, Edit3, Info, ListOrdered, AlertTriangle, CheckCircle, Star } from 'lucide-react';
+import { ArrowLeft, Ship, Train, Copy, Edit3, ListOrdered, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDisplayCost } from '@/lib/pricing/ui-helpers';
 import { VLADIVOSTOK_VARIANTS, VOSTOCHNIY_VARIANTS } from '@/lib/pricing/constants';
 import { normalizeCityName } from '@/lib/pricing/utils';
 import { useLocalization } from '@/contexts/LocalizationContext';
 import { Badge } from '@/components/ui/badge';
+import NoBestPricesFound from '@/components/best-prices/NoBestPricesFound'; // Import the new component
 
 export default function BestPricesPage() {
   const router = useRouter();
@@ -199,28 +200,7 @@ export default function BestPricesPage() {
   };
 
   if (!bestPriceResults || bestPriceResults.length === 0) {
-    return (
-      <div className="container mx-auto p-4 md:p-8 text-center">
-        <Card className="w-full max-w-lg mx-auto shadow-lg rounded-xl bg-card border border-border">
-          <CardHeader>
-            <div className="flex justify-center items-center mb-3">
-              <Info className="h-12 w-12 text-primary" />
-            </div>
-            <CardTitle className="text-2xl font-semibold text-primary">{translate('bestPrices_NoResults_Title')}</CardTitle>
-            <CardDescription className="text-muted-foreground">
-              {translate('bestPrices_NoResults_Description')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/">
-                <ArrowLeft className="mr-2 h-4 w-4" /> {translate('bestPrices_BackToCalculator_Button')}
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <NoBestPricesFound translate={translate} />; // Use the new component
   }
 
   const isDirectRailMode = bestPriceResults.some(r => r.mode === 'direct_rail');
@@ -487,7 +467,7 @@ export default function BestPricesPage() {
                               </p>
                             )}
                         </>
-                    ) : ( 
+                    ) : ( // Direct Rail Mode
                         <>
                             {route.directRailPriceRUB !== null && (
                             <p className="flex justify-between">
@@ -545,12 +525,3 @@ export default function BestPricesPage() {
     </div>
   );
 }
-    
-
-    
-
-
-
-    
-
-    
