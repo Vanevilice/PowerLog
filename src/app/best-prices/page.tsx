@@ -525,3 +525,6 @@ export default function BestPricesPage() {
     </div>
   );
 }
+
+
+    
