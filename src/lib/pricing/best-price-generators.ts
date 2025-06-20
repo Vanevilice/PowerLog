@@ -67,7 +67,7 @@ function _getRailAndDropOffDetailsForCandidate(
   if (isFurtherRailJourney && formRussianDestinationCity && containerType && preParsedRailwayLegs && preParsedRailwayLegs.length > 0) {
     for (const leg of preParsedRailwayLegs) {
       let stationNameFromLeg: string | null = null;
-      const forMatch = (leg.originInfo || "").match(/FOR\s+(.+)/i);
+      const forMatch = (leg.originInfo || "").match(/FOR\\s+(.+)/i);
       if (forMatch && forMatch[1]) {
         stationNameFromLeg = forMatch[1].trim();
       }
@@ -118,7 +118,7 @@ function _getRailAndDropOffDetailsForCandidate(
                  costToAddForRailRUB = 0; 
                  railLegDetails = {
                     railLegFailed: true,
-                    commentaryReason: appendCommentary(currentSeaComment || "", `Dashboard rail leg for "${stationNameFromLeg}" has invalid cost or currency. Cost: ${leg.cost}`),
+                    commentaryReason: appendCommentary(currentSeaComment || "", `Dashboard rail leg for \"${stationNameFromLeg}\" has invalid cost or currency. Cost: ${leg.cost}`),
                     arrivalStation: stationNameFromLeg, departureStation: seaDestPort,
                     baseCost24t: null, baseCost28t: null, guardCost20DC: null,
                     baseCost40HC: null, guardCost40HC: null,
@@ -164,7 +164,7 @@ function _getRailAndDropOffDetailsForCandidate(
     if (isFurtherRailJourney && formRussianDestinationCity && railLegDetails && !railLegDetails.railLegFailed) {
       cityForDropOffLookup = formRussianDestinationCity; // If successful rail, drop-off at final city
     } else if (!isFurtherRailJourney && formRussianDestinationCity) {
-      // If no "further" rail (e.g. sea to Vlad, final to Vlad), but a Russian city is specified, use it
+      // If no \"further\" rail (e.g. sea to Vlad, final to Vlad), but a Russian city is specified, use it
       cityForDropOffLookup = formRussianDestinationCity;
     }
 
@@ -463,6 +463,7 @@ export function generateDirectRailCandidates(values: RouteFormValues, context: P
 
 export function generateDashboardCandidates(values: RouteFormValues, context: PricingDataContextType): BestPriceRoute[] {
   const { dashboardServiceSections, isSeaRailExcelDataLoaded } = context;
+  // Critical: Ensure formContainerTypeFromUser reflects the override from the filter buttons
   const { shipmentType: formShipmentType, originPort: formOriginPortFromUser, russianDestinationCity: formRussianDestinationCityFromUser, containerType: formContainerTypeFromUser } = values;
   const candidates: BestPriceRoute[] = [];
   let routeIdCounter = 0;
@@ -480,12 +481,10 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
         return;
       }
       
-      // If dashboard route string specifies a container type, it must match the form's container type
+      // If dashboard route string specifies a container type, it must match the formContainerTypeFromUser (which is the filtered/overridden type)
       if (parsedRoute.containerType && parsedRoute.containerType !== formContainerTypeFromUser) {
         return;
       }
-      // If dashboard route string does NOT specify a container type, this candidate is potentially valid for the form's container type.
-      // The specific pricing for rail/drop-off will depend on formContainerTypeFromUser.
 
       if (parsedRate.amount === null || parsedRate.currency !== 'USD') {
         return;
@@ -509,7 +508,6 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
 
       const effectiveRussianDestCityForCandidateLogic = formRussianDestinationCityFromUser || mappedCityFromDashboardStation;
 
-      
       if (formRussianDestinationCityFromUser) {
         const normFormRussianDest = normalizeCityName(formRussianDestinationCityFromUser);
         const normEffectiveDashboardDest = effectiveRussianDestCityForCandidateLogic ? normalizeCityName(effectiveRussianDestCityForCandidateLogic) : null;
@@ -533,7 +531,7 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
         shipmentType: "COC",
         originPort: formOriginPortFromUser,
         destinationPort: actualSeaDestinationPort, 
-        containerType: formContainerTypeFromUser, // Use the filtered/overridden container type
+        containerType: formContainerTypeFromUser, // Crucially use the filtered/overridden container type
         russianDestinationCity: effectiveRussianDestCityForCandidateLogic || undefined, 
         seaLineCompany: section.serviceName, 
       };
@@ -555,7 +553,7 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
         actualSeaDestinationPort !== "N/A" &&
         normalizeCityName(effectiveRussianDestCityForCandidateLogic) !== normalizeCityName(actualSeaDestinationPort);
 
-      // Stricter check: if rail is needed, it must be successfully priced for the current container type
+      // Stricter check: if rail is needed for this dashboard candidate, it must be successfully priced for the current formContainerTypeFromUser
       if (isFurtherRailNeededForThisDashboardCandidate) {
         const railFailed = additionalDetails.railLegDetails?.railLegFailed;
         let railPriceMissingForContainerType = false;
@@ -593,7 +591,7 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
       }
 
       candidates.push({
-        id: `dash-${section.serviceName.replace(/\s+/g, '-')}-${formOriginPortFromUser}-${routeIdCounter++}`,
+        id: `dash-${section.serviceName.replace(/\\s+/g, '-')}-${formOriginPortFromUser}-${routeIdCounter++}`,
         mode: 'sea_plus_rail',
         shipmentType: "COC",
         originPort: formOriginPortFromUser,
@@ -631,3 +629,5 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
   return candidates;
 }
 
+    
+    
