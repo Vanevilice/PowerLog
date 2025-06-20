@@ -480,9 +480,13 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
         return;
       }
       
+      // If dashboard route string specifies a container type, it must match the form's container type
       if (parsedRoute.containerType && parsedRoute.containerType !== formContainerTypeFromUser) {
         return;
       }
+      // If dashboard route string does NOT specify a container type, this candidate is potentially valid for the form's container type.
+      // The specific pricing for rail/drop-off will depend on formContainerTypeFromUser.
+
       if (parsedRate.amount === null || parsedRate.currency !== 'USD') {
         return;
       }
@@ -529,7 +533,7 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
         shipmentType: "COC",
         originPort: formOriginPortFromUser,
         destinationPort: actualSeaDestinationPort, 
-        containerType: formContainerTypeFromUser,
+        containerType: formContainerTypeFromUser, // Use the filtered/overridden container type
         russianDestinationCity: effectiveRussianDestCityForCandidateLogic || undefined, 
         seaLineCompany: section.serviceName, 
       };
@@ -551,23 +555,40 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
         actualSeaDestinationPort !== "N/A" &&
         normalizeCityName(effectiveRussianDestCityForCandidateLogic) !== normalizeCityName(actualSeaDestinationPort);
 
-      // Softened conditions: Do not return if rail leg details failed or specific container price is missing.
-      // Let the costs be null and the candidate will be generated. BestPriceCard handles display of N/A.
+      // Stricter check: if rail is needed, it must be successfully priced for the current container type
+      if (isFurtherRailNeededForThisDashboardCandidate) {
+        const railFailed = additionalDetails.railLegDetails?.railLegFailed;
+        let railPriceMissingForContainerType = false;
+        if (formContainerTypeFromUser === "20DC") {
+          if ((additionalDetails.railLegDetails?.baseCost24t ?? null) === null && (additionalDetails.railLegDetails?.baseCost28t ?? null) === null) {
+            railPriceMissingForContainerType = true;
+          }
+        } else if (formContainerTypeFromUser === "40HC") {
+          if ((additionalDetails.railLegDetails?.baseCost40HC ?? null) === null) {
+            railPriceMissingForContainerType = true;
+          }
+        }
+
+        if (railFailed || railPriceMissingForContainerType) {
+          return; // Skip this dashboard candidate if essential rail leg cannot be priced for the filtered container type
+        }
+      }
       
-      // Still return if COC drop-off is required and fails (unless Panda)
-      if (!section.serviceName?.toLowerCase().includes('panda express line') && additionalDetails.cocDropOffDetails?.dropOffLegFailed){
+      // Also, if COC drop-off is applicable and fails (and not Panda line), skip
+      if (formShipmentType === "COC" && !section.serviceName?.toLowerCase().includes('panda express line') && additionalDetails.cocDropOffDetails?.dropOffLegFailed){
           return;
       }
 
+
       let totalDashboardComparisonCostRUB = parsedRate.amount * USD_RUB_CONVERSION_RATE;
       
-      // Only add rail/drop-off costs if they are successfully found AND priced
       if (additionalDetails.railLegDetails && !additionalDetails.railLegDetails.railLegFailed && additionalDetails.costToAddForRailRUB > 0) {
         totalDashboardComparisonCostRUB += additionalDetails.costToAddForRailRUB;
       }
       if (additionalDetails.cocDropOffDetails && !additionalDetails.cocDropOffDetails.dropOffLegFailed && additionalDetails.costToAddForDropOffRUB > 0) {
           totalDashboardComparisonCostRUB += additionalDetails.costToAddForDropOffRUB;
       } else if (additionalDetails.socDropOffDetails && !additionalDetails.socDropOffDetails.socDropOffLegFailed && additionalDetails.costToAddForDropOffRUB > 0) {
+          // This branch might not be hit due to formShipmentType === "COC" check earlier for dashboard
           totalDashboardComparisonCostRUB += additionalDetails.costToAddForDropOffRUB;
       }
 
@@ -578,7 +599,7 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
         originPort: formOriginPortFromUser,
         seaDestinationPort: actualSeaDestinationPort,
         seaLineCompany: section.serviceName,
-        containerType: formContainerTypeFromUser,
+        containerType: formContainerTypeFromUser, // Reflect the filtered container type
         russianDestinationCity: additionalDetails.derivedRussianDestinationCityForCandidate,
         
         seaCostUSD: parsedRate.amount,
@@ -600,7 +621,6 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
         dropOffDisplayValue: additionalDetails.cocDropOffDetails?.displayValue ?? null,
         dropOffComment: additionalDetails.cocDropOffDetails?.comment ?? null,
         
-        // SOC fields are not applicable here as we are filtering for formShipmentType === "COC"
         socDropOffCostUSD: null, 
         socDropOffComment: null,
         socComment: null,
@@ -610,3 +630,4 @@ export function generateDashboardCandidates(values: RouteFormValues, context: Pr
 
   return candidates;
 }
+
