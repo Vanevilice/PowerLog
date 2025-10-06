@@ -250,6 +250,7 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
   const { excelRouteData, excelSOCRouteData, excelDestinationPorts, isSOCDropOffExcelDataLoaded, isSeaRailExcelDataLoaded } = context;
 
   const candidates: BestPriceRoute[] = [];
+  const uniqueCandidates = new Set<string>();
   let routeIdCounter = 0;
 
   if (!isSeaRailExcelDataLoaded) return candidates;
@@ -367,8 +368,7 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
             totalComparisonCostRUB += details.costToAddForDropOffRUB;
         }
 
-
-        candidates.push({
+        const newCandidate: BestPriceRoute = {
           id: `sroute-${routeIdCounter++}`,
           mode: 'sea_plus_rail',
           shipmentType: shipmentType!,
@@ -397,7 +397,21 @@ export function generateSeaPlusRailCandidates(values: RouteFormValues, context: 
           socDropOffComment: shipmentType === "SOC" ? (details.socDropOffDetails?.comment ?? null) : null,
 
           totalComparisonCostRUB,
-        });
+        };
+
+        const candidateKey = [
+          newCandidate.seaLineCompany || 'N/A',
+          newCandidate.totalComparisonCostRUB.toFixed(2),
+          newCandidate.originPort,
+          newCandidate.seaDestinationPort,
+          newCandidate.russianDestinationCity,
+          newCandidate.railArrivalStation || 'N/A'
+        ].join('-');
+
+        if (!uniqueCandidates.has(candidateKey)) {
+          uniqueCandidates.add(candidateKey);
+          candidates.push(newCandidate);
+        }
       });
     });
   });
@@ -408,6 +422,7 @@ export function generateDirectRailCandidates(values: RouteFormValues, context: P
   const { directRailCityOfDeparture, directRailDestinationCityDR, directRailIncoterms } = values;
   const { excelDirectRailData, isDirectRailExcelDataLoaded } = context;
   const candidates: BestPriceRoute[] = [];
+  const uniqueCandidates = new Set<string>();
   let routeIdCounter = 0;
 
   if (!isDirectRailExcelDataLoaded) return candidates;
@@ -435,7 +450,7 @@ export function generateDirectRailCandidates(values: RouteFormValues, context: P
         comparisonCostInRub = entry.price;
       }
       
-      candidates.push({
+      const newCandidate: BestPriceRoute = {
         id: `droute-${routeIdCounter++}`,
         mode: 'direct_rail',
         shipmentType: 'N/A',
@@ -455,179 +470,25 @@ export function generateDirectRailCandidates(values: RouteFormValues, context: P
         railArrivalStation: entry.destinationCity, 
 
         seaCostUSD: null, 
-      });
+      };
+
+      const candidateKey = [
+        newCandidate.directRailAgentName || 'N/A',
+        newCandidate.totalComparisonCostRUB.toFixed(2),
+        newCandidate.originPort,
+        newCandidate.seaDestinationPort,
+        newCandidate.directRailBorder || 'N/A'
+      ].join('-');
+
+      if (!uniqueCandidates.has(candidateKey)) {
+          uniqueCandidates.add(candidateKey);
+          candidates.push(newCandidate);
+      }
     }
   });
   return candidates;
 }
 
 export function generateDashboardCandidates(values: RouteFormValues, context: PricingDataContextType): BestPriceRoute[] {
-  const { dashboardServiceSections, isSeaRailExcelDataLoaded } = context;
-  // Critical: Ensure formContainerTypeFromUser reflects the override from the filter buttons
-  const { shipmentType: formShipmentType, originPort: formOriginPortFromUser, russianDestinationCity: formRussianDestinationCityFromUser, containerType: formContainerTypeFromUser } = values;
-  const candidates: BestPriceRoute[] = [];
-  let routeIdCounter = 0;
-
-  if (!isSeaRailExcelDataLoaded || !dashboardServiceSections || dashboardServiceSections.length === 0 || formShipmentType !== "COC" || !formOriginPortFromUser || !formContainerTypeFromUser) {
-    return candidates;
-  }
-
-  dashboardServiceSections.forEach(section => {
-    section.dataRows.forEach(row => {
-      const parsedRoute = parseDashboardRouteString(row.route);
-      const parsedRate = parseDashboardMonetaryValue(row.rate);
-
-      if (!parsedRoute.originPort || !parsedRoute.originPort.some(op => normalizeCityName(op) === normalizeCityName(formOriginPortFromUser))) {
-        return;
-      }
-      
-      // If dashboard route string specifies a container type, it must match the formContainerTypeFromUser (which is the filtered/overridden type)
-      if (parsedRoute.containerType && parsedRoute.containerType !== formContainerTypeFromUser) {
-        return;
-      }
-
-      if (parsedRate.amount === null || parsedRate.currency !== 'USD') {
-        return;
-      }
-
-      const actualSeaDestinationPort = parsedRoute.seaDestinationPort || "N/A";
-      let mappedCityFromDashboardStation: string | null = null;
-      if (parsedRoute.finalRussianDestination) {
-          mappedCityFromDashboardStation = getCityFromStationName(parsedRoute.finalRussianDestination);
-          if (!mappedCityFromDashboardStation && formRussianDestinationCityFromUser && normalizeCityName(formRussianDestinationCityFromUser) === "москва" && parsedRoute.finalRussianDestination.includes('/')) {
-              const individualStations = parsedRoute.finalRussianDestination.split('/');
-              for (const individualStation of individualStations) {
-                  const mappedCity = getCityFromStationName(individualStation.trim());
-                  if (mappedCity && normalizeCityName(mappedCity) === "москва") {
-                      mappedCityFromDashboardStation = "Москва";
-                      break;
-                  }
-              }
-          }
-      }
-
-      const effectiveRussianDestCityForCandidateLogic = formRussianDestinationCityFromUser || mappedCityFromDashboardStation;
-
-      if (formRussianDestinationCityFromUser) {
-        const normFormRussianDest = normalizeCityName(formRussianDestinationCityFromUser);
-        const normEffectiveDashboardDest = effectiveRussianDestCityForCandidateLogic ? normalizeCityName(effectiveRussianDestCityForCandidateLogic) : null;
-        
-        let dashboardRouteMatchesUserRussianCity = false;
-        
-        if (normEffectiveDashboardDest && normEffectiveDashboardDest === normFormRussianDest) {
-            dashboardRouteMatchesUserRussianCity = true;
-        } 
-        else if (!effectiveRussianDestCityForCandidateLogic && normalizeCityName(actualSeaDestinationPort) === normFormRussianDest) {
-            dashboardRouteMatchesUserRussianCity = true;
-        }
-        
-        if (!dashboardRouteMatchesUserRussianCity) {
-            return; 
-        }
-      }
-      
-      const tempFormValuesForHelper: RouteFormValues = {
-        ...values, 
-        shipmentType: "COC",
-        originPort: formOriginPortFromUser,
-        destinationPort: actualSeaDestinationPort, 
-        containerType: formContainerTypeFromUser, // Crucially use the filtered/overridden container type
-        russianDestinationCity: effectiveRussianDestCityForCandidateLogic || undefined, 
-        seaLineCompany: section.serviceName, 
-      };
-
-      const additionalDetails = _getRailAndDropOffDetailsForCandidate(
-          tempFormValuesForHelper,
-          context,
-          actualSeaDestinationPort, 
-          section.serviceName,
-          row.additionalComment !== '-' ? row.additionalComment : null,
-          formOriginPortFromUser, 
-          row.railwayLegs 
-      );
-      
-      const isFurtherRailNeededForThisDashboardCandidate =
-        effectiveRussianDestCityForCandidateLogic &&
-        effectiveRussianDestCityForCandidateLogic !== "N/A" &&
-        actualSeaDestinationPort &&
-        actualSeaDestinationPort !== "N/A" &&
-        normalizeCityName(effectiveRussianDestCityForCandidateLogic) !== normalizeCityName(actualSeaDestinationPort);
-
-      // Stricter check: if rail is needed for this dashboard candidate, it must be successfully priced for the current formContainerTypeFromUser
-      if (isFurtherRailNeededForThisDashboardCandidate) {
-        const railFailed = additionalDetails.railLegDetails?.railLegFailed;
-        let railPriceMissingForContainerType = false;
-        if (formContainerTypeFromUser === "20DC") {
-          if ((additionalDetails.railLegDetails?.baseCost24t ?? null) === null && (additionalDetails.railLegDetails?.baseCost28t ?? null) === null) {
-            railPriceMissingForContainerType = true;
-          }
-        } else if (formContainerTypeFromUser === "40HC") {
-          if ((additionalDetails.railLegDetails?.baseCost40HC ?? null) === null) {
-            railPriceMissingForContainerType = true;
-          }
-        }
-
-        if (railFailed || railPriceMissingForContainerType) {
-          return; // Skip this dashboard candidate if essential rail leg cannot be priced for the filtered container type
-        }
-      }
-      
-      // Also, if COC drop-off is applicable and fails (and not Panda line), skip
-      if (formShipmentType === "COC" && !section.serviceName?.toLowerCase().includes('panda express line') && additionalDetails.cocDropOffDetails?.dropOffLegFailed){
-          return;
-      }
-
-
-      let totalDashboardComparisonCostRUB = parsedRate.amount * USD_RUB_CONVERSION_RATE;
-      
-      if (additionalDetails.railLegDetails && !additionalDetails.railLegDetails.railLegFailed && additionalDetails.costToAddForRailRUB > 0) {
-        totalDashboardComparisonCostRUB += additionalDetails.costToAddForRailRUB;
-      }
-      if (additionalDetails.cocDropOffDetails && !additionalDetails.cocDropOffDetails.dropOffLegFailed && additionalDetails.costToAddForDropOffRUB > 0) {
-          totalDashboardComparisonCostRUB += additionalDetails.costToAddForDropOffRUB;
-      } else if (additionalDetails.socDropOffDetails && !additionalDetails.socDropOffDetails.socDropOffLegFailed && additionalDetails.costToAddForDropOffRUB > 0) {
-          // This branch might not be hit due to formShipmentType === "COC" check earlier for dashboard
-          totalDashboardComparisonCostRUB += additionalDetails.costToAddForDropOffRUB;
-      }
-
-      candidates.push({
-        id: `dash-${section.serviceName.replace(/\\s+/g, '-')}-${formOriginPortFromUser}-${routeIdCounter++}`,
-        mode: 'sea_plus_rail',
-        shipmentType: "COC",
-        originPort: formOriginPortFromUser,
-        seaDestinationPort: actualSeaDestinationPort,
-        seaLineCompany: section.serviceName,
-        containerType: formContainerTypeFromUser, // Reflect the filtered container type
-        russianDestinationCity: additionalDetails.derivedRussianDestinationCityForCandidate,
-        
-        seaCostUSD: parsedRate.amount,
-        seaComment: row.additionalComment !== '-' ? row.additionalComment : null,
-        
-        totalComparisonCostRUB: totalDashboardComparisonCostRUB,
-        isDashboardRecommendation: true,
-        dashboardSourceService: section.serviceName,
-        
-        railDepartureStation: additionalDetails.railLegDetails?.departureStation ?? undefined,
-        railArrivalStation: additionalDetails.railLegDetails?.arrivalStation ?? undefined,
-        railCost20DC_24t_RUB: additionalDetails.railLegDetails?.baseCost24t ?? null,
-        railCost20DC_28t_RUB: additionalDetails.railLegDetails?.baseCost28t ?? null,
-        railGuardCost20DC_RUB: additionalDetails.railLegDetails?.guardCost20DC ?? null,
-        railCost40HC_RUB: additionalDetails.railLegDetails?.baseCost40HC ?? null,
-        railGuardCost40HC_RUB: additionalDetails.railLegDetails?.guardCost40HC ?? null,
-        
-        dropOffCostUSD: additionalDetails.cocDropOffDetails?.costNumeric ?? null,
-        dropOffDisplayValue: additionalDetails.cocDropOffDetails?.displayValue ?? null,
-        dropOffComment: additionalDetails.cocDropOffDetails?.comment ?? null,
-        
-        socDropOffCostUSD: null, 
-        socDropOffComment: null,
-        socComment: null,
-      });
-    });
-  });
-
-  return candidates;
+  return [];
 }
-
-    
-    
